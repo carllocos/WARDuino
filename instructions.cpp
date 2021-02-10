@@ -1,8 +1,13 @@
 #include "instructions.h"
 #include "interrupt_operations.h"
 
+#include <inttypes.h> //TODO REMOVE
+
 #include <math.h>
 #include <string.h>
+
+#include <cstdio>
+#include <cstdlib>
 
 #include "debug.h"
 #include "mem.h"
@@ -62,6 +67,27 @@ Block *pop_block(Module *m) {
     return frame->block;
 }
 
+static char _my_value_str[256];
+char *myValue_repr(StackValue *v) {
+  switch (v->value_type) {
+			case I32:
+				snprintf(_my_value_str, 255, "0x%" PRIx32 ":i32", v->value.uint32);
+				break;
+			case I64:
+				snprintf(_my_value_str, 255, "0x%" PRIx64 ":i64", v->value.uint64);
+				break;
+			case F32:
+				snprintf(_my_value_str, 255, "%.7g:f32", v->value.f32);
+				break;
+			case F64:
+				snprintf(_my_value_str, 255, "%.7g:f64", v->value.f64);
+				break;
+			default:
+				snprintf(_my_value_str, 255, "BAD ENCODING %" PRIx64 ":%02x",
+								 v->value.uint64, -v->value_type);
+  }
+  return _my_value_str;
+}
 
 void setup_call(Module *m, uint32_t fidx) {
     Block *func = &m->functions[fidx];
@@ -498,15 +524,46 @@ bool i_instr_tee_local(Module *m) {
 }
 
 /**
- * 0x24 set_global
+ * 0x23 get_global
  */
-bool i_instr_set_global(Module *m) {
+bool i_instr_get_global(Module *m) {
     uint32_t arg = read_LEB_32(&m->pc_ptr);
     if (TRACE) {
         debug("      - arg: 0x%x, got %s\n", arg, value_repr(&m->globals[arg]));
     }
     m->stack[++m->sp] = m->globals[arg];
     return true;
+}
+
+/**
+ * 0x24 set_global
+ */
+bool i_instr_set_global(Module *m) {
+  uint32_t arg = read_LEB_32(&m->pc_ptr);
+  if (TRACE) {
+    debug("      - arg: 0x%x, got %s\n", arg, value_repr(&m->globals[arg]));
+  }
+
+  StackValue *g = m->globals + arg;
+  StackValue *sval = &m->stack[m->sp--];
+  switch (g->value_type) {
+			case I32:
+				memcpy(&g->value, &sval->value.uint32, 4);
+				break; // i32.store
+			case I64:
+				memcpy(&g->value, &sval->value.uint64, 8);
+				break; // i64.store
+			case F32:
+				memcpy(&g->value, &sval->value.f32, 4);
+				break; // f32.store
+			case F64:
+				memcpy(&g->value, &sval->value.f64, 8);
+				break; // f64.store
+			default:
+				return false;
+  }
+
+  return true;
 }
 
 /**
@@ -1544,7 +1601,7 @@ bool interpret(Module *m) {
                 success &= i_instr_tee_local(m);
                 continue;
             case 0x23:  // get_global
-                success &= i_instr_tee_local(m);
+                success &= i_instr_get_global(m);
                 continue;
             case 0x24:  // set_global
                 success &= i_instr_set_global(m);
