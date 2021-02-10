@@ -4,6 +4,8 @@
 #include "debug.h"
 #include "mem.h"
 #include "util.h"
+#include "WARDuino.h"
+#include "interrupt_protocol.h"
 
 /**
  * Validate if there are interrupts and execute them
@@ -40,52 +42,111 @@ enum InteruptTypes {
 
 void doDumpLocals(Module *m);
 
+void format_constant_value(char *buf, StackValue *v) {
+  switch (v->value_type) {
+  case I32:
+    snprintf(buf, 255, R"("type":"i32","value":%)" PRIi32, v->value.uint32);
+    break;
+  case I64:
+    snprintf(buf, 255, R"("type":"i64","value":%)" PRIi64, v->value.uint64);
+    break;
+  case F32:
+    snprintf(buf, 255, R"("type":"f32","value":%.7f)", v->value.f32);
+    break;
+  case F64:
+    snprintf(buf, 255, R"("type":"f64","value":%.7f)", v->value.f64);
+    break;
+  default:
+    snprintf(buf, 255, R"("type":"%02x","value":"%)" PRIx64 "\"", v->value_type,
+             v->value.uint64);
+  }
+}
 
 void doDump(Module *m) {
-    printf("DUMP!\n");
-    printf("{");
+  printf(DUMP_START);
+  printf("{");
 
-    // current PC
-    printf(R"("pc":"%p",)", (void *) m->pc_ptr);
+  // current PC
+  printf(R"("pc":"%p",)", (void *)m->pc_ptr);
 
-    // start of bytes
-    printf(R"("start":["%p"],)", (void *) m->bytes);
+  // start of bytes
+  printf(R"("start":["%p"],)", (void *)m->bytes);
 
-    printf("\"breakpoints\":[");
+  printf("\"breakpoints\":[");
 
-    {
-        size_t i = 0;
-        for (auto bp : m->warduino->breakpoints) {
-            printf(R"("%p"%s)",
-                   bp,
-                   (++i < m->warduino->breakpoints.size()) ? "," : "");
-        }
+  {
+    size_t i = 0;
+    for (auto bp : m->warduino->breakpoints) {
+      printf(R"("%p"%s)", bp,
+             (++i < m->warduino->breakpoints.size()) ? "," : "");
     }
-    printf("],");
-    // Functions
+  }
+  printf("],");
+  // Functions
 
-    printf("\"functions\":[");
+  printf("\"functions\":[");
 
-    for (size_t i = m->import_count; i < m->function_count; i++) {
-        printf(R"({"fidx":"0x%x","from":"%p","to":"%p"}%s)",
-               m->functions[i].fidx,
-               static_cast<void *>(m->functions[i].start_ptr),
-               static_cast<void *>(m->functions[i].end_ptr),
-               (i < m->function_count - 1) ? "," : "],");
-    }
+  for (size_t i = m->import_count; i < m->function_count; i++) {
+    //TODO remove extra unnecessery function state. 
+    printf(R"({"fidx":"0x%x","from":"%p","to":"%p","args":%d,"locs":%d}%s)", m->functions[i].fidx,
+           static_cast<void *>(m->functions[i].start_ptr),
+           static_cast<void *>(m->functions[i].end_ptr),
+           m->functions[i].type->param_count,
+           m->functions[i].local_count,
+           (i < m->function_count - 1) ? "," : "],");//TODO remove ] and put at callstack
+  }
 
-    // Callstack
+  // Callstack
+  printf("\"callstack\":[");
+  for (int i = 0; i <= m->csp; i++) {
+    /*
+     * {"type":%u,"fidx":"0x%x","sp":%d,"fp":%d,"ra":"%p"}%s
+     * */
+    Frame *f = &m->callstack[i];
+    printf(R"({"type":%u,"fidx":"0x%x","sp":%d,"fp":%d,"ra":"%p"}%s)",
+           f->block->block_type, f->block->fidx, f->sp, f->fp,
+           static_cast<void *>(f->ra_ptr), (i < m->csp) ? "," : "],");//TODO remove ] and put it at globals
+  }
+  // GLobals
+  printf("\"globals\":[");
+  for (int i = 0; i < m->global_count; i++) {
+    char _value_str[256];
+    auto v = m->globals + i;
+    format_constant_value(_value_str, v);
+    printf(R"({"idx":%d,%s}%s)", i, _value_str, ((i+1) < m->global_count) ? "," : "");
+  }
+  printf("]");//closing globals
 
-    printf("\"callstack\":[");
-    for (int i = 0; i <= m->csp; i++) {
-        /*
-         * {"type":%u,"fidx":"0x%x","sp":%d,"fp":%d,"ra":"%p"}%s
-         * */
-        Frame *f = &m->callstack[i];
-        printf(R"({"type":%u,"fidx":"0x%x","sp":%d,"fp":%d,"ra":"%p"}%s)",
-               f->block->block_type, f->block->fidx, f->sp, f->fp,
-               static_cast<void *>(f->ra_ptr), (i < m->csp) ? "," : "]}\n");
-    }
+  //Table
+  printf(",\"table\":{\"max\":%d, \"elements\":[", m->table.maximum);
+  for (int i=0 ; i < m->table.size; i++) {
+    printf(R"(%d%s)", m->table.entries[i], ((i+1) < m->table.size) ? "," : "");
+  }
+  printf("]}");//closing table
+
+  //memory
+  int tb = m->memory.pages * (uint32_t) PAGE_SIZE;//TODO debug PAGE_SIZE
+  // int tb = m->memory.pages * 65536;
+  printf(",\"memory\":{\"pages\":%d,\"total\":%d,\"bytes\":[", m->memory.pages, tb);
+  for (int i=0 ; i < tb; i++) {
+    printf(R"(%d%s)", m->memory.bytes[i], ((i+1) < tb) ? "," : "");
+  }
+  printf("]}");//closing memory
+  printf("}\n%s",DUMP_END); //closing dump
+}
+
+void dump_stack_values(Module *m) {
+  fflush(stdout);
+  printf(DUMP_STACK_START);
+  printf(R"({"stack":[)");
+  char _value_str[256];
+  for (int i = 0; i <= m->sp; i++) {
+    auto v = &m->stack[i];
+    format_constant_value(_value_str, v);
+    printf(R"({"idx":%d, %s}%s)", i, _value_str, (i == m->sp) ? "" : ",");
+  }
+  printf("]}\n");
+  printf(DUMP_STACK_END);
 }
 
 void doDumpLocals(Module *m) {
@@ -285,11 +346,12 @@ bool check_interrupts(Module *m, RunningState *program_state) {
                     bp |= interruptData[i + 2];
                 }
                 auto *bpt = (uint8_t *) bp;
-                printf("BP %p!\n", static_cast<void *>(bpt));
 
                 if (*interruptData == 0x06) {
+										printf("ADD BP %p!\n", static_cast<void *>(bpt));
                     m->warduino->addBreakpoint(bpt);
                 } else {
+										printf("RMV BP %p!\n", static_cast<void *>(bpt));
                     m->warduino->delBreakpoint(bpt);
                 }
 
@@ -306,7 +368,7 @@ bool check_interrupts(Module *m, RunningState *program_state) {
             case interruptDUMPLocals:
                 *program_state = WARDUINOpause;
                 free(interruptData);
-                doDumpLocals(m);
+								dump_stack_values(m);
                 break;
             case interruptUPDATEFun:
                 printf("CHANGE local!\n");
