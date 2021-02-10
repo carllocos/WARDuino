@@ -19,23 +19,23 @@
 
 #define delay_us(ms) delayMicroseconds(ms)
 #include <SPI.h>
-SPIClass *spi = new SPIClass();
+SPIClass *spi_c = new SPIClass();
 
 //Hardeware SPI
 void write_spi_byte(unsigned char c){
-  spi->beginTransaction(SPISettings(20000000, MSBFIRST, SPI_MODE0));
-  spi->transfer(c);
-  spi->endTransaction();
+  spi_c->beginTransaction(SPISettings(20000000, MSBFIRST, SPI_MODE0));
+  spi_c->transfer(c);
+  spi_c->endTransaction();
 }
 
 void write_spi_bytes_16_prim(int times, uint32_t color) {
     unsigned char colorB = color >> 8;
-    spi->beginTransaction(SPISettings(200000000, MSBFIRST, SPI_MODE0));
+    spi_c->beginTransaction(SPISettings(200000000, MSBFIRST, SPI_MODE0));
     for (int x=0; x < times; x++) {
-        spi->transfer(colorB);
-          spi->transfer(color);
+        spi_c->transfer(colorB);
+          spi_c->transfer(color);
     }
-      spi->endTransaction();
+      spi_c->endTransaction();
 }
 
 #else
@@ -149,9 +149,9 @@ Type NoneToNoneU32 = {
 
 //warning: undefined symbol: chip_pin_mode
 def_prim(chip_pin_mode, twoToNoneU32) {
-    printf("chip_pin_mode \n");
     uint8_t pin = arg1.uint32;
     uint8_t mode = arg0.uint32;
+    // printf("chip_pin_mode pin %d mode %d\n", pin, mode);
     pinMode(pin, mode);
     pop_args(2);
 }
@@ -161,12 +161,13 @@ def_prim(chip_digital_write, twoToNoneU32) {
     yield();
     uint8_t pin = arg1.uint32;
     uint8_t val = arg0.uint32;
+    // printf("digital_write pin %d val %d\n", pin, val);
     digitalWrite(pin, val);
     pop_args(2);
 }
 
 def_prim(chip_delay, oneToNoneU32) {
-    printf("chip_delay \n");
+    // printf("chip_delay \n");
     delay(arg0.uint32);
     pop_args(1);
 }
@@ -194,7 +195,7 @@ def_prim (write_spi_byte, oneToNoneU32) {
 def_prim (spi_begin, NoneToNoneU32) {
     yield();
     printf("spi_begin \n");
-    spi->begin();
+    spi_c->begin();
 }
 
 def_prim(write_spi_bytes_16,twoToNoneU32) {
