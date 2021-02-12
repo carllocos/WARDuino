@@ -1,4 +1,5 @@
 #include "interrupt_operations.h"
+#include <cstdio>
 #include <inttypes.h>
 #include "string.h"
 #include "debug.h"
@@ -6,7 +7,7 @@
 #include "util.h"
 #include "WARDuino.h"
 #include "interrupt_protocol.h"
-
+#include "Arduino.h"
 /**
  * Validate if there are interrupts and execute them
  *
@@ -117,21 +118,41 @@ void doDump(Module *m) {
   }
   printf("]");//closing globals
 
+	//TODO improve send protocol: forat #of elements #size of each element
+	// #of elements expressed in 4bytes little endian
+	// #size of each element expressed in 4bytes little endia
+
   //Table
+  uint32_t total_elems = m->table.size;
+	uint32_t byte_per_elem = sizeof(uint32_t); //one element of memory
   printf(",\"table\":{\"max\":%d, \"elements\":[", m->table.maximum);
-  for (int i=0 ; i < m->table.size; i++) {
-    printf(R"(%d%s)", m->table.entries[i], ((i+1) < m->table.size) ? "," : "");
-  }
+	printf(DUMP_BYTES);
+	Serial.write((byte *) &total_elems, sizeof(uint32_t));
+	Serial.write((byte *) &byte_per_elem, sizeof(uint32_t));
+  Serial.write((byte *) m->table.entries,total_elems * byte_per_elem);
+	printf(DUMP_BYTES_END);
   printf("]}");//closing table
 
   //memory
-  int tb = m->memory.pages * (uint32_t) PAGE_SIZE;//TODO debug PAGE_SIZE
-  // int tb = m->memory.pages * 65536;
-  printf(",\"memory\":{\"pages\":%d,\"total\":%d,\"bytes\":[", m->memory.pages, tb);
-  for (int i=0 ; i < tb; i++) {
-    printf(R"(%d%s)", m->memory.bytes[i], ((i+1) < tb) ? "," : "");
-  }
+  total_elems = m->memory.pages * (uint32_t) PAGE_SIZE;//TODO debug PAGE_SIZE
+  byte_per_elem = sizeof(uint8_t); //one element of memory
+  printf(",\"memory\":{\"pages\":%d,\"total\":%d,\"bytes\":[", m->memory.pages, total_elems);
+	printf(DUMP_BYTES);
+	Serial.write((byte *) &total_elems, sizeof(uint32_t));
+	Serial.write((byte *) &byte_per_elem, sizeof(uint32_t));
+  Serial.write((byte *) m->memory.bytes, byte_per_elem * total_elems);
+	printf(DUMP_BYTES_END);
   printf("]}");//closing memory
+
+  total_elems = (uint32_t) BR_TABLE_SIZE;
+	byte_per_elem = sizeof(uint32_t);
+  printf(",\"br_table\":{\"size\":\"0x%x\",\"labels\":[",BR_TABLE_SIZE);
+	printf(DUMP_BYTES);
+	Serial.write((byte *) &total_elems, sizeof(uint32_t));
+	Serial.write((byte *) &byte_per_elem, sizeof(uint32_t));
+	Serial.write((byte *) m->br_table, byte_per_elem * total_elems);
+	printf(DUMP_BYTES_END);
+	printf("]}");
   printf("}\n%s",DUMP_END); //closing dump
 }
 
