@@ -50,9 +50,9 @@ void write_spi_bytes_16_prim(int times, uint32_t color) {
 
 #define NUM_PRIMITIVES 0
 #ifdef ARDUINO
-#define NUM_PRIMITIVES_ARDUINO 8
+#define NUM_PRIMITIVES_ARDUINO 9
 #else
-#define NUM_PRIMITIVES_ARDUINO 7
+#define NUM_PRIMITIVES_ARDUINO 8
 #endif
 
 #define ALL_PRIMITIVES (NUM_PRIMITIVES + NUM_PRIMITIVES_ARDUINO)
@@ -78,7 +78,7 @@ int prim_index = 0;
 
 #define def_prim(function_name, type) \
     Type function_name##_type = type; \
-    void function_name(Module* m)
+    bool function_name(Module* m)
 
 // TODO: use fp
 #define pop_args(n) m->sp -= n
@@ -146,6 +146,13 @@ Type NoneToNoneU32 = {
 //------------------------------------------------------
 #ifdef ARDUINO
 
+def_prim(assert_int, oneToNoneU32) {
+    uint8_t boolean = arg0.uint32;
+    sprintf(exception, "Trap: assertion failed");
+    pop_args(1);
+    return (bool) boolean;
+}
+
 
 //warning: undefined symbol: chip_pin_mode
 def_prim(chip_pin_mode, twoToNoneU32) {
@@ -154,6 +161,7 @@ def_prim(chip_pin_mode, twoToNoneU32) {
     // printf("chip_pin_mode pin %d mode %d\n", pin, mode);
     pinMode(pin, mode);
     pop_args(2);
+    return true;
 }
 
 // warning: undefined symbol: chip_digital_write
@@ -164,12 +172,14 @@ def_prim(chip_digital_write, twoToNoneU32) {
     // printf("digital_write pin %d val %d\n", pin, val);
     digitalWrite(pin, val);
     pop_args(2);
+    return true;
 }
 
 def_prim(chip_delay, oneToNoneU32) {
     // printf("chip_delay \n");
     delay(arg0.uint32);
     pop_args(1);
+    return true;
 }
 
 //warning: undefined symbol: chip_delay_us
@@ -177,18 +187,21 @@ def_prim (chip_delay_us, oneToNoneU32) {
     yield();
     delay_us(arg0.uint32);
     pop_args(1);
+    return true;
 }
 
 def_prim(chip_digital_read, oneToOneU32) {
     uint8_t pin = arg0.uint32;
     uint8_t res = digitalRead(pin);
     pushInt32(res);
+    return true;
 }
 
 //warning: undefined symbol: write_spi_byte
 def_prim (write_spi_byte, oneToNoneU32) {
     write_spi_byte(arg0.uint32);
     pop_args(1);
+    return true;
 }
 
 //warning: undefined symbol: spi_begin
@@ -201,18 +214,28 @@ def_prim (spi_begin, NoneToNoneU32) {
 def_prim(write_spi_bytes_16,twoToNoneU32) {
         write_spi_bytes_16_prim(arg1.uint32,arg0.uint32);
     pop_args(2);
+    return true;
 }
 
 #else
 
+def_prim(assert_int, oneToNoneU32) {
+    uint8_t boolean = arg0.uint32;
+    dbg_trace("EMU: assert(%u) \n", boolean);
+    pop_args(1);
+    return (bool) boolean;
+}
+
 def_prim(chip_pin_mode, twoToNoneU32) {
     dbg_trace("EMU: chip_pin_mode(%u,%u) \n", arg1.uint32, arg0.uint32);
     pop_args(2);
+    return true;
 }
 
 def_prim(chip_digital_write, twoToNoneU32) {
     dbg_trace("EMU: chip_digital_write(%u,%u) \n", arg1.uint32, arg0.uint32);
     pop_args(2);
+    return true;
 }
 
 def_prim(chip_delay, oneToNoneU32) {
@@ -222,6 +245,7 @@ def_prim(chip_delay, oneToNoneU32) {
     sleep_for(milliseconds(arg0.uint32));
     dbg_trace("EMU: .. done\n");
     pop_args(1);
+    return true;
 }
 
 def_prim(chip_delay_us, oneToNoneU32) {
@@ -231,22 +255,26 @@ def_prim(chip_delay_us, oneToNoneU32) {
     sleep_for(microseconds(arg0.uint32));
     dbg_trace("EMU: .. done\n");
     pop_args(1);
+    return true;
 }
 
 //warning: undefined symbol: write_spi_byte
 def_prim (write_spi_byte, oneToNoneU32) {
     dbg_trace("EMU: write_spi_byte(%u) \n", arg0.uint32);
     pop_args(1);
+    return true;
 }
 
 //warning: undefined symbol: spi_begin
 def_prim (spi_begin, NoneToNoneU32) {
     dbg_trace("EMU: spi_begin \n");
+    return true;
 }
 
 def_prim(write_spi_bytes_16, twoToNoneU32) {
     dbg_trace("EMU: write_spi_byte_16(%u, %u) \n", arg1.uint32, arg0.uint32);
     pop_args(2);
+    return true;
 }
 
 
@@ -268,6 +296,7 @@ void install_primitives() {
     //install_primitive(rand);
 #ifdef ARDUINO
     dbg_info("INSTALLING ARDUINO\n");
+    install_primitive(assert_int);
     install_primitive(chip_pin_mode);
     install_primitive(chip_digital_write);
     install_primitive(chip_delay);
@@ -278,6 +307,7 @@ void install_primitives() {
     install_primitive(write_spi_bytes_16);
 #else
     dbg_info("INSTALLING FAKE ARDUINO\n");
+    install_primitive(assert_int);
     install_primitive(chip_pin_mode);
     install_primitive(chip_digital_write);
     install_primitive(chip_delay);
