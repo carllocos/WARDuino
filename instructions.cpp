@@ -13,6 +13,7 @@
 #include "mem.h"
 #include "util.h"
 #include "util_arduino.h"
+#include "my_debug_a.h"
 
 // Size of memory load.
 // This starts with the first memory load operator at opcode 0x28
@@ -715,14 +716,17 @@ bool i_instr_mem_store(Module *m, uint8_t opcode) {
     }
     if (offset + addr < addr) {
         overflow = true;
+				printf("overflow A\n");
     }
     maddr = m->memory.bytes + offset + addr;
     if (maddr < m->memory.bytes) {
         overflow = true;
+				printf("overflow B\n");
     }
     mem_end = m->memory.bytes + m->memory.pages * (uint32_t) PAGE_SIZE;
     if (maddr + LOAD_SIZE[opcode - 0x28] > mem_end) {
         overflow = true;
+				printf("overflow C\n");
     }dbg_info(
             "      - addr: 0x%x, offset: 0x%x, maddr: %p, mem_end: %p, value: "
             "%s\n",
@@ -732,6 +736,7 @@ bool i_instr_mem_store(Module *m, uint8_t opcode) {
             dbg_warn("memory start: %p, memory end: %p, maddr: %p\n",
                      m->memory.bytes, mem_end, maddr);
             sprintf(exception, "out of bounds memory access");
+						printf("overflow D\n");
             return false;
         }
     }
@@ -764,6 +769,7 @@ bool i_instr_mem_store(Module *m, uint8_t opcode) {
             memcpy(maddr, &sval->value.uint64, 4);
             break;  // i64.store32
         default:
+						printf("unexisting bit store\n");
             return false;
     }
     return true;
@@ -1488,6 +1494,8 @@ bool i_instr_conversion(Module *m, uint8_t opcode) {
 bool interpret(Module *m) {
     uint8_t *block_ptr;
     uint8_t opcode;
+		uint32_t ctr = 0;
+		// bool skip_bp = false; //TODO when you do run and the current pc_ptr is a breakpoint set to true
 
     // keep track of occuring errors
     bool success = true;
@@ -1516,8 +1524,16 @@ bool interpret(Module *m) {
         if (m->warduino->isBreakpoint(m->pc_ptr)) {
             program_state = WARDUINOpause;
             printf("AT %p!\n", (void *) m->pc_ptr);
+            // printf("OPCODE!\n");
+            // printf("%u END OPCODE!\n", *m->pc_ptr);
             continue;
         }
+				// ctr = ctr + 1;
+				// if(ctr < 1000){
+				//     continue;
+				// }
+				
+				// ctr = 0;
 
         opcode = *m->pc_ptr;
         block_ptr = m->pc_ptr;
@@ -1529,6 +1545,9 @@ bool interpret(Module *m) {
                   m->pc_ptr > m->bytes && m->pc_ptr < m->bytes + m->byte_count
                   ? "module"
                   : "patch");
+				// printf(" PC: %p, START %p, OPCODE: <%s>\n", block_ptr,
+				//         (void *) m->bytes,
+				//         my_opcode_repr_A(opcode));
 
         switch (opcode) {
             //
@@ -1618,10 +1637,12 @@ bool interpret(Module *m) {
                 continue;
                 // Memory load operators
             case 0x28 ... 0x35:
+								// printf("LOADING\n");
                 success &= i_instr_mem_load(m, opcode);
                 continue;
                 // Memory store operators
             case 0x36 ... 0x3e:
+								// printf("STORING\n");
                 success &= i_instr_mem_store(m, opcode);
                 continue;
 

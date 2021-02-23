@@ -8,6 +8,7 @@
 #include "WARDuino.h"
 #include "interrupt_protocol.h"
 #include "Arduino.h"
+#include "my_debug.h"
 /**
  * Validate if there are interrupts and execute them
  *
@@ -63,16 +64,18 @@ void format_constant_value(char *buf, StackValue *v) {
   }
 }
 
+
 void doDump(Module *m) {
   printf(DUMP_START);
   printf("{");
 
   // current PC
   printf(R"("pc":"%p",)", (void *)m->pc_ptr);
-
+	//
   // start of bytes
   printf(R"("start":["%p"],)", (void *)m->bytes);
 
+	printf("\"opcode\":\"%s\",", my_opcode_repr(*m->pc_ptr));
   printf("\"breakpoints\":[");
 
   {
