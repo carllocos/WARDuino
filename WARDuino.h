@@ -12,6 +12,7 @@
 #include <array>
 #include <vector>
 #include <set>
+#include "printing.h"
 
 // Constants
 #define WA_MAGIC 0x6d736100
@@ -192,10 +193,12 @@ private:
     std::vector<uint8_t> interruptBuffer;
     long interruptSize;
 
+
 public:
 
     // vector, we expect few breakpoints
     std::set<uint8_t *> breakpoints = {};
+		Printing printing;
 
     WARDuino();
 

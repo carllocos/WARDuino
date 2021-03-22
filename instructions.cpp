@@ -13,7 +13,6 @@
 #include "mem.h"
 #include "util.h"
 #include "util_arduino.h"
-#include "my_debug_a.h"
 
 // Size of memory load.
 // This starts with the first memory load operator at opcode 0x28
@@ -1494,7 +1493,6 @@ bool i_instr_conversion(Module *m, uint8_t opcode) {
 bool interpret(Module *m) {
     uint8_t *block_ptr;
     uint8_t opcode;
-		uint32_t ctr = 0;
 		// bool skip_bp = false; //TODO when you do run and the current pc_ptr is a breakpoint set to true
 
     // keep track of occuring errors
@@ -1523,17 +1521,13 @@ bool interpret(Module *m) {
         // Don't check for breakpoints while paused
         if (m->warduino->isBreakpoint(m->pc_ptr)) {
             program_state = WARDUINOpause;
-            printf("AT %p!\n", (void *) m->pc_ptr);
+						// printf("AT %p!\n", (void *) m->pc_ptr);
+						debug("AT %p!\n", (void *) m->pc_ptr);
+            m->warduino->printing.printevent("AT %p!\n", (void *) m->pc_ptr);
             // printf("OPCODE!\n");
             // printf("%u END OPCODE!\n", *m->pc_ptr);
             continue;
         }
-				// ctr = ctr + 1;
-				// if(ctr < 1000){
-				//     continue;
-				// }
-				
-				// ctr = 0;
 
         opcode = *m->pc_ptr;
         block_ptr = m->pc_ptr;
@@ -1545,9 +1539,6 @@ bool interpret(Module *m) {
                   m->pc_ptr > m->bytes && m->pc_ptr < m->bytes + m->byte_count
                   ? "module"
                   : "patch");
-				// printf(" PC: %p, START %p, OPCODE: <%s>\n", block_ptr,
-				//         (void *) m->bytes,
-				//         my_opcode_repr_A(opcode));
 
         switch (opcode) {
             //
