@@ -1,12 +1,10 @@
 #include "interrupt_operations.h"
-#include <algorithm>
-#include <cstdio>
-#include <cstdlib>
+
 #include <inttypes.h>
-#include <iterator>
-#include "string.h"
+
 #include "debug.h"
 #include "mem.h"
+#include "string.h"
 #include "util.h"
 #include "WARDuino.h"
 #include "interrupt_protocol.h"
@@ -534,7 +532,8 @@ void doDumpLocals(Module *m) {
                          v->value_type, v->value.uint64);
         }
 
-        printf("{%s}%s", _value_str, (i + 1 < f->block->local_count) ? "," : "");
+        printf("{%s}%s", _value_str,
+               (i + 1 < f->block->local_count) ? "," : "");
     }
     printf("]}\n\n");
     fflush(stdout);
@@ -572,13 +571,13 @@ bool readChange(Module *m, uint8_t *bytes) {
         lecount = read_LEB_32(&pos);
         function->local_count += lecount;
         tidx = read_LEB(&pos, 7);
-        (void) tidx;  // TODO: use tidx?
+        (void)tidx;  // TODO: use tidx?
     }
 
     if (function->local_count > 0) {
         function->local_value_type =
-                (uint8_t *) acalloc(function->local_count, sizeof(uint8_t),
-                                    "function->local_value_type");
+            (uint8_t *)acalloc(function->local_count, sizeof(uint8_t),
+                               "function->local_value_type");
     }
 
     // Restore position and read the locals
@@ -600,7 +599,6 @@ bool readChange(Module *m, uint8_t *bytes) {
     return true;
 }
 
-
 /**
  * Read change to local
  * @param m
@@ -608,7 +606,6 @@ bool readChange(Module *m, uint8_t *bytes) {
  * @return
  */
 bool readChangeLocal(Module *m, uint8_t *bytes) {
-
     if (*bytes != interruptUPDATELocal) return false;
     uint8_t *pos = bytes + 1;
     printf("Local updates: %x\n", *pos);
@@ -630,7 +627,7 @@ bool readChangeLocal(Module *m, uint8_t *bytes) {
             memcpy(&v->value.uint64, pos, 8);
             break;
     }
-    printf("Local %u changed to %u\n", localId,v->value.uint32);
+    printf("Local %u changed to %u\n", localId, v->value.uint32);
     return true;
 }
 
@@ -660,9 +657,11 @@ bool check_interrupts(Module *m, RunningState *program_state) {
         printf("Interupt: %x\n", *interruptData);
         switch (*interruptData) {
             case interruptRUN:
-                // printf("GO!\n");
-                debug("GO!\n");
-								m->warduino->printing.printo("Go!\n");
+                printf("GO!\n");
+                if (*program_state == WARDUINOpause &&
+                    m->warduino->isBreakpoint(m->pc_ptr)) {
+                    m->warduino->skipBreakpoint = m->pc_ptr;
+                }
                 *program_state = WARDUINOrun;
                 free(interruptData);
                 break;
@@ -697,7 +696,8 @@ bool check_interrupts(Module *m, RunningState *program_state) {
                     bp <<= sizeof(uint8_t) * 8;
                     bp |= interruptData[i + 2];
                 }
-                auto *bpt = (uint8_t *) bp;
+                auto *bpt = (uint8_t *)bp;
+                printf("BP %p!\n", static_cast<void *>(bpt));
 
                 if (*interruptData == 0x06) {
 										// printf("ADD BP %p!\n", static_cast<void *>(bpt));
@@ -781,4 +781,3 @@ bool check_interrupts(Module *m, RunningState *program_state) {
     }
     return false;
 }
-
