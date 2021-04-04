@@ -1,19 +1,24 @@
+// clang-format off
+// Order needs to be maintained
 #include "instructions.h"
 #include "interrupt_operations.h"
-
-#include <inttypes.h> //TODO REMOVE
+// clang-format on
 
 #include <math.h>
 #include <string.h>
-
-#include <cstdio>
-#include <cstdlib>
 
 #include "debug.h"
 #include "mem.h"
 #include "util.h"
 #include "util_arduino.h"
-#include "my_debug_a.h"
+#include <inttypes.h>
+
+#if SOCKET
+#include <unistd.h>
+
+extern void socket_debug(const char *format, ...);
+extern int eventDescriptor();
+#endif
 
 // Size of memory load.
 // This starts with the first memory load operator at opcode 0x28
@@ -70,24 +75,24 @@ Block *pop_block(Module *m) {
 
 static char _my_value_str[256];
 char *myValue_repr(StackValue *v) {
-  switch (v->value_type) {
-			case I32:
-				snprintf(_my_value_str, 255, "0x%" PRIx32 ":i32", v->value.uint32);
-				break;
-			case I64:
-				snprintf(_my_value_str, 255, "0x%" PRIx64 ":i64", v->value.uint64);
-				break;
-			case F32:
-				snprintf(_my_value_str, 255, "%.7g:f32", v->value.f32);
-				break;
-			case F64:
-				snprintf(_my_value_str, 255, "%.7g:f64", v->value.f64);
-				break;
-			default:
-				snprintf(_my_value_str, 255, "BAD ENCODING %" PRIx64 ":%02x",
-								 v->value.uint64, -v->value_type);
-  }
-  return _my_value_str;
+    switch (v->value_type) {
+        case I32:
+            snprintf(_my_value_str, 255, "0x%" PRIx32 ":i32", v->value.uint32);
+            break;
+        case I64:
+            snprintf(_my_value_str, 255, "0x%" PRIx64 ":i64", v->value.uint64);
+            break;
+        case F32:
+            snprintf(_my_value_str, 255, "%.7g:f32", v->value.f32);
+            break;
+        case F64:
+            snprintf(_my_value_str, 255, "%.7g:f64", v->value.f64);
+            break;
+        default:
+            snprintf(_my_value_str, 255, "BAD ENCODING %" PRIx64 ":%02x",
+                     v->value.uint64, -v->value_type);
+    }
+    return _my_value_str;
 }
 
 void setup_call(Module *m, uint32_t fidx) {
@@ -100,16 +105,15 @@ void setup_call(Module *m, uint32_t fidx) {
     if (TRACE) {
         dbg_warn("  >> fn0x%x(%d) %s(", fidx, fidx,
                  func->export_name ? func->export_name : "");
-        for (int p = ((int) type->param_count) - 1; p >= 0; p--) {
-            dbg_warn("%s%s", value_repr(&m->stack[m->sp - p]),
-                     p ? " " : "");
+        for (int p = ((int)type->param_count) - 1; p >= 0; p--) {
+            dbg_warn("%s%s", value_repr(&m->stack[m->sp - p]), p ? " " : "");
         }
         dbg_warn("), %d locals, %d results\n", func->local_count,
                  type->result_count);
     }
 
     // Push locals (dropping extras)
-    m->fp = m->sp - ((int) type->param_count) + 1;
+    m->fp = m->sp - ((int)type->param_count) + 1;
     // TODO: validate arguments vs formal params
 
     // Push function locals
@@ -229,7 +233,7 @@ bool i_instr_if(Module *m, uint8_t *block_ptr) {
     // if true, keep going
     if (TRACE) {
         debug("      - cond: 0x%x jump to 0x%x, block: %s\n", cond,
-              (uint32_t) (m->pc_ptr - m->bytes), block_repr(block));
+              (uint32_t)(m->pc_ptr - m->bytes), block_repr(block));
     }
     return true;
 }
@@ -262,8 +266,8 @@ bool i_instr_end(Module *m, bool *prog_done) {
             dbg_warn("  << fn0x%x(%d) %s = %s\n", block->fidx, block->fidx,
                      block->export_name ? block->export_name : "",
                      block->type->result_count > 0
-                     ? value_repr(&m->stack[m->sp])
-                     : "_");
+                         ? value_repr(&m->stack[m->sp])
+                         : "_");
         }
         if (m->csp == -1) {
             // Return to top-level
@@ -276,7 +280,7 @@ bool i_instr_end(Module *m, bool *prog_done) {
         *prog_done = true;
         return true;  // continue execution but brake dispatch loop
     } else {          // Block
-        // End of block/loop/if, keep going
+                      // End of block/loop/if, keep going
     }
     return true;  // continue execution
 }
@@ -332,7 +336,7 @@ bool i_instr_br_table(Module *m) {
     uint32_t depth = read_LEB_32(&m->pc_ptr);
 
     int32_t didx = m->stack[m->sp--].value.int32;
-    if (didx >= 0 && didx < (int32_t) count) {
+    if (didx >= 0 && didx < (int32_t)count) {
         depth = m->br_table[didx];
     }
 
@@ -368,7 +372,7 @@ bool i_instr_return(Module *m) {
 bool i_instr_call(Module *m) {
     uint32_t fidx = read_LEB_32(&m->pc_ptr);
     if (fidx < m->import_count) {
-        return ((Primitive) m->functions[fidx].func_ptr)(m);
+        return ((Primitive)m->functions[fidx].func_ptr)(m);
     } else {
         if (m->csp >= CALLSTACK_SIZE) {
             sprintf(exception, "call stack exhausted");
@@ -388,7 +392,7 @@ bool i_instr_call(Module *m) {
  */
 bool i_instr_call_indirect(Module *m) {
     uint32_t tidx = read_LEB_32(&m->pc_ptr);  // TODO: use tidx?
-    (void) tidx;
+    (void)tidx;
     read_LEB(&m->pc_ptr, 1);  // reserved immediate
     uint32_t val = m->stack[m->sp--].value.uint32;
     if (m->options.mangle_table_index) {
@@ -397,10 +401,10 @@ bool i_instr_call_indirect(Module *m) {
         if (TRACE) {
             debug("      - entries: %p, original val: 0x%x, new val: 0x%x\n",
                   m->table.entries, val,
-                  (uint32_t) ((uint64_t) m->table.entries) - val);
+                  (uint32_t)((uint64_t)m->table.entries) - val);
         }
         // val = val - (uint32_t)((uint64_t)m->table.entries & 0xFFFFFFFF);
-        val = val - (uint32_t) ((uint64_t) m->table.entries);
+        val = val - (uint32_t)((uint64_t)m->table.entries);
     }
     if (val >= m->table.maximum) {
         sprintf(exception, "undefined element 0x%x (max: 0x%x) in table", val,
@@ -434,7 +438,7 @@ bool i_instr_call_indirect(Module *m) {
         setup_call(m, fidx);  // regular function call
 
         // Validate signatures match
-        if ((int) (ftype->param_count + func->local_count) !=
+        if ((int)(ftype->param_count + func->local_count) !=
             m->sp - m->fp + 1) {
             sprintf(exception,
                     "indirect call type mismatch (param counts differ)");
@@ -450,9 +454,9 @@ bool i_instr_call_indirect(Module *m) {
 
         if (TRACE) {
             debug(
-                    "      - tidx: %d, table idx: %d, "
-                    "calling function fidx: %d at: 0x%p\n",
-                    tidx, val, fidx, m->pc_ptr);
+                "      - tidx: %d, table idx: %d, "
+                "calling function fidx: %d at: 0x%p\n",
+                tidx, val, fidx, m->pc_ptr);
         }
     }
     return true;
@@ -506,8 +510,8 @@ bool i_instr_set_local(Module *m) {
     int32_t arg = read_LEB_32(&m->pc_ptr);
     m->stack[m->fp + arg] = m->stack[m->sp--];
     if (TRACE) {
-        debug("      - arg: 0x%x, to %s (stack loc: %d)\n", arg, value_repr(&m->stack[m->sp + 1]),
-              m->fp + arg);
+        debug("      - arg: 0x%x, to %s (stack loc: %d)\n", arg,
+              value_repr(&m->stack[m->sp + 1]), m->fp + arg);
     }
     return true;
 }
@@ -540,31 +544,31 @@ bool i_instr_get_global(Module *m) {
  * 0x24 set_global
  */
 bool i_instr_set_global(Module *m) {
-  uint32_t arg = read_LEB_32(&m->pc_ptr);
-  if (TRACE) {
-    debug("      - arg: 0x%x, got %s\n", arg, value_repr(&m->globals[arg]));
-  }
+    uint32_t arg = read_LEB_32(&m->pc_ptr);
+    if (TRACE) {
+        debug("      - arg: 0x%x, got %s\n", arg, value_repr(&m->globals[arg]));
+    }
 
-  StackValue *g = m->globals + arg;
-  StackValue *sval = &m->stack[m->sp--];
-  switch (g->value_type) {
-			case I32:
-				memcpy(&g->value, &sval->value.uint32, 4);
-				break; // i32.store
-			case I64:
-				memcpy(&g->value, &sval->value.uint64, 8);
-				break; // i64.store
-			case F32:
-				memcpy(&g->value, &sval->value.f32, 4);
-				break; // f32.store
-			case F64:
-				memcpy(&g->value, &sval->value.f64, 8);
-				break; // f64.store
-			default:
-				return false;
-  }
+    StackValue *g = m->globals + arg;
+    StackValue *sval = &m->stack[m->sp--];
+    switch (g->value_type) {
+        case I32:
+            memcpy(&g->value, &sval->value.uint32, 4);
+            break;  // i32.store
+        case I64:
+            memcpy(&g->value, &sval->value.uint64, 8);
+            break;  // i64.store
+        case F32:
+            memcpy(&g->value, &sval->value.f32, 4);
+            break;  // f32.store
+        case F64:
+            memcpy(&g->value, &sval->value.f64, 8);
+            break;  // f64.store
+        default:
+            return false;
+    }
 
-  return true;
+    return true;
 }
 
 /**
@@ -592,9 +596,9 @@ bool i_instr_grow_memory(Module *m) {
         return true;
     }
     m->memory.pages += delta;
-    m->memory.bytes = (uint8_t *) arecalloc(
-            m->memory.bytes, prev_pages * PAGE_SIZE, m->memory.pages * PAGE_SIZE,
-            sizeof(uint32_t), "Module->memory.bytes");
+    m->memory.bytes = (uint8_t *)arecalloc(
+        m->memory.bytes, prev_pages * PAGE_SIZE, m->memory.pages * PAGE_SIZE,
+        sizeof(uint32_t), "Module->memory.bytes");
     return true;
 }
 
@@ -607,10 +611,11 @@ bool i_instr_mem_load(Module *m, uint8_t opcode) {
     uint32_t flags = read_LEB_32(&m->pc_ptr);
     uint32_t offset = read_LEB_32(&m->pc_ptr);
     uint32_t addr = m->stack[m->sp--].value.uint32;
-    if (flags != 2 && TRACE) { dbg_info(
-                "      - unaligned load - flags: 0x%x,"
-                " offset: 0x%x, addr: 0x%x\n",
-                flags, offset, addr);
+    if (flags != 2 && TRACE) {
+        dbg_info(
+            "      - unaligned load - flags: 0x%x,"
+            " offset: 0x%x, addr: 0x%x\n",
+            flags, offset, addr);
     }
     if (offset + addr < addr) {
         overflow = true;
@@ -619,11 +624,12 @@ bool i_instr_mem_load(Module *m, uint8_t opcode) {
     if (maddr < m->memory.bytes) {
         overflow = true;
     }
-    mem_end = m->memory.bytes + m->memory.pages * (uint32_t) PAGE_SIZE;
+    mem_end = m->memory.bytes + m->memory.pages * (uint32_t)PAGE_SIZE;
     if (maddr + LOAD_SIZE[opcode - 0x28] > mem_end) {
         overflow = true;
-    }dbg_info("      - addr: 0x%x, offset: 0x%x, maddr: %p, mem_end: %p\n", addr,
-              offset, maddr, mem_end);
+    }
+    dbg_info("      - addr: 0x%x, offset: 0x%x, maddr: %p, mem_end: %p\n", addr,
+             offset, maddr, mem_end);
     if (!m->options.disable_memory_bounds) {
         if (overflow) {
             dbg_warn("memory start: %p, memory end: %p, maddr: %p\n",
@@ -709,34 +715,32 @@ bool i_instr_mem_store(Module *m, uint8_t opcode) {
     uint32_t addr = m->stack[m->sp--].value.uint32;
     bool overflow = false;
 
-    if (flags != 2 && TRACE) { dbg_info(
-                "      - unaligned store - flags: 0x%x,"
-                " offset: 0x%x, addr: 0x%x, val: %s\n",
-                flags, offset, addr, value_repr(sval));
+    if (flags != 2 && TRACE) {
+        dbg_info(
+            "      - unaligned store - flags: 0x%x,"
+            " offset: 0x%x, addr: 0x%x, val: %s\n",
+            flags, offset, addr, value_repr(sval));
     }
     if (offset + addr < addr) {
         overflow = true;
-				printf("overflow A\n");
     }
     maddr = m->memory.bytes + offset + addr;
     if (maddr < m->memory.bytes) {
         overflow = true;
-				printf("overflow B\n");
     }
-    mem_end = m->memory.bytes + m->memory.pages * (uint32_t) PAGE_SIZE;
+    mem_end = m->memory.bytes + m->memory.pages * (uint32_t)PAGE_SIZE;
     if (maddr + LOAD_SIZE[opcode - 0x28] > mem_end) {
         overflow = true;
-				printf("overflow C\n");
-    }dbg_info(
-            "      - addr: 0x%x, offset: 0x%x, maddr: %p, mem_end: %p, value: "
-            "%s\n",
-            addr, offset, maddr, mem_end, value_repr(sval));
+    }
+    dbg_info(
+        "      - addr: 0x%x, offset: 0x%x, maddr: %p, mem_end: %p, value: "
+        "%s\n",
+        addr, offset, maddr, mem_end, value_repr(sval));
     if (!m->options.disable_memory_bounds) {
         if (overflow) {
             dbg_warn("memory start: %p, memory end: %p, maddr: %p\n",
                      m->memory.bytes, mem_end, maddr);
             sprintf(exception, "out of bounds memory access");
-						printf("overflow D\n");
             return false;
         }
     }
@@ -769,7 +773,6 @@ bool i_instr_mem_store(Module *m, uint8_t opcode) {
             memcpy(maddr, &sval->value.uint64, 4);
             break;  // i64.store32
         default:
-						printf("unexisting bit store\n");
             return false;
     }
     return true;
@@ -812,11 +815,13 @@ bool i_instr_const(Module *m, uint8_t opcode) {
 bool i_instr_unairy_u32(Module *m, uint8_t opcode) {
     switch (opcode) {
         case 0x45:  // i32.eqz
-            m->stack[m->sp].value.uint32 = static_cast<uint32_t>(m->stack[m->sp].value.uint32 == 0);
+            m->stack[m->sp].value.uint32 =
+                static_cast<uint32_t>(m->stack[m->sp].value.uint32 == 0);
             break;
         case 0x50:  // i64.eqz
             m->stack[m->sp].value_type = I32;
-            m->stack[m->sp].value.uint32 = static_cast<uint32_t>(m->stack[m->sp].value.uint64 == 0);
+            m->stack[m->sp].value.uint32 =
+                static_cast<uint32_t>(m->stack[m->sp].value.uint64 == 0);
             break;
         default:
             return false;
@@ -840,25 +845,25 @@ bool i_instr_math_u32(Module *m, uint8_t opcode) {
             c = static_cast<uint32_t>(a != b);
             break;  // i32.ne
         case 0x48:
-            c = static_cast<uint32_t>((int32_t) a < (int32_t) b);
+            c = static_cast<uint32_t>((int32_t)a < (int32_t)b);
             break;  // i32.lt_s
         case 0x49:
             c = static_cast<uint32_t>(a < b);
             break;  // i32.lt_u
         case 0x4a:
-            c = static_cast<uint32_t>((int32_t) a > (int32_t) b);
+            c = static_cast<uint32_t>((int32_t)a > (int32_t)b);
             break;  // i32.gt_s
         case 0x4b:
             c = static_cast<uint32_t>(a > b);
             break;  // i32.gt_u
         case 0x4c:
-            c = static_cast<uint32_t>((int32_t) a <= (int32_t) b);
+            c = static_cast<uint32_t>((int32_t)a <= (int32_t)b);
             break;  // i32.le_s
         case 0x4d:
             c = static_cast<uint32_t>(a <= b);
             break;  // i32.le_u
         case 0x4e:
-            c = static_cast<uint32_t>((int32_t) a >= (int32_t) b);
+            c = static_cast<uint32_t>((int32_t)a >= (int32_t)b);
             break;  // i32.ge_s
         case 0x4f:
             c = static_cast<uint32_t>(a >= b);
@@ -887,25 +892,25 @@ bool i_instr_math_u64(Module *m, uint8_t opcode) {
             c = static_cast<uint32_t>(d != e);
             break;  // i64.ne
         case 0x53:
-            c = static_cast<uint32_t>((int64_t) d < (int64_t) e);
+            c = static_cast<uint32_t>((int64_t)d < (int64_t)e);
             break;  // i64.lt_s
         case 0x54:
             c = static_cast<uint32_t>(d < e);
             break;  // i64.lt_u
         case 0x55:
-            c = static_cast<uint32_t>((int64_t) d > (int64_t) e);
+            c = static_cast<uint32_t>((int64_t)d > (int64_t)e);
             break;  // i64.gt_s
         case 0x56:
             c = static_cast<uint32_t>(d > e);
             break;  // i64.gt_u
         case 0x57:
-            c = static_cast<uint32_t>((int64_t) d <= (int64_t) e);
+            c = static_cast<uint32_t>((int64_t)d <= (int64_t)e);
             break;  // i64.le_s
         case 0x58:
             c = static_cast<uint32_t>(d <= e);
             break;  // i64.le_u
         case 0x59:
-            c = static_cast<uint32_t>((int64_t) d >= (int64_t) e);
+            c = static_cast<uint32_t>((int64_t)d >= (int64_t)e);
             break;  // i64.ge_s
         case 0x5a:
             c = static_cast<uint32_t>(d >= e);
@@ -1112,20 +1117,20 @@ bool i_instr_binary_i32(Module *m, uint8_t opcode) {
             c = a * b;
             break;  // i32.mul
         case 0x6d:
-            if (a == 0x80000000 && b == (uint32_t) -1) {
+            if (a == 0x80000000 && b == (uint32_t)-1) {
                 sprintf(exception, "integer overflow");
                 return false;
             }
-            c = (int32_t) a / (int32_t) b;
+            c = (int32_t)a / (int32_t)b;
             break;  // i32.div_s
         case 0x6e:
             c = a / b;
             break;  // i32.div_u
         case 0x6f:
-            if (a == 0x80000000 && b == (uint32_t) -1) {
+            if (a == 0x80000000 && b == (uint32_t)-1) {
                 c = 0;
             } else {
-                c = (int32_t) a % (int32_t) b;
+                c = (int32_t)a % (int32_t)b;
             };
             break;  // i32.rem_s
         case 0x70:
@@ -1144,8 +1149,8 @@ bool i_instr_binary_i32(Module *m, uint8_t opcode) {
             c = a << b;
             break;  // i32.shl
         case 0x75:
-            c = (int32_t) a >> b; // NOLINT(hicpp-signed-bitwise)
-            break;  // i32.shr_s
+            c = (int32_t)a >> b;  // NOLINT(hicpp-signed-bitwise)
+            break;                // i32.shr_s
         case 0x76:
             c = a >> b;
             break;  // i32.shr_u
@@ -1189,20 +1194,20 @@ bool i_instr_binary_i64(Module *m, uint8_t opcode) {
             f = d * e;
             break;  // i64.mul
         case 0x7f:
-            if (d == 0x8000000000000000 && e == (uint32_t) -1) {
+            if (d == 0x8000000000000000 && e == (uint32_t)-1) {
                 sprintf(exception, "integer overflow");
                 return false;
             }
-            f = (int64_t) d / (int64_t) e;
+            f = (int64_t)d / (int64_t)e;
             break;  // i64.div_s
         case 0x80:
             f = d / e;
             break;  // i64.div_u
         case 0x81:
-            if (d == 0x8000000000000000 && e == (uint32_t) -1) {
+            if (d == 0x8000000000000000 && e == (uint32_t)-1) {
                 f = 0;
             } else {
-                f = (int64_t) d % (int64_t) e;
+                f = (int64_t)d % (int64_t)e;
             }
             break;  // i64.rem_s
         case 0x82:
@@ -1221,8 +1226,8 @@ bool i_instr_binary_i64(Module *m, uint8_t opcode) {
             f = d << e;
             break;  // i64.shl
         case 0x87:
-            f = ((int64_t) d) >> e; // NOLINT(hicpp-signed-bitwise)
-            break;  // i64.shr_s
+            f = ((int64_t)d) >> e;  // NOLINT(hicpp-signed-bitwise)
+            break;                  // i64.shr_s
         case 0x88:
             f = d >> e;
             break;  // i64.shr_u
@@ -1262,10 +1267,10 @@ bool i_instr_binary_f32(Module *m, uint8_t opcode) {
             i = g / h;
             break;  // f32.div
         case 0x96:
-            i = (float) wa_fmin(g, h);
+            i = (float)wa_fmin(g, h);
             break;  // f32.min
         case 0x97:
-            i = (float) wa_fmax(g, h);
+            i = (float)wa_fmax(g, h);
             break;  // f32.max
         case 0x98:
             i = signbit(h) ? -fabs(g) : fabs(g);
@@ -1446,7 +1451,7 @@ bool i_instr_conversion(Module *m, uint8_t opcode) {
             m->stack[m->sp].value_type = F32;
             break;  // f32.convert_u/i64
         case 0xb6:
-            m->stack[m->sp].value.f32 = (float) m->stack[m->sp].value.f64;
+            m->stack[m->sp].value.f32 = (float)m->stack[m->sp].value.f64;
             m->stack[m->sp].value_type = F32;
             break;  // f32.demote/f64
         case 0xb7:
@@ -1494,8 +1499,6 @@ bool i_instr_conversion(Module *m, uint8_t opcode) {
 bool interpret(Module *m) {
     uint8_t *block_ptr;
     uint8_t opcode;
-		uint32_t ctr = 0;
-		// bool skip_bp = false; //TODO when you do run and the current pc_ptr is a breakpoint set to true
 
     // keep track of occuring errors
     bool success = true;
@@ -1503,7 +1506,7 @@ bool interpret(Module *m) {
     // set to true when finishes sucessfully
     bool program_done = false;
 
-    //TODO: this is actually a property of warduino
+    // TODO: this is actually a property of warduino
     RunningState program_state = WARDUINOrun;
 
     while (!program_done && success) {
@@ -1511,7 +1514,8 @@ bool interpret(Module *m) {
             program_state = WARDUINOpause;
         }
 
-        while (check_interrupts(m, &program_state)) {};
+        while (check_interrupts(m, &program_state)) {
+        };
         reset_wdt();
 
         if (program_state == WARDUINOpause) {
@@ -1520,20 +1524,30 @@ bool interpret(Module *m) {
 
         // Progam state is not paused
 
-        // Don't check for breakpoints while paused
-        if (m->warduino->isBreakpoint(m->pc_ptr)) {
+        // if BP and not the one we just unpaused
+        if (m->warduino->isBreakpoint(m->pc_ptr) &&
+            m->warduino->skipBreakpoint != m->pc_ptr) {
             program_state = WARDUINOpause;
-            printf("AT %p!\n", (void *) m->pc_ptr);
-            // printf("OPCODE!\n");
-            // printf("%u END OPCODE!\n", *m->pc_ptr);
+#if SOCKET
+            int ds = eventDescriptor();
+            if (ds != -1) {
+                char tinybuf[300];
+                uint8_t q =
+                    snprintf(tinybuf, 300, "AT %p!\n", (void *)m->pc_ptr);
+                write(ds, tinybuf, q);
+            } else {
+                printf("AT %p!\n", (void *)m->pc_ptr);
+                fflush(stdout);
+            }
+            socket_debug("Executing here %d \n", ds);
+            dprintf(ds, "AT %p!\n", (void *)m->pc_ptr);
+#else
+            printf("AT %p!\n", (void *)m->pc_ptr);
+            fflush(stdout);
+#endif
             continue;
         }
-				// ctr = ctr + 1;
-				// if(ctr < 1000){
-				//     continue;
-				// }
-				
-				// ctr = 0;
+        m->warduino->skipBreakpoint = nullptr;
 
         opcode = *m->pc_ptr;
         block_ptr = m->pc_ptr;
@@ -1543,11 +1557,8 @@ bool interpret(Module *m) {
         dbg_trace(" PC: %p OPCODE: <%s> in %s\n", block_ptr,
                   opcode_repr(opcode),
                   m->pc_ptr > m->bytes && m->pc_ptr < m->bytes + m->byte_count
-                  ? "module"
-                  : "patch");
-				// printf(" PC: %p, START %p, OPCODE: <%s>\n", block_ptr,
-				//         (void *) m->bytes,
-				//         my_opcode_repr_A(opcode));
+                      ? "module"
+                      : "patch");
 
         switch (opcode) {
             //
@@ -1637,12 +1648,10 @@ bool interpret(Module *m) {
                 continue;
                 // Memory load operators
             case 0x28 ... 0x35:
-								// printf("LOADING\n");
                 success &= i_instr_mem_load(m, opcode);
                 continue;
                 // Memory store operators
             case 0x36 ... 0x3e:
-								// printf("STORING\n");
                 success &= i_instr_mem_store(m, opcode);
                 continue;
 

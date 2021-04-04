@@ -1,14 +1,17 @@
 #include "interrupt_operations.h"
-#include <cstdio>
+
 #include <inttypes.h>
-#include "string.h"
-#include "debug.h"
-#include "mem.h"
-#include "util.h"
+#include <unistd.h>
+
+#include <algorithm>
+
 #include "WARDuino.h"
+#include "debug.h"
 #include "interrupt_protocol.h"
-#include "Arduino.h"
-#include "my_debug.h"
+#include "mem.h"
+#include "string.h"
+#include "util.h"
+
 /**
  * Validate if there are interrupts and execute them
  *
@@ -29,6 +32,8 @@
  *            as payload (immediately following `0x10`), see #readChange
  */
 
+extern void socket_debug(const char *format, ...);
+
 enum InteruptTypes {
     interruptRUN = 0x01,
     interruptHALT = 0x02,
@@ -39,138 +44,464 @@ enum InteruptTypes {
     interruptDUMP = 0x10,
     interruptDUMPLocals = 0x11,
     interruptUPDATEFun = 0x20,
-    interruptUPDATELocal = 0x21
+    interruptUPDATELocal = 0x21,
+    interruptRecvState = 0x22
 };
+
+enum ReceiveState {
+    pcState = 0x01,
+    breakpointsState = 0x02,
+    callstackState = 0x03,
+    globalsState = 0x04,
+    tblState = 0x05,
+    memState = 0x06,
+    brtblState = 0x07,
+    stackvalsState = 0x08
+};
+
+bool receivingData = false;
 
 void doDumpLocals(Module *m);
 
-void format_constant_value(char *buf, StackValue *v) {
-  switch (v->value_type) {
-  case I32:
-    snprintf(buf, 255, R"("type":"i32","value":%)" PRIi32, v->value.uint32);
-    break;
-  case I64:
-    snprintf(buf, 255, R"("type":"i64","value":%)" PRIi64, v->value.uint64);
-    break;
-  case F32:
-    snprintf(buf, 255, R"("type":"f32","value":%.7f)", v->value.f32);
-    break;
-  case F64:
-    snprintf(buf, 255, R"("type":"f64","value":%.7f)", v->value.f64);
-    break;
-  default:
-    snprintf(buf, 255, R"("type":"%02x","value":"%)" PRIx64 "\"", v->value_type,
-             v->value.uint64);
-  }
+void freeState(Module *m, uint8_t *interruptData);
+
+uintptr_t readPointer(uint8_t **data);
+
+bool saveState(Module *m, uint8_t *interruptData);
+
+// TODO inefficient. Keep extra state at each pushblock to ease opcode
+// retrieval?
+uint8_t *find_opcode(Module *m, Block *block) {
+    auto find =
+        std::find_if(std::begin(m->block_lookup), std::end(m->block_lookup),
+                     [&](const std::pair<uint8_t *, Block *> &pair) {
+                         return pair.second == block;
+                     });
+    uint8_t *opcode = nullptr;
+    if (find != std::end(m->block_lookup)) {
+        opcode = find->first;
+    } else {
+        // FIXME FATAL?
+        socket_debug("find_opcode: not found\n");
+        exit(33);
+    }
+    return opcode;
 }
 
+void format_constant_value(char *buf, StackValue *v) {
+    switch (v->value_type) {
+        case I32:
+            snprintf(buf, 255, R"("type":"i32","value":%)" PRIi32,
+                     v->value.uint32);
+            break;
+        case I64:
+            snprintf(buf, 255, R"("type":"i64","value":%)" PRIi64,
+                     v->value.uint64);
+            break;
+        case F32:
+            snprintf(buf, 255, R"("type":"f32","value":%.7f)", v->value.f32);
+            break;
+        case F64:
+            snprintf(buf, 255, R"("type":"f64","value":%.7f)", v->value.f64);
+            break;
+        default:
+            snprintf(buf, 255, R"("type":"%02x","value":"%)" PRIx64 "\"",
+                     v->value_type, v->value.uint64);
+    }
+}
 
 void doDump(Module *m) {
-  printf(DUMP_START);
-  printf("{");
+    socket_debug("asked for doDump\n");
 
-  // current PC
-  printf(R"("pc":"%p",)", (void *)m->pc_ptr);
-	//
-  // start of bytes
-  printf(R"("start":["%p"],)", (void *)m->bytes);
+    fflush(stdout);
+    printf("DUMP!\n");
+    // printf(DUMP_START);
+    printf("{");
 
-	printf("\"opcode\":\"%s\",", my_opcode_repr(*m->pc_ptr));
-  printf("\"breakpoints\":[");
+    // current PC
+    printf(R"("pc":"%p",)", (void *)m->pc_ptr);
 
-  {
+    // start of bytes
+    printf(R"("start":["%p"],)", (void *)m->bytes);
+
+    socket_debug("getting breakpoints\n");
+    printf("\"breakpoints\":[");
     size_t i = 0;
     for (auto bp : m->warduino->breakpoints) {
-      printf(R"("%p"%s)", bp,
-             (++i < m->warduino->breakpoints.size()) ? "," : "");
+        printf(R"("%p"%s)", bp,
+               (++i < m->warduino->breakpoints.size()) ? "," : "");
     }
-  }
-  printf("],");
-  // Functions
+    printf("],");
+    // Functions
 
-  printf("\"functions\":[");
+    socket_debug("getting functions\n");
+    printf("\"functions\":[");
 
-  for (size_t i = m->import_count; i < m->function_count; i++) {
-    //TODO remove extra unnecessery function state. 
-    printf(R"({"fidx":"0x%x","from":"%p","to":"%p","args":%d,"locs":%d}%s)", m->functions[i].fidx,
-           static_cast<void *>(m->functions[i].start_ptr),
-           static_cast<void *>(m->functions[i].end_ptr),
-           m->functions[i].type->param_count,
-           m->functions[i].local_count,
-           (i < m->function_count - 1) ? "," : "],");//TODO remove ] and put at callstack
-  }
+    for (size_t i = m->import_count; i < m->function_count; i++) {
+        // TODO remove extra unnecessery function state.
+        printf(R"({"fidx":"0x%x","from":"%p","to":"%p","args":%d,"locs":%d}%s)",
+               m->functions[i].fidx,
+               static_cast<void *>(m->functions[i].start_ptr),
+               static_cast<void *>(m->functions[i].end_ptr),
+               m->functions[i].type->param_count, m->functions[i].local_count,
+               (i < m->function_count - 1) ? "," : "");
+    }
 
-  // Callstack
-  printf("\"callstack\":[");
-  for (int i = 0; i <= m->csp; i++) {
-    /*
-     * {"type":%u,"fidx":"0x%x","sp":%d,"fp":%d,"ra":"%p"}%s
-     * */
-    Frame *f = &m->callstack[i];
-    printf(R"({"type":%u,"fidx":"0x%x","sp":%d,"fp":%d,"ra":"%p"}%s)",
-           f->block->block_type, f->block->fidx, f->sp, f->fp,
-           static_cast<void *>(f->ra_ptr), (i < m->csp) ? "," : "],");//TODO remove ] and put it at globals
-  }
-  // GLobals
-  printf("\"globals\":[");
-  for (int i = 0; i < m->global_count; i++) {
-    char _value_str[256];
-    auto v = m->globals + i;
-    format_constant_value(_value_str, v);
-    printf(R"({"idx":%d,%s}%s)", i, _value_str, ((i+1) < m->global_count) ? "," : "");
-  }
-  printf("]");//closing globals
+    socket_debug("getting callstack (total %d)\n", m->csp);
+    // Callstack
+    printf("],\"callstack\":[");
+    for (int i = 0; i <= m->csp; i++) {
+        debug("getting frame %d\n", i);
+        Frame *f = &m->callstack[i];
+        if (f->block->block_type == 0)
+            debug("is func idx %d frame %d\n", f->block->fidx, i);
+        uint8_t *block_key =
+            f->block->block_type == 0 ? nullptr : find_opcode(m, f->block);
+        printf(
+            R"({"type":%u,"fidx":"0x%x","sp":%d,"fp":%d,"block_key":"%p", "ra":"%p"}%s)",
+            f->block->block_type, f->block->fidx, f->sp, f->fp, block_key,
+            static_cast<void *>(f->ra_ptr), (i < m->csp) ? "," : "");
+    }
+    socket_debug("getting globals #%" PRIu32 "\n", m->global_count);
+    // GLobals
+    printf("],\"globals\":[");
+    for (auto i = 0; i < m->global_count; i++) {
+        char _value_str[256];
+        auto v = m->globals + i;
+        format_constant_value(_value_str, v);
+        printf(R"({"idx":%d,%s}%s)", i, _value_str,
+               ((i + 1) < m->global_count) ? "," : "");
+    }
+    printf("]");  // closing globals
 
-	//TODO improve send protocol: forat #of elements #size of each element
-	// #of elements expressed in 4bytes little endian
-	// #size of each element expressed in 4bytes little endia
+    socket_debug("getting table\n");
+    printf(",\"table\":{\"max\":%d, \"init\":%d, \"elements\":[",
+           m->table.maximum, m->table.initial);
+    fflush(stdout);
+    write(1, m->table.entries, sizeof(uint32_t) * m->table.size);
+    printf("]}");  // closing table
 
-  //Table
-  uint32_t total_elems = m->table.size;
-	uint32_t byte_per_elem = sizeof(uint32_t); //one element of memory
-  printf(",\"table\":{\"max\":%d, \"elements\":[", m->table.maximum);
-	printf(DUMP_BYTES);
-	Serial.write((byte *) &total_elems, sizeof(uint32_t));
-	Serial.write((byte *) &byte_per_elem, sizeof(uint32_t));
-  Serial.write((byte *) m->table.entries,total_elems * byte_per_elem);
-	printf(DUMP_BYTES_END);
-  printf("]}");//closing table
+    socket_debug("getting memory\n");
 
-  //memory
-  total_elems = m->memory.pages * (uint32_t) PAGE_SIZE;//TODO debug PAGE_SIZE
-  byte_per_elem = sizeof(uint8_t); //one element of memory
-  printf(",\"memory\":{\"pages\":%d,\"total\":%d,\"bytes\":[", m->memory.pages, total_elems);
-	printf(DUMP_BYTES);
-	Serial.write((byte *) &total_elems, sizeof(uint32_t));
-	Serial.write((byte *) &byte_per_elem, sizeof(uint32_t));
-  Serial.write((byte *) m->memory.bytes, byte_per_elem * total_elems);
-	printf(DUMP_BYTES_END);
-  printf("]}");//closing memory
+    // memory
+    uint32_t total_elems =
+        m->memory.pages * (uint32_t)PAGE_SIZE;  // TODO debug PAGE_SIZE
+    printf(",\"memory\":{\"pages\":%d,\"max\":%d,\"init\":%d,\"bytes\":[",
+           m->memory.pages, m->memory.maximum, m->memory.initial);
 
-  total_elems = (uint32_t) BR_TABLE_SIZE;
-	byte_per_elem = sizeof(uint32_t);
-  printf(",\"br_table\":{\"size\":\"0x%x\",\"labels\":[",BR_TABLE_SIZE);
-	printf(DUMP_BYTES);
-	Serial.write((byte *) &total_elems, sizeof(uint32_t));
-	Serial.write((byte *) &byte_per_elem, sizeof(uint32_t));
-	Serial.write((byte *) m->br_table, byte_per_elem * total_elems);
-	printf(DUMP_BYTES_END);
-	printf("]}");
-  printf("}\n%s",DUMP_END); //closing dump
+    fflush(stdout);
+    write(1, m->memory.bytes, total_elems * sizeof(uint8_t));
+    printf("]}");  // closing memory
+
+    socket_debug("getting br_table\n");
+    printf(",\"br_table\":{\"size\":\"0x%x\",\"labels\":[", BR_TABLE_SIZE);
+    fflush(stdout);
+    write(1, m->br_table, BR_TABLE_SIZE * sizeof(uint32_t));
+    printf("]}}\n");
+    fflush(stdout);
+}
+
+uint32_t read_B32(uint8_t **bytes) {
+    uint8_t *b = *bytes;
+    uint32_t n = (b[0] << 24) + (b[1] << 16) + (b[2] << 8) + b[3];
+    *bytes += 4;
+    return n;
+}  // TODO replace with read_LEB_32? If keep Big endian use memcpy?
+
+int read_B32_signed(uint8_t **bytes) {
+    uint8_t *b = *bytes;
+    int n = (b[0] << 24) + (b[1] << 16) + (b[2] << 8) + b[3];
+    *bytes += 4;
+    return n;
+}  // TODO replace with read_LEB_32? If keep Big endian use memcpy?
+
+uint16_t read_B16(uint8_t **bytes) {
+    uint8_t *b = *bytes;
+    uint32_t n = (b[0] << 8) + b[1];
+    *bytes += 2;
+    return n;
+}
+
+void freeState(Module *m, uint8_t *interruptData) {
+    socket_debug("freeing the program state\n");
+    uint8_t *first_msg = nullptr;
+    uint8_t *endfm = nullptr;
+    first_msg = interruptData + 1;  // skip interruptRecvState
+    endfm = first_msg + read_B32(&first_msg);
+
+    // nullify state
+    m->warduino->breakpoints.clear();
+    m->csp = -1;
+    m->sp = -1;
+    memset(m->br_table, 0, BR_TABLE_SIZE);
+
+    while (first_msg < endfm) {
+        switch (*first_msg++) {
+            case globalsState: {
+                debug("receiving globals info\n");
+                uint32_t amount = read_B32(&first_msg);
+                debug("total globals %d\n", amount);
+                // TODO if global_count != amount Otherwise set all to zero
+                if (m->global_count != amount) {
+                    debug("globals freeing state and then allocating\n");
+                    if (m->global_count > 0) free(m->globals);
+                    if (amount > 0)
+                        m->globals = (StackValue *)acalloc(
+                            amount, sizeof(StackValue), "globals");
+                } else {
+                    debug("globals setting existing state to zero\n");
+                    for (auto i = 0; i < m->global_count; i++) {
+                        debug("decreasing global_count\n");
+                        StackValue *sv = &m->globals[i];
+                        sv->value_type = 0;
+                        sv->value.uint32 = 0;
+                    }
+                }
+                m->global_count = 0;
+                break;
+            }
+            case tblState: {
+                debug("receiving table info\n");
+                m->table.initial = read_B32(&first_msg);
+                m->table.maximum = read_B32(&first_msg);
+                uint32_t size = read_B32(&first_msg);
+                debug("init %d max %d size %d\n", m->table.initial,
+                      m->table.maximum, size);
+                if (m->table.size != size) {
+                    debug("old table size %d\n", m->table.size);
+                    if (m->table.size != 0) free(m->table.entries);
+                    m->table.entries = (uint32_t *)acalloc(
+                        size, sizeof(uint32_t), "Module->table.entries");
+                }
+                m->table.size = 0;  // allows to accumulatively add entries
+                break;
+            }
+            case memState: {
+                debug("receiving memory info\n");
+                // FIXME: init & max not needed
+                m->memory.maximum = read_B32(&first_msg);
+                m->memory.initial = read_B32(&first_msg);
+                uint32_t pages = read_B32(&first_msg);
+                debug("max %d init %d current page %d\n", m->memory.maximum,
+                      m->memory.initial, pages);
+                // if(pages !=m->memory.pages){
+                // if(m->memory.pages !=0)
+                free(m->memory.bytes);
+                m->memory.bytes =
+                    (uint8_t *)acalloc(pages * PAGE_SIZE, sizeof(uint32_t),
+                                       "Module->memory.bytes");
+                m->memory.pages = pages;
+                // }
+                // else{
+                //   //TODO fill memory.bytes with zeros
+                // memset(m->memory.bytes, 0, m->memory.pages * PAGE_SIZE) ;
+                // }
+                break;
+            }
+            default: {
+                socket_debug("freeState: receiving unknown command\n");
+                exit(33);  // FIXME replace
+                break;
+            }
+        }
+    }
+    socket_debug("done with first msg\n");
+}
+
+uintptr_t readPointer(uint8_t **data) {
+    uint8_t len = (*data)[0];
+    uintptr_t bp = 0x0;
+    for (size_t i = 0; i < len; i++) {
+        bp <<= sizeof(uint8_t) * 8;
+        bp |= (*data)[i + 1];
+    }
+    *data += 1 + len;  // skip pointer
+    return bp;
+}
+
+bool saveState(Module *m, uint8_t *interruptData) {
+    uint8_t *program_state = nullptr;
+    uint8_t *endstate = nullptr;
+    program_state = interruptData + 1;  // skip interruptRecvState
+    endstate = program_state + read_B32(&program_state);
+
+    while (program_state < endstate) {
+        switch (*program_state++) {
+            case pcState: {  // PC
+                m->pc_ptr = (uint8_t *)readPointer(&program_state);
+                break;
+            }
+            case breakpointsState: {  // breakpoints
+                uint8_t quantity_bps = *program_state++;
+                for (size_t i = 0; i < quantity_bps; i++) {
+                    auto bp = (uint8_t *)readPointer(&program_state);
+                    m->warduino->addBreakpoint(bp);
+                }
+                break;
+            }
+            case callstackState: {
+                socket_debug("receiving callstack\n");
+                uint16_t quantity = read_B16(&program_state);
+                socket_debug("quantity frames %" PRIu16 "\n", quantity);
+                for (size_t i = 0; i < quantity; i++) {
+                    uint8_t block_type = *program_state++;
+                    m->csp += 1;
+                    Frame *f = m->callstack + m->csp;
+                    f->sp = read_B32_signed(&program_state);
+                    f->fp = read_B32_signed(&program_state);
+                    f->ra_ptr = (uint8_t *)readPointer(&program_state);
+                    if (block_type == 0) {  // a function
+                        socket_debug("function block\n");
+                        uint32_t fidx = read_B32(&program_state);
+                        socket_debug("function block idx=%" PRIu32 "\n", fidx);
+                        f->block = m->functions + fidx;
+
+                        if (f->block->fidx != fidx) {
+                            socket_debug("incorrect fidx: exp %" PRIu32
+                                         " got %" PRIu32 "\n",
+                                         fidx, f->block->fidx);
+                            exit(55);
+                        }
+                        m->fp = f->sp + 1;
+                    } else {
+                        socket_debug("non function block\n");
+                        uint8_t *block_key =
+                            (uint8_t *)readPointer(&program_state);
+                        socket_debug("block_key=%p\n",
+                                     static_cast<void *>(block_key));
+                        f->block = m->block_lookup[block_key];
+                    }
+                }
+                break;
+            }
+            case globalsState: {  // TODO merge globalsState stackvalsState into
+                                  // one case
+                socket_debug("receiving global state\n");
+                uint32_t quantity_globals = read_B32(&program_state);
+                uint8_t valtypes[] = {I32, I64, F32, F64};
+
+                debug("receiving #%" PRIu32 " globals\n", quantity_globals);
+                for (auto q = 0; q < quantity_globals; q++) {
+                    uint8_t typeidx = *program_state++;
+                    if (typeidx >= sizeof(valtypes)) {
+                        debug("received unknown type %" PRIu8 "\n", typeidx);
+                        exit(55);
+                    }
+                    StackValue *sv = &m->globals[m->global_count++];
+                    size_t qb = typeidx == 0 || typeidx == 2 ? 4 : 8;
+                    socket_debug("receiving type %" PRIu8 " and %d bytes \n",
+                                 typeidx, typeidx == 0 || typeidx == 2 ? 4 : 8);
+
+                    sv->value_type = valtypes[typeidx];
+                    memcpy(&sv->value, program_state, qb);
+                    program_state += qb;
+                }
+                break;
+            }
+            case tblState: {
+                uint8_t tbl_type =
+                    (uint8_t)*program_state++;  // for now only funcref
+                uint32_t quantity = read_B32(&program_state);
+                for (size_t i = 0; i < quantity; i++) {
+                    uint32_t ne = read_B32(&program_state);
+                    m->table.entries[m->table.size++] = ne;
+                }
+                break;
+            }
+            case memState: {
+                socket_debug("receiving memory\n");
+                uint32_t begin = read_B32(&program_state);
+                uint32_t end = read_B32(&program_state);
+                socket_debug("memory offsets begin=%" PRIu32 " , end=%" PRIu32
+                             "\n",
+                             begin, end);
+                if (begin > end) {
+                    socket_debug("incorrect memory offsets\n");
+                    exit(57);
+                }
+                uint32_t totalbytes = end - begin + 1;
+                uint8_t *mem_end =
+                    m->memory.bytes + m->memory.pages * (uint32_t)PAGE_SIZE;
+                socket_debug("will copy #%" PRIu32 " bytes\n", totalbytes);
+                if ((m->bytes + begin) + totalbytes > mem_end) {
+                    socket_debug("memory overflow\n");
+                    exit(57);
+                }
+                memcpy(m->memory.bytes + begin, program_state, totalbytes + 1);
+                for (auto i = begin; i <= (begin + totalbytes - 1); i++) {
+                    socket_debug("GOT byte idx %" PRIu32 " =%" PRIu8 "\n", i,
+                                 m->memory.bytes[i]);
+                }
+                socket_debug("outside the out\n");
+                program_state += totalbytes;
+                break;
+            }
+            case brtblState: {
+                socket_debug("receiving br_table\n");
+                uint16_t beginidx = read_B16(&program_state);
+                uint16_t endidx = read_B16(&program_state);
+                socket_debug("br_table offsets begin=%" PRIu16 " , end=%" PRIu16
+                             "\n",
+                             beginidx, endidx);
+                if (beginidx > endidx) {
+                    socket_debug("incorrect br_table offsets\n");
+                    exit(57);
+                }
+                if (endidx >= BR_TABLE_SIZE) {
+                    socket_debug("br_table overflow\n");
+                    exit(57);
+                }
+                for (auto idx = beginidx; idx <= endidx; idx++) {
+                    // FIXME speedup with memcpy?
+                    uint32_t el = read_B32(&program_state);
+                    m->br_table[idx] = el;
+                }
+                break;
+            }
+            case stackvalsState: {
+                // FIXME the float does add numbers at the end. The extra
+                // numbers are present in the send information when dump occurs
+                uint16_t quantity_sv = read_B16(&program_state);
+                uint8_t valtypes[] = {I32, I64, F32, F64};
+                for (size_t i = 0; i < quantity_sv; i++) {
+                    uint8_t typeidx = *program_state++;
+                    if (typeidx >= sizeof(valtypes)) {
+                        socket_debug("received unknown type %" PRIu8 "\n",
+                                     typeidx);
+                        exit(55);
+                    }
+                    m->sp += 1;
+                    StackValue *sv = &m->stack[m->sp];
+                    sv->value.uint64 = 0;  // init whole union to 0
+                    size_t qb = typeidx == 0 || typeidx == 2 ? 4 : 8;
+                    sv->value_type = valtypes[typeidx];
+                    memcpy(&sv->value, program_state, qb);
+                    program_state += qb;
+                }
+                break;
+            }
+            default: {
+                socket_debug("saveState: Reiceived unknown program state\n");
+                exit(33);
+            }
+        }
+    }
+    uint8_t done = (uint8_t)*program_state;
+    return done == (uint8_t)1;
 }
 
 void dump_stack_values(Module *m) {
-  fflush(stdout);
-  printf(DUMP_STACK_START);
-  printf(R"({"stack":[)");
-  char _value_str[256];
-  for (int i = 0; i <= m->sp; i++) {
-    auto v = &m->stack[i];
-    format_constant_value(_value_str, v);
-    printf(R"({"idx":%d, %s}%s)", i, _value_str, (i == m->sp) ? "" : ",");
-  }
-  printf("]}\n");
-  printf(DUMP_STACK_END);
+    fflush(stdout);
+    printf("STACK");
+    printf(R"({"stack":[)");
+    char _value_str[256];
+    for (int i = 0; i <= m->sp; i++) {
+        auto v = &m->stack[i];
+        format_constant_value(_value_str, v);
+        printf(R"({"idx":%d, %s}%s)", i, _value_str, (i == m->sp) ? "" : ",");
+    }
+    printf("]}\n");
+    fflush(stdout);
 }
 
 void doDumpLocals(Module *m) {
@@ -213,7 +544,8 @@ void doDumpLocals(Module *m) {
                          v->value_type, v->value.uint64);
         }
 
-        printf("{%s}%s", _value_str, (i + 1 < f->block->local_count) ? "," : "");
+        printf("{%s}%s", _value_str,
+               (i + 1 < f->block->local_count) ? "," : "");
     }
     printf("]}\n\n");
     fflush(stdout);
@@ -251,13 +583,13 @@ bool readChange(Module *m, uint8_t *bytes) {
         lecount = read_LEB_32(&pos);
         function->local_count += lecount;
         tidx = read_LEB(&pos, 7);
-        (void) tidx;  // TODO: use tidx?
+        (void)tidx;  // TODO: use tidx?
     }
 
     if (function->local_count > 0) {
         function->local_value_type =
-                (uint8_t *) acalloc(function->local_count, sizeof(uint8_t),
-                                    "function->local_value_type");
+            (uint8_t *)acalloc(function->local_count, sizeof(uint8_t),
+                               "function->local_value_type");
     }
 
     // Restore position and read the locals
@@ -279,7 +611,6 @@ bool readChange(Module *m, uint8_t *bytes) {
     return true;
 }
 
-
 /**
  * Read change to local
  * @param m
@@ -287,7 +618,6 @@ bool readChange(Module *m, uint8_t *bytes) {
  * @return
  */
 bool readChangeLocal(Module *m, uint8_t *bytes) {
-
     if (*bytes != interruptUPDATELocal) return false;
     uint8_t *pos = bytes + 1;
     printf("Local updates: %x\n", *pos);
@@ -309,10 +639,9 @@ bool readChangeLocal(Module *m, uint8_t *bytes) {
             memcpy(&v->value.uint64, pos, 8);
             break;
     }
-    printf("Local %u changed to %u\n", localId,v->value.uint32);
+    printf("Local %u changed to %u\n", localId, v->value.uint32);
     return true;
 }
-
 
 /**
  * Validate if there are interrupts and execute them
@@ -337,25 +666,35 @@ bool check_interrupts(Module *m, RunningState *program_state) {
     uint8_t *interruptData = nullptr;
     interruptData = m->warduino->getInterrupt();
     if (interruptData) {
-        printf("Interupt: %x\n", *interruptData);
         switch (*interruptData) {
             case interruptRUN:
+                socket_debug("GOT HERE\n");
                 printf("GO!\n");
+                fflush(stdout);
+                if (*program_state == WARDUINOpause &&
+                    m->warduino->isBreakpoint(m->pc_ptr)) {
+                    m->warduino->skipBreakpoint = m->pc_ptr;
+                }
                 *program_state = WARDUINOrun;
                 free(interruptData);
                 break;
             case interruptHALT:
                 printf("STOP!\n");
+                debug("STOP!\n");
                 free(interruptData);
                 exit(0);
                 break;
             case interruptPAUSE:
                 *program_state = WARDUINOpause;
                 printf("PAUSE!\n");
+                // printf("PAUSE!\n");
+                debug("PAUSE!\n");
                 free(interruptData);
                 break;
             case interruptSTEP:
+                debug("STEP!\n");
                 printf("STEP!\n");
+                // printf("STEP!\n");
                 *program_state = WARDUINOstep;
                 free(interruptData);
                 break;
@@ -369,15 +708,14 @@ bool check_interrupts(Module *m, RunningState *program_state) {
                     bp <<= sizeof(uint8_t) * 8;
                     bp |= interruptData[i + 2];
                 }
-                auto *bpt = (uint8_t *) bp;
+                auto *bpt = (uint8_t *)bp;
+                printf("BP %p!\n", static_cast<void *>(bpt));
+                fflush(stdout);
 
-                if (*interruptData == 0x06) {
-										printf("ADD BP %p!\n", static_cast<void *>(bpt));
+                if (*interruptData == 0x06)
                     m->warduino->addBreakpoint(bpt);
-                } else {
-										printf("RMV BP %p!\n", static_cast<void *>(bpt));
+                else
                     m->warduino->delBreakpoint(bpt);
-                }
 
                 free(interruptData);
 
@@ -392,20 +730,42 @@ bool check_interrupts(Module *m, RunningState *program_state) {
             case interruptDUMPLocals:
                 *program_state = WARDUINOpause;
                 free(interruptData);
-								dump_stack_values(m);
+                dump_stack_values(m);
                 break;
             case interruptUPDATEFun:
-                printf("CHANGE local!\n");
+                // printf("CHANGE local!\n");
+                debug("CHANGE local!\n");
                 readChange(m, interruptData);
                 //  do not free(interruptData);
                 // we need it to run that code
                 // TODO: free double replacements
                 break;
             case interruptUPDATELocal:
-                printf("CHANGE local!\n");
+                // printf("CHANGE local!\n");
+                debug("CHANGE local!\n");
                 readChangeLocal(m, interruptData);
                 free(interruptData);
                 break;
+            case interruptRecvState: {
+                if (!receivingData) {
+                    socket_debug("paused program execution\n");
+                    *program_state = WARDUINOpause;
+                    receivingData = true;
+                    freeState(m, interruptData);
+                    free(interruptData);
+                    printf("ack!\n");
+                    fflush(stdout);
+                } else {
+                    socket_debug("receiving state\n");
+                    receivingData = !saveState(m, interruptData);
+                    free(interruptData);
+                    socket_debug("sending %s!\n",
+                                 receivingData ? "ack" : "done");
+                    printf("%s!\n", receivingData ? "ack" : "done");
+                    fflush(stdout);
+                }
+                break;
+            }
             default:
                 // handle later
                 printf("COULD not parse interrupt data!\n");
@@ -416,4 +776,3 @@ bool check_interrupts(Module *m, RunningState *program_state) {
     }
     return false;
 }
-

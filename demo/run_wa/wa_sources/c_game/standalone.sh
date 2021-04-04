@@ -12,7 +12,11 @@ echo ======================
 # emcc -s EMIT_EMSCRIPTEN_METADATA -O3 $NAME.$EX -o $NAME.wasm && wasm2wat $NAME.wasm -o $NAME.wast
 # emcc -O3 $NAME.$EX -o $NAME.wasm && wasm2wat $NAME.wasm -o $NAME.wast
 # emcc -s SIDE_MODULE=1 -s NO_FILESYSTEM=1 -g4 --ignore-dynamic-linking -O3 $NAME.$EX -o $NAME.wasm && wasm2wat $NAME.wasm -o $NAME.wast
-emcc $NAME.$EX -s SIDE_MODULE=1 -g4 --ignore-dynamic-linking -s WASM=1 -O3 -s NO_FILESYSTEM=1 -s ERROR_ON_UNDEFINED_SYMBOLS=0 -o $NAME.wasm && wasm2wat $NAME.wasm -o $NAME.wast
+emcc $NAME.$EX -s STANDALONE_WASM --ignore-dynamic-linking -s WASM=1 -O3 -s NO_FILESYSTEM=1 -o $NAME.wasm \
+		&& wasm2wat $NAME.wasm -o $NAME.wast
+# emcc $NAME.$EX -s STANDALONE_WASM --ignore-dynamic-linking -s WASM=1 -O3 -s NO_FILESYSTEM=1  -o $NAME.wasm && \
+#     wasm2wat $NAME.wasm -o $NAME.wast
+
 
 echo
 echo Making $NAME.wasm.dbg
