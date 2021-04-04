@@ -11,6 +11,7 @@
 #include "mem.h"
 #include "util.h"
 #include "util_arduino.h"
+#include <inttypes.h>
 
 // Size of memory load.
 // This starts with the first memory load operator at opcode 0x28
