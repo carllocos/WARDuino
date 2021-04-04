@@ -22,8 +22,8 @@ sockets flagged as stdout results in the prior being closed.
         Server constants configurations - ideally set according to each
    microcontroller
 */
-#define SOCK_SENDBUF_SIZE 250
-#define SOCK_RECVBUF_SIZE 250
+#define SOCK_SENDBUF_SIZE 1024
+#define SOCK_RECVBUF_SIZE 1024
 #define SOCK_BACKLOG_SIZE 5
 
 /*
@@ -80,5 +80,7 @@ frees the received data
 void freeReceivedData();
 
 void socket_debug(const char* format, ...);  // TODO remove
+
+int eventDescriptor();
 
 #endif

@@ -82,6 +82,9 @@ int getFileDescriptor(socketflags flags) {
     return sock->fd;
 }
 
+// Temporary function
+int eventDescriptor() { return getFileDescriptor(FLAG_EVT); }
+
 char *getReceivedData() {
     if (inputsocket.size > 0)
         return inputsocket.buff;
@@ -238,7 +241,7 @@ void processIncomingEvents() {
         }
     }
     _resizeArrays();
-    _printArrays();  // TODO remove
+    // _printArrays();  // TODO remove
 }
 
 bool _flagSocket(int sockfd, socketflags flags) {
@@ -260,7 +263,10 @@ bool _flagSocket(int sockfd, socketflags flags) {
     if (flags & FLAG_DBG)  // use for debug prints
         _removeFlag(_findSocket(FLAG_DBG), FLAG_DBG);
     if (flags & FLAG_EVT)  // use for events wa_evprintf
+    {
+        socket_debug("Flagging witj event\n");
         _removeFlag(_findSocket(FLAG_EVT), FLAG_EVT);
+    }
 
     for (auto i = 0; i < MAX_SOCKETS; i++) {
         if (sockets[i].fd == -1) {
@@ -433,12 +439,12 @@ void socket_debug(const char *format, ...) {
     if (sockfd != -1)
         vdprintf(sockfd, format, argptr);
     else {
-        int sockout = getFileDescriptor(FLAG_OUT);
-        if (sockout != -1)
-            vdprintf(sockout, format, argptr);
-        else {
-            vdprintf(stds.out, format, argptr);
-        }
+        // int sockout = getFileDescriptor(FLAG_OUT);
+        // if (sockout != -1)
+        //     vdprintf(sockout, format, argptr);
+        // else {
+        vdprintf(stds.out, format, argptr);
+        // }
     }
     va_end(argptr);
 }

@@ -13,6 +13,13 @@
 #include "util_arduino.h"
 #include <inttypes.h>
 
+#if SOCKET
+#include <unistd.h>
+
+extern void socket_debug(const char *format, ...);
+extern int eventDescriptor();
+#endif
+
 // Size of memory load.
 // This starts with the first memory load operator at opcode 0x28
 uint32_t LOAD_SIZE[] = {4, 8, 4, 8, 1, 1, 2, 2, 1, 1, 2, 2, 4, 4,  // loads
@@ -68,24 +75,24 @@ Block *pop_block(Module *m) {
 
 static char _my_value_str[256];
 char *myValue_repr(StackValue *v) {
-  switch (v->value_type) {
-    case I32:
-      snprintf(_my_value_str, 255, "0x%" PRIx32 ":i32", v->value.uint32);
-      break;
-    case I64:
-      snprintf(_my_value_str, 255, "0x%" PRIx64 ":i64", v->value.uint64);
-      break;
-    case F32:
-      snprintf(_my_value_str, 255, "%.7g:f32", v->value.f32);
-      break;
-    case F64:
-      snprintf(_my_value_str, 255, "%.7g:f64", v->value.f64);
-      break;
-    default:
-      snprintf(_my_value_str, 255, "BAD ENCODING %" PRIx64 ":%02x",
-               v->value.uint64, -v->value_type);
-  }
-  return _my_value_str;
+    switch (v->value_type) {
+        case I32:
+            snprintf(_my_value_str, 255, "0x%" PRIx32 ":i32", v->value.uint32);
+            break;
+        case I64:
+            snprintf(_my_value_str, 255, "0x%" PRIx64 ":i64", v->value.uint64);
+            break;
+        case F32:
+            snprintf(_my_value_str, 255, "%.7g:f32", v->value.f32);
+            break;
+        case F64:
+            snprintf(_my_value_str, 255, "%.7g:f64", v->value.f64);
+            break;
+        default:
+            snprintf(_my_value_str, 255, "BAD ENCODING %" PRIx64 ":%02x",
+                     v->value.uint64, -v->value_type);
+    }
+    return _my_value_str;
 }
 
 void setup_call(Module *m, uint32_t fidx) {
@@ -1521,7 +1528,23 @@ bool interpret(Module *m) {
         if (m->warduino->isBreakpoint(m->pc_ptr) &&
             m->warduino->skipBreakpoint != m->pc_ptr) {
             program_state = WARDUINOpause;
+#if SOCKET
+            int ds = eventDescriptor();
+            if (ds != -1) {
+                char tinybuf[300];
+                uint8_t q =
+                    snprintf(tinybuf, 300, "AT %p!\n", (void *)m->pc_ptr);
+                write(ds, tinybuf, q);
+            } else {
+                printf("AT %p!\n", (void *)m->pc_ptr);
+                fflush(stdout);
+            }
+            socket_debug("Executing here %d \n", ds);
+            dprintf(ds, "AT %p!\n", (void *)m->pc_ptr);
+#else
             printf("AT %p!\n", (void *)m->pc_ptr);
+            fflush(stdout);
+#endif
             continue;
         }
         m->warduino->skipBreakpoint = nullptr;

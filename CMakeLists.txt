@@ -3,7 +3,7 @@ project (WARDuino)
 add_compile_options(-g -v -std=c++11  -Wall -Wextra -Wunused)
 set(SOURCE_FILES  mem.cpp util.cpp util_arduino.cpp  interrupt_operations.cpp debug.cpp WARDuino.cpp primitives.cpp instructions.cpp socket_server.cpp)
 add_executable(WARDuino demo/run_wa/main.cpp ${SOURCE_FILES})
-add_executable(TestWARDuino tests/main.cpp ${SOURCE_FILES} tests/assertion.cpp tests/sexpr-parser/src/sexpr.c)
+# add_executable(TestWARDuino tests/main.cpp ${SOURCE_FILES} tests/assertion.cpp tests/sexpr-parser/src/sexpr.c)
 
 #add_definitions(-DARDUINO)
 add_definitions(-DDEBUG=0)
@@ -21,13 +21,13 @@ if (${MultiThread})
     target_link_libraries(WARDuino PRIVATE Threads::Threads)
 endif()
 
-add_executable(WARDuinoBench benchmarks/benchmarks.cpp ${SOURCE_FILES})
+# add_executable(WARDuinoBench benchmarks/benchmarks.cpp ${SOURCE_FILES})
 install (TARGETS WARDuino DESTINATION demo/run_wa/bin)
 
-add_custom_command (
-  TARGET WARDuinoBench
-  POST_BUILD
-  COMMAND make -C  ../benchmarks/tasks all
-)
+# add_custom_command (
+#   TARGET WARDuinoBench
+#   POST_BUILD
+#   COMMAND make -C  ../benchmarks/tasks all
+# )
 
 include_directories(~/Arduino/)
