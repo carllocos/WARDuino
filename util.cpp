@@ -2,6 +2,7 @@
 
 #include <math.h>
 #include <string.h>
+#include <cstdint>
 
 #include "debug.h"
 
@@ -27,8 +28,8 @@ uint64_t read_LEB_(uint8_t **pos, uint32_t maxbits, bool sign) {
         }
     }
     if (sign && (shift < maxbits) && (byte & 0x40u)) {
-        // Sign extend
-        result |= -(1u << shift);
+        // Sign extend by highest bits set 1 except last shift bits
+        result |= UINT64_MAX << shift;
     }
     return result;
 }

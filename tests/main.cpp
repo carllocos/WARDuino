@@ -17,6 +17,8 @@ extern "C" {
 // END
 }
 
+#define COMPILE(command) system(command.c_str());
+
 WARDuino wac;
 
 volatile bool handlingInterrupt = false;
@@ -117,9 +119,157 @@ void invoke(Module *m, char *call_f, char args[][40]) {
     Type *type = func->type;
     parse_args(m, type, type->param_count, args);
     setup_call(m, fidx);
-    interpret(m);
+    interpret(m, true);
+}
 
+void assertValue(Value *val, Module *m) {
     printf("result :: %llu ", m->stack->value.uint64);
+    switch (val->type) {
+        case I64V:
+            if (val->uint64 == m->stack->value.uint64) {
+                printf("OK\n");
+            } else {
+                printf("FAIL\n");
+            }
+            break;
+        case I32V:
+            if (val->int32 == m->stack->value.int32) {
+                printf("OK\n");
+            } else {
+                printf("FAIL\n");
+            }
+            break;
+        default:
+            printf("Error unsupported value");
+            exit(1);
+    }
+}
+
+void assertResult(Result *result, Module *m) {
+    switch (result->type) {
+        case VAL:
+            assertValue(result->value, m);
+            break;
+        default:
+            printf("Error unsupported result");
+            exit(1);
+    }
+}
+
+void assertException(char *expected, Module *m) {
+    printf("result :: %s ", m->exception);
+    if (strcmp(m->exception, expected) == 0) {
+        printf("OK\n");
+    } else {
+        printf("FAIL\n");
+    }
+}
+
+void runAction(Action *action, Module *m) {
+    switch (action->type) {
+        case INVOKE:
+            invoke(m, action->name, action->expr);
+            break;
+        default:
+            printf("Error unsupported action");
+            exit(1);
+    }
+
+}
+
+void runAssertion(Assertion *assertion, Module *m) {
+    switch (assertion->type) {
+        case RETURN:
+            runAction(assertion->action, m);
+            assertResult(assertion->result, m);
+            break;
+        case EXHAUSTION:
+            runAction(assertion->action, m);
+            assertException("call stack exhausted", m);
+            break;
+        default:
+            printf("Error unsupported assertion");
+            exit(1);
+    }
+}
+
+Result *parseResultNode(SNode *node) {
+    Value *value = nullptr;
+
+    if (node->type == STRING) {
+        value = makeSTR(node->value);
+    } else if (strcmp(node->list->value, "i64.const") == 0) {
+        value = makeI64(std::stoll(node->list->next->value));
+    } else if (strcmp(node->list->value, "u64.const") == 0) {
+        value = makeUI64(std::stoull(node->list->next->value));
+    } else if (strcmp(node->list->value, "i32.const") == 0) {
+        value = makeI32(std::stoul(node->list->next->value));
+    } else {
+        // TODO
+    }
+
+    return makeValueResult(value);
+}
+
+Action *parseActionNode(SNode *actionNode) {
+    char *name = actionNode->list->next->value;
+    SNode *param = actionNode->list->next->next;
+
+    std::vector<Value> params;
+
+    while (param != nullptr) {
+        char *type = param->list->value;
+        char *value = param->list->next->value;
+
+        if (strcmp(type, "i64.const") == 0) {
+            params.push_back(*makeI64(std::stoll(value)));
+        } else if (strcmp(type, "u64.const") == 0) {
+            params.push_back(*makeUI64(std::stoull(value)));
+        } else if (strcmp(type, "i32.const") == 0) {
+            params.push_back(*makeI32(std::stoull(value)));
+        }else {
+            // TODO
+        }
+        param = param->next;
+    }
+
+    auto *args = (Value *) calloc(sizeof(Value), params.size());
+    copy(params.begin(), params.end(), args);
+
+    return makeInvokeAction(name, args);
+}
+
+void resolveAssert(SNode *node, Module *m) {
+    char *assertType = node->value;
+
+    if (strcmp(assertType, "assert_return") == 0) {
+        Action *action = parseActionNode(node->next);
+        Result *result = parseResultNode(node->next->next);
+
+        Assertion *assertion = makeAssertionReturn(action, result);
+        printf("assert return value:\n");
+
+        runAssertion(assertion, m);
+
+        free(result);
+        free(action);
+        free(assertion);
+    } else if (strcmp(assertType, "assert_exhaustion") == 0) {
+        Action *action = parseActionNode(node->next);
+        Assertion *assertion = makeAssertionExhaustion(action);
+        printf("assert stack exhaustion:\n");
+
+        runAssertion(assertion, m);
+
+        free(action);
+        free(assertion);
+    } else if (strcmp(assertType, "assert_invalid") == 0) {
+        printf("assert invalid module: ignoring ...\n");
+    } else if (strcmp(assertType, "assert_malformed") == 0) {
+        printf("assert malformed module: ignoring ...\n");
+    } else {
+        // TODO
+    }
 }
 
 /**
@@ -138,6 +288,34 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Could not load %s", mod_path);
         return 2;
     }
+    struct SNode *node = snode_parse(fp);
+    fclose(fp);
+
+    // Loop over all asserts in the file
+    struct SNode *cursor = node;
+    while (cursor != nullptr) {
+        switch (cursor->type) {
+            case LIST:
+                resolveAssert(cursor->list, m);
+                cursor = cursor->next;
+                break;
+            case SYMBOL:
+                // ignore comments
+                cursor = cursor->next;
+                break;
+            case STRING:
+            case INTEGER:
+            case FLOAT:
+                printf("Error badly formed asserts");
+                exit(1);
+            default:
+                printf("Error unsupported type");
+                exit(1);
+        }
+    }
+
+    // Remove compiled file
+    remove(&out_path[0]);
 
     Module *m = wac.load_module(bytes, byte_count, {});
     //(assert_return (invoke "fac-rec" (i64.const 25)) (i64.const

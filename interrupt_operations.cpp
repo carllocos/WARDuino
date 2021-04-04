@@ -490,6 +490,19 @@ void dump_stack_values(Module *m) {
 	m->warduino->printing.printo("]}\n");
 	m->warduino->printing.longPrint = false;
 	m->warduino->printing.printo(DUMP_STACK_END);
+    // Callstack
+
+    printf("\"callstack\":[");
+    for (int i = 0; i <= m->csp; i++) {
+        /*
+         * {"type":%u,"fidx":"0x%x","sp":%d,"fp":%d,"ra":"%p"}%s
+         * */
+        Frame *f = &m->callstack[i];
+        printf(R"({"type":%u,"fidx":"0x%x","sp":%d,"fp":%d,"ra":"%p"}%s)",
+               f->block->block_type, f->block->fidx, f->sp, f->fp,
+               static_cast<void *>(f->ra_ptr), (i < m->csp) ? "," : "]}\n");
+    }
+    fflush(stdout);
 }
 
 void doDumpLocals(Module *m) {

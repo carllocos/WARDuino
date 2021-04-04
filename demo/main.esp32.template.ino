@@ -5,16 +5,18 @@ WARDuino wac;
 
 #define  DBGTIMEOUT 500000
 
+hw_timer_t * timer = NULL;
+portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 
 volatile bool handlingInterrupt = false;
 uint8_t buff[100] = {0};
 uint8_t buff_len = 0;
 
-void ICACHE_RAM_ATTR dbgCheck(){
-    noInterrupts();
+void IRAM_ATTR dbgCheck(){
+    portENTER_CRITICAL_ISR(&timerMux);
     bool oldHandeling = handlingInterrupt;
     handlingInterrupt = true;
-    interrupts();
+    portEXIT_CRITICAL_ISR(&timerMux);
     if (oldHandeling) return;
 
     while (Serial.available()) {
@@ -27,10 +29,9 @@ void ICACHE_RAM_ATTR dbgCheck(){
             wac.handleInterrupt(buff_len, buff);
         }
     }
+    portENTER_CRITICAL_ISR(&timerMux);
     handlingInterrupt = false;
-
-    // restart timer
-    timer1_write(DBGTIMEOUT);
+    portEXIT_CRITICAL_ISR(&timerMux);
 }
 
 void setup()
@@ -38,9 +39,10 @@ void setup()
     Serial.begin(115200);
 
     // Set timer
-    timer1_attachInterrupt(dbgCheck);
-    timer1_enable(TIM_DIV16, TIM_EDGE, TIM_SINGLE);
-    timer1_write(DBGTIMEOUT);
+    timer = timerBegin(0, 80, true);
+    timerAttachInterrupt(timer, &dbgCheck, true);
+    timerAlarmWrite(timer, DBGTIMEOUT, true);
+    timerAlarmEnable(timer);
 }
 
 void loop() {
