@@ -2,6 +2,7 @@
 
 #include <math.h>
 #include <string.h>
+
 #include <cstdint>
 
 #include "debug.h"

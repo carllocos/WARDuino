@@ -21,21 +21,21 @@
 #include <SPI.h>
 SPIClass *spi_c = new SPIClass();
 
-//Hardeware SPI
-void write_spi_byte(unsigned char c){
-  spi_c->beginTransaction(SPISettings(20000000, MSBFIRST, SPI_MODE0));
-  spi_c->transfer(c);
-  spi_c->endTransaction();
+// Hardeware SPI
+void write_spi_byte(unsigned char c) {
+    spi_c->beginTransaction(SPISettings(20000000, MSBFIRST, SPI_MODE0));
+    spi_c->transfer(c);
+    spi_c->endTransaction();
 }
 
 void write_spi_bytes_16_prim(int times, uint32_t color) {
     unsigned char colorB = color >> 8;
     spi_c->beginTransaction(SPISettings(200000000, MSBFIRST, SPI_MODE0));
-    for (int x=0; x < times; x++) {
+    for (int x = 0; x < times; x++) {
         spi_c->transfer(colorB);
-          spi_c->transfer(color);
+        spi_c->transfer(color);
     }
-      spi_c->endTransaction();
+    spi_c->endTransaction();
 }
 
 #else

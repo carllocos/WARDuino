@@ -10,8 +10,7 @@
 #include <map>
 #include <queue>  // std::queue
 #include <set>
-#include "printing.h"
-#include <vector> //TODO maybe vector not needed
+#include <vector>  //TODO maybe vector not needed
 
 // Constants
 #define WA_MAGIC 0x6d736100
@@ -163,7 +162,7 @@ typedef struct Module {
     Frame callstack[CALLSTACK_SIZE];   // callstack
     uint32_t br_table[BR_TABLE_SIZE];  // br_table branch indexes
 
-    char *exception;                   // exception is set when the program fails
+    char *exception;  // exception is set when the program fails
 } Module;
 
 typedef bool (*Primitive)(Module *);
@@ -193,7 +192,6 @@ class WARDuino {
    public:
     // vector, we expect few breakpoints
     std::set<uint8_t *> breakpoints = {};
-		Printing printing;
 
     // Breakpoint to skip in the next interpretation step
     uint8_t *skipBreakpoint = nullptr;

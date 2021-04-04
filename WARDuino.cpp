@@ -294,7 +294,7 @@ uint32_t WARDuino::get_export_fidx(Module *m, const char *name) {
 Module *WARDuino::load_module(uint8_t *bytes, uint32_t byte_count,
                               Options options) {
     debug("Loading module of size %d \n", byte_count);
-	uint8_t valueType;
+    uint8_t valueType;
     uint32_t word;
     Module *m;
     // Allocate the module

@@ -31,47 +31,47 @@ volatile bool handlingInterrupt = false;
 #if SOCKET
 #if MT
 void *listenLoop(void *arg) {
-  while (1) {
-    processIncomingEvents();
-    if (receivedDataSize() > 0) {
-      auto *data = (uint8_t *)getReceivedData();
-      wac.handleInterrupt(receivedDataSize(), data);
-      freeReceivedData();
+    while (1) {
+        processIncomingEvents();
+        if (receivedDataSize() > 0) {
+            auto *data = (uint8_t *)getReceivedData();
+            wac.handleInterrupt(receivedDataSize(), data);
+            freeReceivedData();
+        }
     }
-  }
-  pthread_exit(NULL);
-  return nullptr;
+    pthread_exit(NULL);
+    return nullptr;
 }
 #else
 void signalHandler(int /* signum */) {
-  if (handlingInterrupt) return;
+    if (handlingInterrupt) return;
 
-  processIncomingEvents();
-  if (receivedDataSize() > 0) {
-    auto *data = (uint8_t *)getReceivedData();
-    wac.handleInterrupt(receivedDataSize(), data);
-    freeReceivedData();
-  }
+    processIncomingEvents();
+    if (receivedDataSize() > 0) {
+        auto *data = (uint8_t *)getReceivedData();
+        wac.handleInterrupt(receivedDataSize(), data);
+        freeReceivedData();
+    }
 
-  handlingInterrupt = false;
+    handlingInterrupt = false;
 }
 #endif
 
-#else //No Sockets
+#else  // No Sockets
 void signalHandler(int /* signum */) {
-  if (handlingInterrupt) return;
+    if (handlingInterrupt) return;
 
-  printf("CHANGE REQUESTED!");
-  struct stat statbuff {};
-  if (stat("/tmp/change", &statbuff) == 0 && statbuff.st_size > 0) {
-    auto *data = (uint8_t *)malloc(statbuff.st_size * sizeof(uint8_t));
-    FILE *fp = fopen("/tmp/change", "rb");
-    fread(data, statbuff.st_size, 1, fp);
-    fclose(fp);
-    wac.handleInterrupt(statbuff.st_size, data);
-  }
+    printf("CHANGE REQUESTED!");
+    struct stat statbuff {};
+    if (stat("/tmp/change", &statbuff) == 0 && statbuff.st_size > 0) {
+        auto *data = (uint8_t *)malloc(statbuff.st_size * sizeof(uint8_t));
+        FILE *fp = fopen("/tmp/change", "rb");
+        fread(data, statbuff.st_size, 1, fp);
+        fclose(fp);
+        wac.handleInterrupt(statbuff.st_size, data);
+    }
 
-  handlingInterrupt = false;
+    handlingInterrupt = false;
 }
 #endif
 
@@ -90,13 +90,13 @@ int main(int /*argc*/, const char ** /*argv*/) {
         perror("error starting server thread\n");
         exit(-1);
     }
-    #else
+#else
 
-  signal(SIGUSR1, signalHandler);
-  #endif
+    signal(SIGUSR1, signalHandler);
+#endif
 
-    wac.run_module(wac.load_module(hello_world_wasm, hello_world_wasm_len,
-    {})); return 0;
+    wac.run_module(wac.load_module(hello_world_wasm, hello_world_wasm_len, {}));
+    return 0;
 }
 #else
 /**
@@ -104,8 +104,8 @@ int main(int /*argc*/, const char ** /*argv*/) {
  */
 
 int main(int /*argc*/, const char ** /*argv*/) {
-  signal(SIGUSR1, signalHandler);
-  wac.run_module(wac.load_module(hello_world_wasm, hello_world_wasm_len, {}));
-  return 0;
+    signal(SIGUSR1, signalHandler);
+    wac.run_module(wac.load_module(hello_world_wasm, hello_world_wasm_len, {}));
+    return 0;
 }
 #endif

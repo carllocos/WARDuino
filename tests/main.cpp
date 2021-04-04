@@ -174,7 +174,6 @@ void runAction(Action *action, Module *m) {
             printf("Error unsupported action");
             exit(1);
     }
-
 }
 
 void runAssertion(Assertion *assertion, Module *m) {
@@ -227,13 +226,13 @@ Action *parseActionNode(SNode *actionNode) {
             params.push_back(*makeUI64(std::stoull(value)));
         } else if (strcmp(type, "i32.const") == 0) {
             params.push_back(*makeI32(std::stoull(value)));
-        }else {
+        } else {
             // TODO
         }
         param = param->next;
     }
 
-    auto *args = (Value *) calloc(sizeof(Value), params.size());
+    auto *args = (Value *)calloc(sizeof(Value), params.size());
     copy(params.begin(), params.end(), args);
 
     return makeInvokeAction(name, args);
