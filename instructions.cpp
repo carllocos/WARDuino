@@ -12,13 +12,7 @@
 #include "util.h"
 #include "util_arduino.h"
 #include <inttypes.h>
-
-#if SOCKET
-#include <unistd.h>
-
-extern void socket_debug(const char *format, ...);
-extern int eventDescriptor();
-#endif
+#include "printing.h"
 
 // Size of memory load.
 // This starts with the first memory load operator at opcode 0x28
@@ -1528,23 +1522,7 @@ bool interpret(Module *m) {
         if (m->warduino->isBreakpoint(m->pc_ptr) &&
             m->warduino->skipBreakpoint != m->pc_ptr) {
             program_state = WARDUINOpause;
-#if SOCKET
-            int ds = eventDescriptor();
-            if (ds != -1) {
-                char tinybuf[300];
-                uint8_t q =
-                    snprintf(tinybuf, 300, "AT %p!\n", (void *)m->pc_ptr);
-                write(ds, tinybuf, q);
-            } else {
-                printf("AT %p!\n", (void *)m->pc_ptr);
-                fflush(stdout);
-            }
-            socket_debug("Executing here %d \n", ds);
-            dprintf(ds, "AT %p!\n", (void *)m->pc_ptr);
-#else
-            printf("AT %p!\n", (void *)m->pc_ptr);
-            fflush(stdout);
-#endif
+            wa_evprintf("AT %p!\n", (void *)m->pc_ptr);
             continue;
         }
         m->warduino->skipBreakpoint = nullptr;

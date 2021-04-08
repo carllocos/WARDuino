@@ -12,6 +12,12 @@
 #include "string.h"
 #include "util.h"
 
+#if SOCKET
+#include "socket_server.h"
+#endif
+
+#include "printing.h"
+
 /**
  * Validate if there are interrupts and execute them
  *
@@ -31,8 +37,6 @@
  * - `0x20` : Replace the content body of a function by a new function given
  *            as payload (immediately following `0x10`), see #readChange
  */
-
-extern void socket_debug(const char *format, ...);
 
 enum InteruptTypes {
     interruptRUN = 0x01,
@@ -82,7 +86,7 @@ uint8_t *find_opcode(Module *m, Block *block) {
         opcode = find->first;
     } else {
         // FIXME FATAL?
-        socket_debug("find_opcode: not found\n");
+        debug("find_opcode: not found\n");
         exit(33);
     }
     return opcode;
@@ -111,45 +115,46 @@ void format_constant_value(char *buf, StackValue *v) {
 }
 
 void doDump(Module *m) {
-    socket_debug("asked for doDump\n");
+    // FIXME replace write
+    debug("asked for doDump\n");
 
     fflush(stdout);
-    printf("DUMP!\n");
-    // printf(DUMP_START);
-    printf("{");
+    wa_printf("DUMP!\n");
+    wa_printf("{");
 
     // current PC
-    printf(R"("pc":"%p",)", (void *)m->pc_ptr);
+    wa_printf(R"("pc":"%p",)", (void *)m->pc_ptr);
 
     // start of bytes
-    printf(R"("start":["%p"],)", (void *)m->bytes);
+    wa_printf(R"("start":["%p"],)", (void *)m->bytes);
 
-    socket_debug("getting breakpoints\n");
-    printf("\"breakpoints\":[");
+    printf("getting breakpoints\n");
+    wa_printf("\"breakpoints\":[");
     size_t i = 0;
     for (auto bp : m->warduino->breakpoints) {
-        printf(R"("%p"%s)", bp,
-               (++i < m->warduino->breakpoints.size()) ? "," : "");
+        wa_printf(R"("%p"%s)", bp,
+                  (++i < m->warduino->breakpoints.size()) ? "," : "");
     }
-    printf("],");
+    wa_printf("],");
     // Functions
 
-    socket_debug("getting functions\n");
-    printf("\"functions\":[");
+    printf("getting functions\n");
+    wa_printf("\"functions\":[");
 
     for (size_t i = m->import_count; i < m->function_count; i++) {
         // TODO remove extra unnecessery function state.
-        printf(R"({"fidx":"0x%x","from":"%p","to":"%p","args":%d,"locs":%d}%s)",
-               m->functions[i].fidx,
-               static_cast<void *>(m->functions[i].start_ptr),
-               static_cast<void *>(m->functions[i].end_ptr),
-               m->functions[i].type->param_count, m->functions[i].local_count,
-               (i < m->function_count - 1) ? "," : "");
+        wa_printf(
+            R"({"fidx":"0x%x","from":"%p","to":"%p","args":%d,"locs":%d}%s)",
+            m->functions[i].fidx,
+            static_cast<void *>(m->functions[i].start_ptr),
+            static_cast<void *>(m->functions[i].end_ptr),
+            m->functions[i].type->param_count, m->functions[i].local_count,
+            (i < m->function_count - 1) ? "," : "");
     }
 
-    socket_debug("getting callstack (total %d)\n", m->csp);
+    printf("getting callstack (total %d)\n", m->csp);
     // Callstack
-    printf("],\"callstack\":[");
+    wa_printf("],\"callstack\":[");
     for (int i = 0; i <= m->csp; i++) {
         debug("getting frame %d\n", i);
         Frame *f = &m->callstack[i];
@@ -157,48 +162,49 @@ void doDump(Module *m) {
             debug("is func idx %d frame %d\n", f->block->fidx, i);
         uint8_t *block_key =
             f->block->block_type == 0 ? nullptr : find_opcode(m, f->block);
-        printf(
+        wa_printf(
             R"({"type":%u,"fidx":"0x%x","sp":%d,"fp":%d,"block_key":"%p", "ra":"%p"}%s)",
             f->block->block_type, f->block->fidx, f->sp, f->fp, block_key,
             static_cast<void *>(f->ra_ptr), (i < m->csp) ? "," : "");
     }
-    socket_debug("getting globals #%" PRIu32 "\n", m->global_count);
+    printf("getting globals #%" PRIu32 "\n", m->global_count);
     // GLobals
-    printf("],\"globals\":[");
+    wa_printf("],\"globals\":[");
     for (auto i = 0; i < m->global_count; i++) {
         char _value_str[256];
         auto v = m->globals + i;
         format_constant_value(_value_str, v);
-        printf(R"({"idx":%d,%s}%s)", i, _value_str,
-               ((i + 1) < m->global_count) ? "," : "");
+        wa_printf(R"({"idx":%d,%s}%s)", i, _value_str,
+                  ((i + 1) < m->global_count) ? "," : "");
     }
-    printf("]");  // closing globals
+    wa_printf("]");  // closing globals
 
-    socket_debug("getting table\n");
-    printf(",\"table\":{\"max\":%d, \"init\":%d, \"elements\":[",
-           m->table.maximum, m->table.initial);
+    printf("getting table\n");
+    wa_printf(",\"table\":{\"max\":%d, \"init\":%d, \"elements\":[",
+              m->table.maximum, m->table.initial);
     fflush(stdout);
     write(1, m->table.entries, sizeof(uint32_t) * m->table.size);
-    printf("]}");  // closing table
+    wa_printf("]}");  // closing table
 
-    socket_debug("getting memory\n");
+    printf("getting memory\n");
 
     // memory
     uint32_t total_elems =
         m->memory.pages * (uint32_t)PAGE_SIZE;  // TODO debug PAGE_SIZE
-    printf(",\"memory\":{\"pages\":%d,\"max\":%d,\"init\":%d,\"bytes\":[",
-           m->memory.pages, m->memory.maximum, m->memory.initial);
+    wa_printf(",\"memory\":{\"pages\":%d,\"max\":%d,\"init\":%d,\"bytes\":[",
+              m->memory.pages, m->memory.maximum, m->memory.initial);
 
     fflush(stdout);
     write(1, m->memory.bytes, total_elems * sizeof(uint8_t));
-    printf("]}");  // closing memory
+    wa_printf("]}");  // closing memory
 
-    socket_debug("getting br_table\n");
-    printf(",\"br_table\":{\"size\":\"0x%x\",\"labels\":[", BR_TABLE_SIZE);
+    printf("getting br_table\n");
+    wa_printf(",\"br_table\":{\"size\":\"0x%x\",\"labels\":[", BR_TABLE_SIZE);
     fflush(stdout);
     write(1, m->br_table, BR_TABLE_SIZE * sizeof(uint32_t));
-    printf("]}}\n");
-    fflush(stdout);
+    wa_printf("]}}\n");
+    wa_flush();
+    // fflush(stdout);
 }
 
 uint32_t read_B32(uint8_t **bytes) {
@@ -223,7 +229,7 @@ uint16_t read_B16(uint8_t **bytes) {
 }
 
 void freeState(Module *m, uint8_t *interruptData) {
-    socket_debug("freeing the program state\n");
+    debug("freeing the program state\n");
     uint8_t *first_msg = nullptr;
     uint8_t *endfm = nullptr;
     first_msg = interruptData + 1;  // skip interruptRecvState
@@ -299,13 +305,13 @@ void freeState(Module *m, uint8_t *interruptData) {
                 break;
             }
             default: {
-                socket_debug("freeState: receiving unknown command\n");
+                debug("freeState: receiving unknown command\n");
                 exit(33);  // FIXME replace
                 break;
             }
         }
     }
-    socket_debug("done with first msg\n");
+    debug("done with first msg\n");
 }
 
 uintptr_t readPointer(uint8_t **data) {
@@ -340,9 +346,9 @@ bool saveState(Module *m, uint8_t *interruptData) {
                 break;
             }
             case callstackState: {
-                socket_debug("receiving callstack\n");
+                debug("receiving callstack\n");
                 uint16_t quantity = read_B16(&program_state);
-                socket_debug("quantity frames %" PRIu16 "\n", quantity);
+                debug("quantity frames %" PRIu16 "\n", quantity);
                 for (size_t i = 0; i < quantity; i++) {
                     uint8_t block_type = *program_state++;
                     m->csp += 1;
@@ -351,24 +357,23 @@ bool saveState(Module *m, uint8_t *interruptData) {
                     f->fp = read_B32_signed(&program_state);
                     f->ra_ptr = (uint8_t *)readPointer(&program_state);
                     if (block_type == 0) {  // a function
-                        socket_debug("function block\n");
+                        debug("function block\n");
                         uint32_t fidx = read_B32(&program_state);
-                        socket_debug("function block idx=%" PRIu32 "\n", fidx);
+                        debug("function block idx=%" PRIu32 "\n", fidx);
                         f->block = m->functions + fidx;
 
                         if (f->block->fidx != fidx) {
-                            socket_debug("incorrect fidx: exp %" PRIu32
-                                         " got %" PRIu32 "\n",
-                                         fidx, f->block->fidx);
+                            debug("incorrect fidx: exp %" PRIu32 " got %" PRIu32
+                                  "\n",
+                                  fidx, f->block->fidx);
                             exit(55);
                         }
                         m->fp = f->sp + 1;
                     } else {
-                        socket_debug("non function block\n");
+                        debug("non function block\n");
                         uint8_t *block_key =
                             (uint8_t *)readPointer(&program_state);
-                        socket_debug("block_key=%p\n",
-                                     static_cast<void *>(block_key));
+                        debug("block_key=%p\n", static_cast<void *>(block_key));
                         f->block = m->block_lookup[block_key];
                     }
                 }
@@ -376,7 +381,7 @@ bool saveState(Module *m, uint8_t *interruptData) {
             }
             case globalsState: {  // TODO merge globalsState stackvalsState into
                                   // one case
-                socket_debug("receiving global state\n");
+                debug("receiving global state\n");
                 uint32_t quantity_globals = read_B32(&program_state);
                 uint8_t valtypes[] = {I32, I64, F32, F64};
 
@@ -389,8 +394,8 @@ bool saveState(Module *m, uint8_t *interruptData) {
                     }
                     StackValue *sv = &m->globals[m->global_count++];
                     size_t qb = typeidx == 0 || typeidx == 2 ? 4 : 8;
-                    socket_debug("receiving type %" PRIu8 " and %d bytes \n",
-                                 typeidx, typeidx == 0 || typeidx == 2 ? 4 : 8);
+                    debug("receiving type %" PRIu8 " and %d bytes \n", typeidx,
+                          typeidx == 0 || typeidx == 2 ? 4 : 8);
 
                     sv->value_type = valtypes[typeidx];
                     memcpy(&sv->value, program_state, qb);
@@ -409,46 +414,44 @@ bool saveState(Module *m, uint8_t *interruptData) {
                 break;
             }
             case memState: {
-                socket_debug("receiving memory\n");
+                debug("receiving memory\n");
                 uint32_t begin = read_B32(&program_state);
                 uint32_t end = read_B32(&program_state);
-                socket_debug("memory offsets begin=%" PRIu32 " , end=%" PRIu32
-                             "\n",
-                             begin, end);
+                debug("memory offsets begin=%" PRIu32 " , end=%" PRIu32 "\n",
+                      begin, end);
                 if (begin > end) {
-                    socket_debug("incorrect memory offsets\n");
+                    debug("incorrect memory offsets\n");
                     exit(57);
                 }
                 uint32_t totalbytes = end - begin + 1;
                 uint8_t *mem_end =
                     m->memory.bytes + m->memory.pages * (uint32_t)PAGE_SIZE;
-                socket_debug("will copy #%" PRIu32 " bytes\n", totalbytes);
+                debug("will copy #%" PRIu32 " bytes\n", totalbytes);
                 if ((m->bytes + begin) + totalbytes > mem_end) {
-                    socket_debug("memory overflow\n");
+                    debug("memory overflow\n");
                     exit(57);
                 }
                 memcpy(m->memory.bytes + begin, program_state, totalbytes + 1);
                 for (auto i = begin; i <= (begin + totalbytes - 1); i++) {
-                    socket_debug("GOT byte idx %" PRIu32 " =%" PRIu8 "\n", i,
-                                 m->memory.bytes[i]);
+                    debug("GOT byte idx %" PRIu32 " =%" PRIu8 "\n", i,
+                          m->memory.bytes[i]);
                 }
-                socket_debug("outside the out\n");
+                debug("outside the out\n");
                 program_state += totalbytes;
                 break;
             }
             case brtblState: {
-                socket_debug("receiving br_table\n");
+                debug("receiving br_table\n");
                 uint16_t beginidx = read_B16(&program_state);
                 uint16_t endidx = read_B16(&program_state);
-                socket_debug("br_table offsets begin=%" PRIu16 " , end=%" PRIu16
-                             "\n",
-                             beginidx, endidx);
+                debug("br_table offsets begin=%" PRIu16 " , end=%" PRIu16 "\n",
+                      beginidx, endidx);
                 if (beginidx > endidx) {
-                    socket_debug("incorrect br_table offsets\n");
+                    debug("incorrect br_table offsets\n");
                     exit(57);
                 }
                 if (endidx >= BR_TABLE_SIZE) {
-                    socket_debug("br_table overflow\n");
+                    debug("br_table overflow\n");
                     exit(57);
                 }
                 for (auto idx = beginidx; idx <= endidx; idx++) {
@@ -466,8 +469,7 @@ bool saveState(Module *m, uint8_t *interruptData) {
                 for (size_t i = 0; i < quantity_sv; i++) {
                     uint8_t typeidx = *program_state++;
                     if (typeidx >= sizeof(valtypes)) {
-                        socket_debug("received unknown type %" PRIu8 "\n",
-                                     typeidx);
+                        debug("received unknown type %" PRIu8 "\n", typeidx);
                         exit(55);
                     }
                     m->sp += 1;
@@ -481,7 +483,7 @@ bool saveState(Module *m, uint8_t *interruptData) {
                 break;
             }
             default: {
-                socket_debug("saveState: Reiceived unknown program state\n");
+                debug("saveState: Reiceived unknown program state\n");
                 exit(33);
             }
         }
@@ -492,15 +494,16 @@ bool saveState(Module *m, uint8_t *interruptData) {
 
 void dump_stack_values(Module *m) {
     fflush(stdout);
-    printf("STACK");
-    printf(R"({"stack":[)");
+    wa_printf("STACK");
+    wa_printf(R"({"stack":[)");
     char _value_str[256];
     for (int i = 0; i <= m->sp; i++) {
         auto v = &m->stack[i];
         format_constant_value(_value_str, v);
-        printf(R"({"idx":%d, %s}%s)", i, _value_str, (i == m->sp) ? "" : ",");
+        wa_printf(R"({"idx":%d, %s}%s)", i, _value_str,
+                  (i == m->sp) ? "" : ",");
     }
-    printf("]}\n");
+    wa_printf("]}\n");
     fflush(stdout);
 }
 
@@ -663,13 +666,21 @@ bool readChangeLocal(Module *m, uint8_t *bytes) {
  *            as payload (immediately following `0x10`), see #readChange
  */
 bool check_interrupts(Module *m, RunningState *program_state) {
+#if SOCKET
+    processIncomingEvents();
+    if (receivedDataSize() > 0) {
+        auto *data = (uint8_t *)getReceivedData();
+        m->warduino->handleInterrupt(receivedDataSize(), data);
+        freeReceivedData();
+    }
+#endif
+
     uint8_t *interruptData = nullptr;
     interruptData = m->warduino->getInterrupt();
     if (interruptData) {
         switch (*interruptData) {
             case interruptRUN:
-                socket_debug("GOT HERE\n");
-                printf("GO!\n");
+                wa_printf("GO!\n");
                 fflush(stdout);
                 if (*program_state == WARDUINOpause &&
                     m->warduino->isBreakpoint(m->pc_ptr)) {
@@ -679,22 +690,20 @@ bool check_interrupts(Module *m, RunningState *program_state) {
                 free(interruptData);
                 break;
             case interruptHALT:
-                printf("STOP!\n");
+                wa_printf("STOP!\n");
                 debug("STOP!\n");
                 free(interruptData);
                 exit(0);
                 break;
             case interruptPAUSE:
                 *program_state = WARDUINOpause;
-                printf("PAUSE!\n");
-                // printf("PAUSE!\n");
+                wa_printf("PAUSE!\n");
                 debug("PAUSE!\n");
                 free(interruptData);
                 break;
             case interruptSTEP:
                 debug("STEP!\n");
-                printf("STEP!\n");
-                // printf("STEP!\n");
+                wa_printf("STEP!\n");
                 *program_state = WARDUINOstep;
                 free(interruptData);
                 break;
@@ -709,7 +718,7 @@ bool check_interrupts(Module *m, RunningState *program_state) {
                     bp |= interruptData[i + 2];
                 }
                 auto *bpt = (uint8_t *)bp;
-                printf("BP %p!\n", static_cast<void *>(bpt));
+                wa_printf("BP %p!\n", static_cast<void *>(bpt));
                 fflush(stdout);
 
                 if (*interruptData == 0x06)
@@ -748,20 +757,19 @@ bool check_interrupts(Module *m, RunningState *program_state) {
                 break;
             case interruptRecvState: {
                 if (!receivingData) {
-                    socket_debug("paused program execution\n");
+                    debug("paused program execution\n");
                     *program_state = WARDUINOpause;
                     receivingData = true;
                     freeState(m, interruptData);
                     free(interruptData);
-                    printf("ack!\n");
+                    wa_printf("ack!\n");
                     fflush(stdout);
                 } else {
-                    socket_debug("receiving state\n");
+                    debug("receiving state\n");
                     receivingData = !saveState(m, interruptData);
                     free(interruptData);
-                    socket_debug("sending %s!\n",
-                                 receivingData ? "ack" : "done");
-                    printf("%s!\n", receivingData ? "ack" : "done");
+                    debug("sending %s!\n", receivingData ? "ack" : "done");
+                    wa_printf("%s!\n", receivingData ? "ack" : "done");
                     fflush(stdout);
                 }
                 break;
