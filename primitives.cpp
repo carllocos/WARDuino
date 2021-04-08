@@ -204,6 +204,7 @@ def_prim(spi_begin, NoneToNoneU32) {
     yield();
     printf("spi_begin \n");
     spi_c->begin();
+    return true;
 }
 
 def_prim(write_spi_bytes_16, twoToNoneU32) {
