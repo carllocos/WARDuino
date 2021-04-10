@@ -49,7 +49,9 @@ enum InteruptTypes {
     interruptDUMPLocals = 0x11,
     interruptUPDATEFun = 0x20,
     interruptUPDATELocal = 0x21,
-    interruptRecvState = 0x22
+    interruptRecvState = 0x22,
+    interruptOffset = 0x23,
+    interruptUPDATEMOD = 0x24
 };
 
 enum ReceiveState {
@@ -118,7 +120,7 @@ void doDump(Module *m) {
     // FIXME replace write
     debug("asked for doDump\n");
 
-    fflush(stdout);
+    wa_flush();
     wa_printf("DUMP!\n");
     wa_printf("{");
 
@@ -182,8 +184,8 @@ void doDump(Module *m) {
     printf("getting table\n");
     wa_printf(",\"table\":{\"max\":%d, \"init\":%d, \"elements\":[",
               m->table.maximum, m->table.initial);
-    fflush(stdout);
-    write(1, m->table.entries, sizeof(uint32_t) * m->table.size);
+    wa_flush();
+    wa_write(m->table.entries, sizeof(uint32_t) * m->table.size);
     wa_printf("]}");  // closing table
 
     printf("getting memory\n");
@@ -194,17 +196,16 @@ void doDump(Module *m) {
     wa_printf(",\"memory\":{\"pages\":%d,\"max\":%d,\"init\":%d,\"bytes\":[",
               m->memory.pages, m->memory.maximum, m->memory.initial);
 
-    fflush(stdout);
-    write(1, m->memory.bytes, total_elems * sizeof(uint8_t));
+    wa_flush();
+    wa_write(m->memory.bytes, total_elems * sizeof(uint8_t));
     wa_printf("]}");  // closing memory
 
     printf("getting br_table\n");
     wa_printf(",\"br_table\":{\"size\":\"0x%x\",\"labels\":[", BR_TABLE_SIZE);
-    fflush(stdout);
-    write(1, m->br_table, BR_TABLE_SIZE * sizeof(uint32_t));
+    wa_flush();
+    wa_write(m->br_table, BR_TABLE_SIZE * sizeof(uint32_t));
     wa_printf("]}}\n");
     wa_flush();
-    // fflush(stdout);
 }
 
 uint32_t read_B32(uint8_t **bytes) {
@@ -493,7 +494,7 @@ bool saveState(Module *m, uint8_t *interruptData) {
 }
 
 void dump_stack_values(Module *m) {
-    fflush(stdout);
+    wa_flush();
     wa_printf("STACK");
     wa_printf(R"({"stack":[)");
     char _value_str[256];
@@ -504,7 +505,7 @@ void dump_stack_values(Module *m) {
                   (i == m->sp) ? "" : ",");
     }
     wa_printf("]}\n");
-    fflush(stdout);
+    wa_flush();
 }
 
 void doDumpLocals(Module *m) {
@@ -665,26 +666,26 @@ bool readChangeLocal(Module *m, uint8_t *bytes) {
  * - `0x20` : Replace the content body of a function by a new function given
  *            as payload (immediately following `0x10`), see #readChange
  */
-bool check_interrupts(Module *m, RunningState *program_state) {
+bool check_interrupts(RmvModule *rm, RunningState *program_state) {
 #if SOCKET
     processIncomingEvents();
     if (receivedDataSize() > 0) {
         auto *data = (uint8_t *)getReceivedData();
-        m->warduino->handleInterrupt(receivedDataSize(), data);
+        rm->m->warduino->handleInterrupt(receivedDataSize(), data);
         freeReceivedData();
     }
 #endif
 
     uint8_t *interruptData = nullptr;
-    interruptData = m->warduino->getInterrupt();
+    interruptData = rm->m->warduino->getInterrupt();
     if (interruptData) {
         switch (*interruptData) {
             case interruptRUN:
                 wa_printf("GO!\n");
-                fflush(stdout);
+                wa_flush();
                 if (*program_state == WARDUINOpause &&
-                    m->warduino->isBreakpoint(m->pc_ptr)) {
-                    m->warduino->skipBreakpoint = m->pc_ptr;
+                    rm->m->warduino->isBreakpoint(rm->m->pc_ptr)) {
+                    rm->m->warduino->skipBreakpoint = rm->m->pc_ptr;
                 }
                 *program_state = WARDUINOrun;
                 free(interruptData);
@@ -703,9 +704,11 @@ bool check_interrupts(Module *m, RunningState *program_state) {
                 break;
             case interruptSTEP:
                 debug("STEP!\n");
-                wa_printf("STEP!\n");
+                printf("STEP\n");
                 *program_state = WARDUINOstep;
                 free(interruptData);
+                wa_printf("STEP!\n");
+                wa_flush();
                 break;
             case interruptBPAdd:  // Breakpoint
             case interruptBPRem:  // Breakpoint remove
@@ -719,12 +722,12 @@ bool check_interrupts(Module *m, RunningState *program_state) {
                 }
                 auto *bpt = (uint8_t *)bp;
                 wa_printf("BP %p!\n", static_cast<void *>(bpt));
-                fflush(stdout);
+                wa_flush();
 
                 if (*interruptData == 0x06)
-                    m->warduino->addBreakpoint(bpt);
+                    rm->m->warduino->addBreakpoint(bpt);
                 else
-                    m->warduino->delBreakpoint(bpt);
+                    rm->m->warduino->delBreakpoint(bpt);
 
                 free(interruptData);
 
@@ -734,17 +737,17 @@ bool check_interrupts(Module *m, RunningState *program_state) {
             case interruptDUMP:
                 *program_state = WARDUINOpause;
                 free(interruptData);
-                doDump(m);
+                doDump(rm->m);
                 break;
             case interruptDUMPLocals:
                 *program_state = WARDUINOpause;
                 free(interruptData);
-                dump_stack_values(m);
+                dump_stack_values(rm->m);
                 break;
             case interruptUPDATEFun:
                 // printf("CHANGE local!\n");
                 debug("CHANGE local!\n");
-                readChange(m, interruptData);
+                readChange(rm->m, interruptData);
                 //  do not free(interruptData);
                 // we need it to run that code
                 // TODO: free double replacements
@@ -752,7 +755,7 @@ bool check_interrupts(Module *m, RunningState *program_state) {
             case interruptUPDATELocal:
                 // printf("CHANGE local!\n");
                 debug("CHANGE local!\n");
-                readChangeLocal(m, interruptData);
+                readChangeLocal(rm->m, interruptData);
                 free(interruptData);
                 break;
             case interruptRecvState: {
@@ -760,17 +763,48 @@ bool check_interrupts(Module *m, RunningState *program_state) {
                     debug("paused program execution\n");
                     *program_state = WARDUINOpause;
                     receivingData = true;
-                    freeState(m, interruptData);
+                    freeState(rm->m, interruptData);
                     free(interruptData);
                     wa_printf("ack!\n");
-                    fflush(stdout);
+                    wa_flush();
                 } else {
                     debug("receiving state\n");
-                    receivingData = !saveState(m, interruptData);
+                    receivingData = !saveState(rm->m, interruptData);
                     free(interruptData);
                     debug("sending %s!\n", receivingData ? "ack" : "done");
                     wa_printf("%s!\n", receivingData ? "ack" : "done");
-                    fflush(stdout);
+                    wa_flush();
+                }
+                break;
+            }
+            case interruptOffset: {
+                free(interruptData);
+                wa_printf("\"{\"offset\":\"%p\"}\"\n", (void *)rm->m->bytes);
+                wa_flush();
+                break;
+            }
+            case interruptUPDATEMOD:{
+                if(receivingData){
+                    uint8_t * data = interruptData + 1;
+                    rm->byte_count = read_B32(&data);;
+                    rm->new_bytes = (uint8_t *) malloc(sizeof(uint8_t) * rm->byte_count);
+                    //FIXME might be missing one byte so rm->byte_count + 1 !!
+                    memcpy(rm->new_bytes, data, rm->byte_count);
+                    // printf("new_bytes %p\n", (void *) rm->new_bytes);
+                    // for (auto i = 0; i < rm->byte_count; i++)
+                    // {
+                    //     printf("%"PRIu8 " ", rm->new_bytes[i]);
+                    // }
+                    
+                    receivingData = false;
+                    *program_state = WARDuinorestart;
+                    wa_printf("done!\n");
+                    wa_flush();
+                }else{
+                    receivingData = true;
+                    free(interruptData);
+                    wa_printf("ack!\n");
+                    wa_flush();
                 }
                 break;
             }

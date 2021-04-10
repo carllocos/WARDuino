@@ -1490,13 +1490,12 @@ bool i_instr_conversion(Module *m, uint8_t opcode) {
     return true;
 }
 
-bool interpret(Module *m) {
+bool interpret(RmvModule *rm) {
     uint8_t *block_ptr;
     uint8_t opcode;
 
     // keep track of occuring errors
     bool success = true;
-
     // set to true when finishes sucessfully
     bool program_done = false;
 
@@ -1504,14 +1503,23 @@ bool interpret(Module *m) {
     RunningState program_state = WARDUINOrun;
 
     while (!program_done && success) {
-        if (program_state == WARDUINOstep) {
+        if (program_state == WARDUINOstep){
             program_state = WARDUINOpause;
+            wa_printf("STEP DONE!\n");
+            wa_flush();
         }
 
-        while (check_interrupts(m, &program_state)) {
+        while (check_interrupts(rm, &program_state)) {
         };
-        reset_wdt();
 
+        //TODO potential bug: call reset_wdt before?
+        if(program_state == WARDuinorestart)
+        {
+            rm->state = WARDuinorestart;
+            return false;
+        }
+
+        reset_wdt();
         if (program_state == WARDUINOpause) {
             continue;
         }
@@ -1519,22 +1527,25 @@ bool interpret(Module *m) {
         // Progam state is not paused
 
         // if BP and not the one we just unpaused
-        if (m->warduino->isBreakpoint(m->pc_ptr) &&
-            m->warduino->skipBreakpoint != m->pc_ptr) {
-            program_state = WARDUINOpause;
-            wa_evprintf("AT %p!\n", (void *)m->pc_ptr);
-            continue;
+        if (rm->m->warduino->isBreakpoint(rm->m->pc_ptr) &&
+            rm->m->warduino->skipBreakpoint != rm->m->pc_ptr) {
+            if(program_state  != WARDUINOstep){
+                program_state = WARDUINOpause;
+                wa_evprintf("AT %p!\n", (void *)rm->m->pc_ptr);
+                printf("at breakpoint\n");//TODO remove
+                continue;
+            }
         }
-        m->warduino->skipBreakpoint = nullptr;
+        rm->m->warduino->skipBreakpoint = nullptr;
 
-        opcode = *m->pc_ptr;
-        block_ptr = m->pc_ptr;
-        m->pc_ptr += 1;
+        opcode = *rm->m->pc_ptr;
+        block_ptr = rm->m->pc_ptr;
+        rm->m->pc_ptr += 1;
 
-        dbg_dump_stack(m);
+        dbg_dump_stack(rm->m);
         dbg_trace(" PC: %p OPCODE: <%s> in %s\n", block_ptr,
                   opcode_repr(opcode),
-                  m->pc_ptr > m->bytes && m->pc_ptr < m->bytes + m->byte_count
+                  rm->m->pc_ptr > rm->m->bytes && rm->m->pc_ptr < rm->m->bytes + rm->m->byte_count
                       ? "module"
                       : "patch");
 
@@ -1548,96 +1559,96 @@ bool interpret(Module *m) {
             case 0x01:  // nop
                 continue;
             case 0x02:  // block
-                success &= i_instr_block(m, block_ptr);
+                success &= i_instr_block(rm->m, block_ptr);
                 continue;
             case 0x03:  // loop
-                success &= i_instr_loop(m, block_ptr);
+                success &= i_instr_loop(rm->m, block_ptr);
                 continue;
             case 0x04:  // if
-                success &= i_instr_if(m, block_ptr);
+                success &= i_instr_if(rm->m, block_ptr);
                 continue;
             case 0x05:  // else
-                success &= i_instr_else(m);
+                success &= i_instr_else(rm->m);
                 continue;
             case 0x0b:  // end
-                success &= i_instr_end(m, &program_done);
+                success &= i_instr_end(rm->m, &program_done);
                 continue;
             case 0x0c:  // br
-                success &= i_instr_br(m);
+                success &= i_instr_br(rm->m);
                 continue;
             case 0x0d:  // br_if
-                success &= i_instr_br_if(m);
+                success &= i_instr_br_if(rm->m);
                 continue;
             case 0x0e:  // br_table
-                success &= i_instr_br_table(m);
+                success &= i_instr_br_table(rm->m);
                 continue;
             case 0x0f:  // return
-                success &= i_instr_return(m);
+                success &= i_instr_return(rm->m);
                 continue;
 
                 //
                 // Call operators
                 //
             case 0x10: {  // call
-                success &= i_instr_call(m);
+                success &= i_instr_call(rm->m);
                 continue;
             }
             case 0x11:  // call_indirect
-                success &= i_instr_call_indirect(m);
+                success &= i_instr_call_indirect(rm->m);
                 continue;
 
                 //
                 // Parametric operators
                 //
             case 0x1a:  // drop
-                success &= i_instr_drop(m);
+                success &= i_instr_drop(rm->m);
                 continue;
             case 0x1b:  // select
-                success &= i_instr_select(m);
+                success &= i_instr_select(rm->m);
                 continue;
 
                 //
                 // Variable access
                 //
             case 0x20:  // get_local
-                success &= i_instr_get_local(m);
+                success &= i_instr_get_local(rm->m);
                 continue;
             case 0x21:  // set_local
-                success &= i_instr_set_local(m);
+                success &= i_instr_set_local(rm->m);
                 continue;
             case 0x22:  // tee_local
-                success &= i_instr_tee_local(m);
+                success &= i_instr_tee_local(rm->m);
                 continue;
             case 0x23:  // get_global
-                success &= i_instr_get_global(m);
+                success &= i_instr_get_global(rm->m);
                 continue;
             case 0x24:  // set_global
-                success &= i_instr_set_global(m);
+                success &= i_instr_set_global(rm->m);
                 continue;
 
                 //
                 // Memory-related operators
                 //
             case 0x3f:  // current_memory
-                success &= i_instr_current_memory(m);
+                success &= i_instr_current_memory(rm->m);
                 continue;
             case 0x40:  // grow_memory
-                success &= i_instr_grow_memory(m);
+                success &= i_instr_grow_memory(rm->m);
                 continue;
                 // Memory load operators
             case 0x28 ... 0x35:
-                success &= i_instr_mem_load(m, opcode);
+                success &= i_instr_mem_load(rm->m, opcode);
                 continue;
                 // Memory store operators
             case 0x36 ... 0x3e:
-                success &= i_instr_mem_store(m, opcode);
+                success &= i_instr_mem_store(rm->m, opcode);
                 continue;
 
                 //
                 // Constants
                 //
             case 0x41 ... 0x44:  // i32.const
-                success &= i_instr_const(m, opcode);
+                success &= i_instr_const(rm->m, opcode);
                 continue;
 
                 //
@@ -1647,21 +1658,21 @@ bool interpret(Module *m) {
                 // unary
             case 0x45:  // i32.eqz
             case 0x50:  // i64.eqz
-                success &= i_instr_unairy_u32(m, opcode);
+                success &= i_instr_unairy_u32(rm->m, opcode);
                 continue;
 
                 // i32 binary
             case 0x46 ... 0x4f:
-                success &= i_instr_math_u32(m, opcode);
+                success &= i_instr_math_u32(rm->m, opcode);
                 continue;
             case 0x51 ... 0x5a:
-                success &= i_instr_math_u64(m, opcode);
+                success &= i_instr_math_u64(rm->m, opcode);
                 continue;
             case 0x5b ... 0x60:
-                success &= i_instr_math_f32(m, opcode);
+                success &= i_instr_math_f32(rm->m, opcode);
                 continue;
             case 0x61 ... 0x66:
-                success &= i_instr_math_f64(m, opcode);
+                success &= i_instr_math_f64(rm->m, opcode);
                 continue;
 
                 //
@@ -1670,42 +1681,42 @@ bool interpret(Module *m) {
 
                 // unary i32
             case 0x67 ... 0x69:
-                success &= i_instr_unairy_i32(m, opcode);
+                success &= i_instr_unairy_i32(rm->m, opcode);
                 continue;
 
                 // unary i64
             case 0x79 ... 0x7b:
-                success &= i_instr_unairy_i64(m, opcode);
+                success &= i_instr_unairy_i64(rm->m, opcode);
                 continue;
 
             case 0x8b ... 0x91:  // unary f32
             case 0x99 ... 0x9f:  // unary f64
-                success &= i_instr_unairy_floating(m, opcode);
+                success &= i_instr_unairy_floating(rm->m, opcode);
                 continue;
 
                 // i32 binary
             case 0x6a ... 0x78:
-                success &= i_instr_binary_i32(m, opcode);
+                success &= i_instr_binary_i32(rm->m, opcode);
                 continue;
 
                 // i64 binary
             case 0x7c ... 0x8a:
-                success &= i_instr_binary_i64(m, opcode);
+                success &= i_instr_binary_i64(rm->m, opcode);
                 continue;
 
                 // f32 binary
             case 0x92 ... 0x98:
-                success &= i_instr_binary_f32(m, opcode);
+                success &= i_instr_binary_f32(rm->m, opcode);
                 continue;
 
                 // f64 binary
             case 0xa0 ... 0xa6:
-                success &= i_instr_binary_f64(m, opcode);
+                success &= i_instr_binary_f64(rm->m, opcode);
                 continue;
 
                 // conversion operations
             case 0xa7 ... 0xbb:
-                success &= i_instr_conversion(m, opcode);
+                success &= i_instr_conversion(rm->m, opcode);
                 continue;
             default:
                 sprintf(exception, "unrecognized opcode 0x%x", opcode);

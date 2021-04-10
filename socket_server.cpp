@@ -42,6 +42,16 @@ void send2Client(struct ClientSocket* client, char* buffer, int size) {
     if (client == nullptr) return;
     client->socket.write(buffer);
 }
+
+void write2client(struct ClientSocket* client, const void* buf, int count) {
+    if (client == nullptr) return;
+    uint32_t qw = client->socket.write(buf);
+    // FIXME
+    if (qw != count)
+        Serial.println("writeClient not all send");
+    client->socket.flush();
+}
+
 void flush2Client(struct ClientSocket* client) {
     if (client == nullptr) return;
     client->socket.flush();
@@ -186,6 +196,11 @@ struct ClientSocket *getEventSocket() {
 void send2Client(struct ClientSocket *client, char *buffer, int size) {
     write(client->fd, buffer, size);
 }
+
+void write2Client(struct ClientSocket* client, const void* buff, int count){
+    write(client->fd, buff, count);
+}
+
 void flush2Client(struct ClientSocket *client) { return; }
 
 void initializeServer(const char *host, int portno, const char *ssid,
@@ -235,7 +250,6 @@ void processIncomingEvents() {
     for (auto i = 0; i <= MAX_SOCKETS; i++) {
         if (fds[i].revents == 0) continue;
 
-        printf("process %d\n", i);
         if (fds[i].revents != POLLIN) {
             _closeSocket(fds[i].fd);
             continue;
@@ -258,6 +272,7 @@ void processIncomingEvents() {
 }
 
 bool _readInput() {
+    printf("receiving input\n");
     int len = recv(sockets[0].fd, inputsocket.buff, SOCK_RECVBUF_SIZE, 0);
     if (len > 0) {
         inputsocket.size = len;
@@ -301,7 +316,7 @@ void _closeSocket(int fd) {
     } else {
         int p = sockets[0].fd == fd ? 0 : 1;
         sockets[p].fd = -1;
-        printf("closing socket at %d\n", p);
+        printf("closing socket fd=%d at %d\n", fd, p);
     }
 }
 

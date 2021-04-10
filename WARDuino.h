@@ -165,6 +165,9 @@ typedef struct Module {
     char *exception;  // exception is set when the program fails
 } Module;
 
+
+
+
 typedef bool (*Primitive)(Module *);
 
 typedef struct PrimitiveEntry {
@@ -173,7 +176,15 @@ typedef struct PrimitiveEntry {
     Type t;
 } PrimitiveEntry;
 
-enum RunningState { WARDUINOrun, WARDUINOpause, WARDUINOstep };
+enum RunningState { WARDUINOrun, WARDUINOpause, WARDUINOstep, WARDuinorestart };
+
+typedef struct {
+    Module * m;
+    Options options;
+    uint8_t* new_bytes;
+    uint32_t byte_count;
+    RunningState state;
+} RmvModule;
 
 class WARDuino {
    private:
@@ -198,13 +209,13 @@ class WARDuino {
 
     WARDuino();
 
-    int run_module(Module *m);
+    int run_module(RmvModule *m);
 
     Module *load_module(uint8_t *bytes, uint32_t byte_count, Options options);
 
     void unload_module(Module *m);
 
-    bool invoke(Module *m, uint32_t fidx);
+    bool invoke(RmvModule *m, uint32_t fidx);
 
     uint32_t get_export_fidx(Module *m, const char *name);
 
@@ -217,6 +228,7 @@ class WARDuino {
 
     bool isBreakpoint(uint8_t *loc);
 
+    RmvModule * removable(Module * m);
     // Get interrupt or NULL if none
     uint8_t *getInterrupt();
 };

@@ -13,10 +13,12 @@ struct ClientSocket* getOutputSocket();
 
 struct ClientSocket* getEventSocket();
 
+// TODO replace send2Client with write2Clien
 void send2Client(struct ClientSocket* client, char* buffer, int size);
 
-void flush2Client(struct ClientSocket* client);
+void write2Client(struct ClientSocket* client, const void* buff, int count);
 
+void flush2Client(struct ClientSocket* client);
 /*
 initializes socket server at host and port number.
 */

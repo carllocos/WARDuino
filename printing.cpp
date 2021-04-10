@@ -35,6 +35,15 @@ void wa_dbgprintf(const char* format, ...) {
 
 void wa_flush() { flush2Client(getOutputSocket()); }
 
+void wa_write(const void* buff, int count) {
+    struct ClientSocket* client = getOutputSocket();
+    if (client == nullptr) {
+        for (auto i = 0; i < count; i++) printf((char*) (buff + i));
+        fflush(stdout);
+    } else
+        write2Client(client, buff, count);
+}
+
 char buffer[SOCK_SENDBUF_SIZE];
 void _print2Socket(struct ClientSocket* client, const char* format,
                    va_list args) {
@@ -47,7 +56,7 @@ void _print2Socket(struct ClientSocket* client, const char* format,
             printf("TOO MUCH\n");
             exit(-1);
         }
-        send2Client(client, buffer, l);
+        write2Client(client, buffer, l);
     }
 }
 
@@ -73,6 +82,17 @@ void wa_dbgprintf(const char* format, ...) {
     va_start(args, format);
     vprintf(format, args);
     va_end(args);
+}
+
+
+void wa_write(const void* buff, int count) {
+    const char * b = (char * ) buff;
+    for (auto i = 0; i < count; i++)
+        printf((char *) b + i);
+    fflush(stdout);
+} 
+void wa_flush() {
+    fflush(stdout);
 }
 
 #endif

@@ -11,6 +11,8 @@
 #include "primitives.h"
 #include "util.h"
 
+#include "printing.h"
+
 #define UNDEF (uint32_t)(-1)
 
 char exception[512];
@@ -254,23 +256,23 @@ void find_blocks(Module *m) {
 }
 // End Control Instructions
 
-void run_init_expr(Module *m, uint8_t type, uint8_t **pc) {
+void run_init_expr(RmvModule *rm, uint8_t type, uint8_t **pc) {
     // Run the init_expr
     Block block;
     block.block_type = 0x01;
     block.type = get_block_type(type);
     block.start_ptr = *pc;
 
-    m->pc_ptr = *pc;
-    push_block(m, &block, m->sp);
+    rm->m->pc_ptr = *pc;
+    push_block(rm->m, &block, rm->m->sp);
     // WARNING: running code here to get initial value!
-    dbg_info("  running init_expr at 0x%p: %s\n", m->pc_ptr,
+    dbg_info("  running init_expr at 0x%p: %s\n", rm->m->pc_ptr,
              block_repr(&block));
-    interpret(m);
-    *pc = m->pc_ptr;
+    interpret(rm);
+    *pc = rm->m->pc_ptr;
 
-    ASSERT(m->stack[m->sp].value_type == type,
-           "init_expr type mismatch 0x%x != 0x%x", m->stack[m->sp].value_type,
+    ASSERT(rm->m->stack[rm->m->sp].value_type == type,
+           "init_expr type mismatch 0x%x != 0x%x", rm->m->stack[rm->m->sp].value_type,
            type);
 }
 
@@ -297,10 +299,13 @@ Module *WARDuino::load_module(uint8_t *bytes, uint32_t byte_count,
     uint8_t valueType;
     uint32_t word;
     Module *m;
+    RmvModule rm;
+    rm.state = WARDUINOrun;
     // Allocate the module
     m = (Module *)acalloc(1, sizeof(Module), "Module");
     m->warduino = this;
     m->options = options;
+    rm.m = m;
     // Empty stacks
     m->sp = -1;
     m->fp = -1;
@@ -635,7 +640,7 @@ Module *WARDuino::load_module(uint8_t *bytes, uint32_t byte_count,
                     m->globals[gidx].value_type = type;
 
                     // Run the init_expr to get global value
-                    run_init_expr(m, type, &pos);
+                    run_init_expr(&rm, type, &pos);
 
                     m->globals[gidx] = m->stack[m->sp--];
                 }
@@ -688,7 +693,7 @@ Module *WARDuino::load_module(uint8_t *bytes, uint32_t byte_count,
                     ASSERT(index == 0, "Only 1 default table in MVP");
 
                     // Run the init_expr to get offset
-                    run_init_expr(m, I32, &pos);
+                    run_init_expr(&rm, I32, &pos);
 
                     uint32_t offset = m->stack[m->sp--].value.uint32;
 
@@ -737,7 +742,7 @@ Module *WARDuino::load_module(uint8_t *bytes, uint32_t byte_count,
                     ASSERT(midx == 0, "Only 1 default memory in MVP");
 
                     // Run the init_expr to get the offset
-                    run_init_expr(m, I32, &pos);
+                    run_init_expr(&rm, I32, &pos);
 
                     uint32_t offset = m->stack[m->sp--].value.uint32;
 
@@ -837,7 +842,7 @@ Module *WARDuino::load_module(uint8_t *bytes, uint32_t byte_count,
             result = true;
         } else {
             // run the function setup by setup_call
-            result = interpret(m);
+            result = interpret(&rm);
         }
         if (!result) {
             FATAL("Exception: %s\n", exception);
@@ -862,31 +867,44 @@ WARDuino::WARDuino() {
 
 // if entry == NULL,  attempt to invoke 'main' or '_main'
 // Return value of false means exception occured
-bool WARDuino::invoke(Module *m, uint32_t fidx) {
+bool WARDuino::invoke(RmvModule *rm, uint32_t fidx) {
     bool result;
-    m->sp = -1;
-    m->fp = -1;
-    m->csp = -1;
+    rm->m->sp = -1;
+    rm->m->fp = -1;
+    rm->m->csp = -1;
 
     dbg_trace("Interpretation starts\n");
-    dbg_dump_stack(m);
-    setup_call(m, fidx);
+    dbg_dump_stack(rm->m);
+    setup_call(rm->m, fidx);
     dbg_trace("Call setup\n");
-    result = interpret(m);
+    result = interpret(rm);
     dbg_trace("Interpretation ended\n");
-    dbg_dump_stack(m);
+
+    if(rm->state != WARDuinorestart){
+        dbg_dump_stack(rm->m);
+    }
+
     return result;
 }
 
-int WARDuino::run_module(Module *m) {
-    uint32_t fidx = this->get_export_fidx(m, "main");
-    if (fidx == UNDEF) fidx = this->get_export_fidx(m, "Main");
-    if (fidx == UNDEF) fidx = this->get_export_fidx(m, "_main");
-    if (fidx == UNDEF) fidx = this->get_export_fidx(m, "_Main");
+int WARDuino::run_module(RmvModule *rm) {
+    uint32_t fidx = this->get_export_fidx(rm->m, "main");
+    if (fidx == UNDEF) fidx = this->get_export_fidx(rm->m, "Main");
+    if (fidx == UNDEF) fidx = this->get_export_fidx(rm->m, "_main");
+    if (fidx == UNDEF) fidx = this->get_export_fidx(rm->m, "_Main");
     ASSERT(fidx != UNDEF, "Main not found");
-    this->invoke(m, fidx);
-
-    return m->stack->value.uint32;
+    this->invoke(rm, fidx);
+    if(rm->state == WARDuinorestart){
+        rm->state = WARDUINOrun;
+        this->unload_module(rm->m);
+        rm->m = this->load_module(rm->new_bytes, rm->byte_count, rm->options);
+        rm->byte_count = 0;
+        rm->new_bytes = nullptr;
+        wa_printf("restart done!\n");
+        wa_flush();
+        this->run_module(rm);
+    }
+    return rm->m->stack->value.uint32;
 }
 
 // Called when an interrupt comes in (not concurently the same function)
@@ -955,4 +973,14 @@ void WARDuino::delBreakpoint(uint8_t *loc) { this->breakpoints.erase(loc); }
 
 bool WARDuino::isBreakpoint(uint8_t *loc) {
     return this->breakpoints.find(loc) != this->breakpoints.end();
+}
+
+RmvModule *WARDuino::removable(Module * m) {
+    RmvModule* rm = (RmvModule * ) malloc(sizeof (RmvModule));
+    rm->m = m;
+    rm->options = m->options;
+    rm->state = WARDUINOrun;
+    rm->new_bytes = nullptr;
+    rm->byte_count = 0;
+    return rm;
 }
