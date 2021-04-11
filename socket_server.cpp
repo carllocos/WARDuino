@@ -43,9 +43,11 @@ void send2Client(struct ClientSocket* client, char* buffer, int size) {
     client->socket.write(buffer);
 }
 
-void write2client(struct ClientSocket* client, const void* buf, int count) {
+void write2Client(struct ClientSocket* client, const void* buf, int count) {
     if (client == nullptr) return;
-    uint32_t qw = client->socket.write(buf);
+    const char* cbuf = (char *) buf;
+    uint32_t qw = client->socket.write(cbuf, count);
+
     // FIXME
     if (qw != count)
         Serial.println("writeClient not all send");
