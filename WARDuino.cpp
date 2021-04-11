@@ -9,9 +9,8 @@
 #include "instructions.h"
 #include "mem.h"
 #include "primitives.h"
-#include "util.h"
-
 #include "printing.h"
+#include "util.h"
 
 #define UNDEF (uint32_t)(-1)
 
@@ -272,8 +271,8 @@ void run_init_expr(RmvModule *rm, uint8_t type, uint8_t **pc) {
     *pc = rm->m->pc_ptr;
 
     ASSERT(rm->m->stack[rm->m->sp].value_type == type,
-           "init_expr type mismatch 0x%x != 0x%x", rm->m->stack[rm->m->sp].value_type,
-           type);
+           "init_expr type mismatch 0x%x != 0x%x",
+           rm->m->stack[rm->m->sp].value_type, type);
 }
 
 //
@@ -880,7 +879,7 @@ bool WARDuino::invoke(RmvModule *rm, uint32_t fidx) {
     result = interpret(rm);
     dbg_trace("Interpretation ended\n");
 
-    if(rm->state != WARDuinorestart){
+    if (rm->state != WARDuinorestart) {
         dbg_dump_stack(rm->m);
     }
 
@@ -894,7 +893,7 @@ int WARDuino::run_module(RmvModule *rm) {
     if (fidx == UNDEF) fidx = this->get_export_fidx(rm->m, "_Main");
     ASSERT(fidx != UNDEF, "Main not found");
     this->invoke(rm, fidx);
-    if(rm->state == WARDuinorestart){
+    if (rm->state == WARDuinorestart) {
         rm->state = WARDUINOrun;
         this->unload_module(rm->m);
         rm->m = this->load_module(rm->new_bytes, rm->byte_count, rm->options);
@@ -975,8 +974,8 @@ bool WARDuino::isBreakpoint(uint8_t *loc) {
     return this->breakpoints.find(loc) != this->breakpoints.end();
 }
 
-RmvModule *WARDuino::removable(Module * m) {
-    RmvModule* rm = (RmvModule * ) malloc(sizeof (RmvModule));
+RmvModule *WARDuino::removable(Module *m) {
+    RmvModule *rm = (RmvModule *)malloc(sizeof(RmvModule));
     rm->m = m;
     rm->options = m->options;
     rm->state = WARDUINOrun;

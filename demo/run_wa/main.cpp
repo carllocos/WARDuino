@@ -16,7 +16,8 @@ int main(int /*argc*/, const char ** /*argv*/) {
     int portno = 8080;
     const char *host = "localhost";
     initializeServer(host, portno, nullptr, nullptr);
-    wac.run_module(wac.removable(wac.load_module(hello_world_wasm, hello_world_wasm_len, {})));
+    wac.run_module(wac.removable(
+        wac.load_module(hello_world_wasm, hello_world_wasm_len, {})));
     return 0;
 }
 
@@ -55,7 +56,8 @@ void signalHandler(int /* signum */) {
 
 int main(int /*argc*/, const char ** /*argv*/) {
     signal(SIGUSR1, signalHandler);
-    wac.run_module(wac.removable( wac.load_module(hello_world_wasm, hello_world_wasm_len, {})));
+    wac.run_module(wac.removable(
+        wac.load_module(hello_world_wasm, hello_world_wasm_len, {})));
     return 0;
 }
 #endif

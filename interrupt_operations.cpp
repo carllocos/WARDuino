@@ -783,24 +783,26 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                 wa_flush();
                 break;
             }
-            case interruptUPDATEMOD:{
-                if(receivingData){
-                    uint8_t * data = interruptData + 1;
-                    rm->byte_count = read_B32(&data);;
-                    rm->new_bytes = (uint8_t *) malloc(sizeof(uint8_t) * rm->byte_count);
-                    //FIXME might be missing one byte so rm->byte_count + 1 !!
+            case interruptUPDATEMOD: {
+                if (receivingData) {
+                    uint8_t *data = interruptData + 1;
+                    rm->byte_count = read_B32(&data);
+                    ;
+                    rm->new_bytes =
+                        (uint8_t *)malloc(sizeof(uint8_t) * rm->byte_count);
+                    // FIXME might be missing one byte so rm->byte_count + 1 !!
                     memcpy(rm->new_bytes, data, rm->byte_count);
                     // printf("new_bytes %p\n", (void *) rm->new_bytes);
                     // for (auto i = 0; i < rm->byte_count; i++)
                     // {
                     //     printf("%"PRIu8 " ", rm->new_bytes[i]);
                     // }
-                    
+
                     receivingData = false;
                     *program_state = WARDuinorestart;
                     wa_printf("done!\n");
                     wa_flush();
-                }else{
+                } else {
                     receivingData = true;
                     free(interruptData);
                     wa_printf("ack!\n");

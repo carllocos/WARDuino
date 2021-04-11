@@ -1503,7 +1503,7 @@ bool interpret(RmvModule *rm) {
     RunningState program_state = WARDUINOrun;
 
     while (!program_done && success) {
-        if (program_state == WARDUINOstep){
+        if (program_state == WARDUINOstep) {
             program_state = WARDUINOpause;
             wa_printf("STEP DONE!\n");
             wa_flush();
@@ -1512,9 +1512,8 @@ bool interpret(RmvModule *rm) {
         while (check_interrupts(rm, &program_state)) {
         };
 
-        //TODO potential bug: call reset_wdt before?
-        if(program_state == WARDuinorestart)
-        {
+        // TODO potential bug: call reset_wdt before?
+        if (program_state == WARDuinorestart) {
             rm->state = WARDuinorestart;
             return false;
         }
@@ -1529,10 +1528,10 @@ bool interpret(RmvModule *rm) {
         // if BP and not the one we just unpaused
         if (rm->m->warduino->isBreakpoint(rm->m->pc_ptr) &&
             rm->m->warduino->skipBreakpoint != rm->m->pc_ptr) {
-            if(program_state  != WARDUINOstep){
+            if (program_state != WARDUINOstep) {
                 program_state = WARDUINOpause;
                 wa_evprintf("AT %p!\n", (void *)rm->m->pc_ptr);
-                printf("at breakpoint\n");//TODO remove
+                printf("at breakpoint\n");  // TODO remove
                 continue;
             }
         }
@@ -1545,7 +1544,8 @@ bool interpret(RmvModule *rm) {
         dbg_dump_stack(rm->m);
         dbg_trace(" PC: %p OPCODE: <%s> in %s\n", block_ptr,
                   opcode_repr(opcode),
-                  rm->m->pc_ptr > rm->m->bytes && rm->m->pc_ptr < rm->m->bytes + rm->m->byte_count
+                  rm->m->pc_ptr > rm->m->bytes &&
+                          rm->m->pc_ptr < rm->m->bytes + rm->m->byte_count
                       ? "module"
                       : "patch");
 

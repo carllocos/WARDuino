@@ -165,9 +165,6 @@ typedef struct Module {
     char *exception;  // exception is set when the program fails
 } Module;
 
-
-
-
 typedef bool (*Primitive)(Module *);
 
 typedef struct PrimitiveEntry {
@@ -179,9 +176,9 @@ typedef struct PrimitiveEntry {
 enum RunningState { WARDUINOrun, WARDUINOpause, WARDUINOstep, WARDuinorestart };
 
 typedef struct {
-    Module * m;
+    Module *m;
     Options options;
-    uint8_t* new_bytes;
+    uint8_t *new_bytes;
     uint32_t byte_count;
     RunningState state;
 } RmvModule;
@@ -228,7 +225,7 @@ class WARDuino {
 
     bool isBreakpoint(uint8_t *loc);
 
-    RmvModule * removable(Module * m);
+    RmvModule *removable(Module *m);
     // Get interrupt or NULL if none
     uint8_t *getInterrupt();
 };

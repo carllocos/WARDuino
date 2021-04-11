@@ -38,7 +38,7 @@ void wa_flush() { flush2Client(getOutputSocket()); }
 void wa_write(const void* buff, int count) {
     struct ClientSocket* client = getOutputSocket();
     if (client == nullptr) {
-        for (auto i = 0; i < count; i++) printf((char*) (buff + i));
+        for (auto i = 0; i < count; i++) printf((char*)(buff + i));
         fflush(stdout);
     } else
         write2Client(client, buff, count);
@@ -84,15 +84,11 @@ void wa_dbgprintf(const char* format, ...) {
     va_end(args);
 }
 
-
 void wa_write(const void* buff, int count) {
-    const char * b = (char * ) buff;
-    for (auto i = 0; i < count; i++)
-        printf((char *) b + i);
-    fflush(stdout);
-} 
-void wa_flush() {
+    const char* b = (char*)buff;
+    for (auto i = 0; i < count; i++) printf((char*)b + i);
     fflush(stdout);
 }
+void wa_flush() { fflush(stdout); }
 
 #endif
