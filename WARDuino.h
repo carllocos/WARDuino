@@ -173,7 +173,13 @@ typedef struct PrimitiveEntry {
     Type t;
 } PrimitiveEntry;
 
-enum RunningState { WARDUINOrun, WARDUINOpause, WARDUINOstep, WARDuinorestart };
+enum RunningState {
+    WARDUINOrun,
+    WARDUINOpause,
+    WARDUINOstep,
+    WARDuinorestart,
+    WARDuinoProxyRun
+};
 
 typedef struct {
     Module *m;
@@ -182,6 +188,23 @@ typedef struct {
     uint32_t byte_count;
     RunningState state;
 } RmvModule;
+
+typedef struct {
+    std::set<uint32_t> proxies = {};
+    char *host = nullptr;
+    int port = 0;
+    bool connected = false;
+} ProxyClient;
+
+typedef struct {
+    Block *fun = nullptr;
+    StackValue *args = nullptr;
+} ProxyServer;
+
+typedef struct {
+    StackValue ret_value;
+    bool succes;
+} ProxyResult;
 
 class WARDuino {
    private:
@@ -196,6 +219,9 @@ class WARDuino {
     uint8_t interruptLastChar;
     std::vector<uint8_t> interruptBuffer;
     long interruptSize;
+
+    ProxyClient proxyClient;
+    ProxyServer proxyServer;
 
    public:
     // vector, we expect few breakpoints
@@ -228,6 +254,21 @@ class WARDuino {
     RmvModule *removable(Module *m);
     // Get interrupt or NULL if none
     uint8_t *getInterrupt();
+
+    // Proxy client
+    void addProxy(uint32_t fidx);
+    void addProxyHost(char *host, int portno);
+    bool isProxy(uint32_t fidx);
+    void clearProxyState();
+    ProxyResult *proxyCall(Block *fun, StackValue *args);
+
+    // proxy server
+    void processProxyCall(Block *fun, StackValue *args);
+    bool hasProxyCall();
+    StackValue *getProxyArgs();
+    Type *getProxyType();
+    void returnProxyCall(StackValue *v, bool success);
+    uint32_t getProxy();
 };
 
 #endif

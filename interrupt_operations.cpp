@@ -51,7 +51,9 @@ enum InteruptTypes {
     interruptUPDATELocal = 0x21,
     interruptRecvState = 0x22,
     interruptOffset = 0x23,
-    interruptUPDATEMOD = 0x24
+    interruptUPDATEMOD = 0x24,
+    interruptRecvProxies = 0x25,
+    interruptProxyCall = 0x26
 };
 
 enum ReceiveState {
@@ -207,6 +209,14 @@ void doDump(Module *m) {
     wa_printf("]}}\n");
     wa_flush();
 }
+
+uint32_t read_L32(uint8_t **bytes) {
+    uint8_t *b = *bytes;
+    uint32_t n = 0;
+    memcpy(&n, *bytes, sizeof(uint32_t));
+    *bytes += 4;
+    return n;
+}  // TODO replace with read_LEB_32? If keep Big endian use memcpy?
 
 uint32_t read_B32(uint8_t **bytes) {
     uint8_t *b = *bytes;
@@ -675,7 +685,8 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
         freeReceivedData();
     }
 #endif
-
+    // FIXME before doing dangerous interrupts e.g. interruptStep, checp if
+    // program state is PRoxy if so delay interrupt
     uint8_t *interruptData = nullptr;
     interruptData = rm->m->warduino->getInterrupt();
     if (interruptData) {
@@ -702,7 +713,11 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                 debug("PAUSE!\n");
                 free(interruptData);
                 break;
-            case interruptSTEP:
+            case interruptSTEP: {
+                if (*program_state == WARDUINOpause &&
+                    rm->m->warduino->isBreakpoint(rm->m->pc_ptr)) {
+                    rm->m->warduino->skipBreakpoint = rm->m->pc_ptr;
+                }
                 debug("STEP!\n");
                 printf("STEP\n");
                 *program_state = WARDUINOstep;
@@ -710,6 +725,7 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                 wa_printf("STEP!\n");
                 wa_flush();
                 break;
+            }
             case interruptBPAdd:  // Breakpoint
             case interruptBPRem:  // Breakpoint remove
             {
@@ -745,12 +761,9 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                 dump_stack_values(rm->m);
                 break;
             case interruptUPDATEFun:
-                // printf("CHANGE local!\n");
+                printf("CHANGE local!\n");
                 debug("CHANGE local!\n");
                 readChange(rm->m, interruptData);
-                //  do not free(interruptData);
-                // we need it to run that code
-                // TODO: free double replacements
                 break;
             case interruptUPDATELocal:
                 // printf("CHANGE local!\n");
@@ -792,12 +805,6 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                         (uint8_t *)malloc(sizeof(uint8_t) * rm->byte_count);
                     // FIXME might be missing one byte so rm->byte_count + 1 !!
                     memcpy(rm->new_bytes, data, rm->byte_count);
-                    // printf("new_bytes %p\n", (void *) rm->new_bytes);
-                    // for (auto i = 0; i < rm->byte_count; i++)
-                    // {
-                    //     printf("%"PRIu8 " ", rm->new_bytes[i]);
-                    // }
-
                     receivingData = false;
                     *program_state = WARDuinorestart;
                     wa_printf("done!\n");
@@ -808,6 +815,79 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                     wa_printf("ack!\n");
                     wa_flush();
                 }
+                break;
+            }
+            case interruptRecvProxies: {
+                rm->m->warduino->clearProxyState();
+                uint8_t *data = interruptData + 1;
+                uint32_t count = read_B32(&data);
+                printf("funcs_total %" PRIu32 "\n", count);
+                for (auto i = 0; i < count; i++) {
+                    // TODO make one line
+                    uint32_t fidx = read_B32(&data);
+                    rm->m->warduino->addProxy(fidx);
+                    printf("func idx %" PRIu32 "\n", fidx);
+                }
+                int portno = (int)read_B32(&data);
+                uint8_t host_size = (uint8_t)data[0];
+                data++;
+                char *host = (char *)malloc(sizeof(char) * (host_size + 1));
+                memcpy((void *)host, data, host_size);
+                host[host_size + 1] = '\0';
+                rm->m->warduino->addProxyHost(host, portno);
+                free(interruptData);
+                wa_printf("done!\n");
+                break;
+            }
+            case interruptProxyCall: {
+                printf("got proxycall request\n");
+                uint8_t *data = interruptData + 1;
+                uint32_t fidx = read_L32(&data);
+
+                printf("printf gotfunct %" PRIu32 "\n", fidx);
+
+                Block *func = &rm->m->functions[fidx];
+                StackValue *args = nullptr;
+                if (func->type->param_count > 0) {
+                    args = (StackValue *)malloc(sizeof(StackValue) *
+                                                func->type->param_count);
+                    for (auto i = 0; i < func->type->param_count; i++) {
+                        printf("args %d ", i);
+                        args[i].value_type = (uint8_t)data[0];
+                        data++;
+                        printf("vt %" PRIu8 "\n", args[i].value_type);
+                        args[i].value.uint64 = 0;  // init whole union to 0
+                        size_t qb = 4;
+                        if ((args[i].value_type & I64) |
+                            (args[i].value_type & F64))
+                            qb = 8;
+                        memcpy(&args[i].value, data, qb);
+                        data += qb;
+
+                        uint8_t vt = args[i].value_type;
+                        if (vt & I32) {
+                            printf("i32 value %" PRIu32 "\n",
+                                   args[i].value.uint32);
+                        } else if (vt & F32) {
+                            printf("i32 value %.7f \n", args[i].value.f32);
+                        } else if (vt & I64) {
+                            printf("I64 value %" PRIu64 "\n",
+                                   args[i].value.uint64);
+                        }
+
+                        else {
+                            printf("f64 value %.7f \n", args[i].value.f64);
+                        }
+                    }
+                }
+
+                printf("calling prpoces scall\n");
+
+                rm->m->warduino->processProxyCall(func, args);
+                // rm->m->warduino->current_proxy = read_B32(&ps);
+                // rm->m->warduino->old_ps = *program_state;
+                // *program_state = WARDUINOrun;
+                free(interruptData);
                 break;
             }
             default:

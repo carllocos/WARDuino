@@ -13,6 +13,8 @@ struct ClientSocket* getOutputSocket();
 
 struct ClientSocket* getEventSocket();
 
+struct ClientSocket* getProxyOutput();
+
 // TODO replace send2Client with write2Clien
 void send2Client(struct ClientSocket* client, char* buffer, int size);
 

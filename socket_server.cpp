@@ -2,7 +2,7 @@
 
 #if defined(Arduino)
 #include <WiFi.h>
-#define MAX_SOCKETS 2
+#define MAX_SOCKETS 3
 
 struct InputSocket {
     char* buff;
@@ -36,6 +36,10 @@ struct ClientSocket* getOutputSocket() {
 
 struct ClientSocket* getEventSocket() {
     return getClient(1);
+}
+
+struct ClientSocket* getProxyOutput() {
+    return getClient(2);
 }
 
 void send2Client(struct ClientSocket* client, char* buffer, int size) {
@@ -85,13 +89,20 @@ void initializeServer(const char* host, int portno, const char* ssid,
     inputsocket.buff = (char*)malloc(inputsocket.max_size);
     sockets[0].inuse = false;
     sockets[1].inuse = false;
+    sockets[2].inuse = false;
 }
 
 void processIncomingEvents() {
-    if (!sockets[0].inuse || !sockets[1].inuse) {
+    // TODO use for loop
+    if (!sockets[0].inuse || !sockets[1].inuse || !sockets[2].inuse) {
         WiFiClient client = wifiServer.available();
         if (client) {
-            short int idx = sockets[0].inuse ? 1 : 0;
+            short int idx = 2;
+            if (!sockets[0].inuse) {
+                idx = 0;
+            } else if (!sockets[1].inuse) {
+                idx = 1;
+            }
             printf("adding client %d\n", idx);
             sockets[idx].socket = client;
             sockets[idx].inuse = true;
@@ -100,19 +111,35 @@ void processIncomingEvents() {
     }
 
     if (sockets[1].inuse && !sockets[1].socket.connected()) {
-        printf("stoping event client. nsockets %d\n", nsockets);
         sockets[1].socket.stop();
         sockets[1].inuse = false;
         nsockets--;
+        printf("stoping event client. nsockets %d\n", nsockets);
     }
 
+    // todo use for loop!
     if (sockets[0].inuse && !sockets[0].socket.connected()) {
-        printf("stoping inout client. nsockets %d\n", nsockets);
         sockets[0].socket.stop();
         sockets[0].inuse = false;
         nsockets--;
+        printf("stoping inout client. nsockets %d\n", nsockets);
     } else if (sockets[0].inuse) {
         WiFiClient c = sockets[0].socket;
+        uint32_t old_size = inputsocket.size;
+        inputsocket.size = 0;
+        while (c.available() > 0) {
+            inputsocket.buff[inputsocket.size++] = c.read();
+        }
+        inputsocket.size = inputsocket.size == 0 ? old_size : inputsocket.size;
+    }
+
+    if (sockets[2].inuse && !sockets[2].socket.connected()) {
+        sockets[2].socket.stop();
+        sockets[2].inuse = false;
+        nsockets--;
+        printf("stoping proxy client. nsockets %d\n", nsockets);
+    } else if (sockets[2].inuse) {
+        WiFiClient c = sockets[2].socket;
         uint32_t old_size = inputsocket.size;
         inputsocket.size = 0;
         while (c.available() > 0) {
@@ -191,6 +218,10 @@ struct ClientSocket *getOutputSocket() {
 
 struct ClientSocket *getEventSocket() {
     if (sockets[1].fd != -1) return sockets + 1;
+    return nullptr;
+}
+
+struct ClientSocket *getProxyOutput() {
     return nullptr;
 }
 
