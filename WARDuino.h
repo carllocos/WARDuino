@@ -229,6 +229,9 @@ class WARDuino {
 
     // Breakpoint to skip in the next interpretation step
     uint8_t *skipBreakpoint = nullptr;
+    uint8_t *until_pc = nullptr;
+    int until_csp = -1;
+
 
     WARDuino();
 

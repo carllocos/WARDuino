@@ -370,7 +370,7 @@ bool proxy_call(uint32_t fidx, Module *m) {
     }
 
     ProxyResult *pr = m->warduino->proxyCall(fun, args);
-    if (fun->type->param_count > 0) {
+    if (fun->type->result_count > 0) {
         m->stack[++m->sp].value_type = pr->ret_value.value_type;
         m->stack[m->sp].value = pr->ret_value.value;
     }
@@ -1537,9 +1537,19 @@ bool interpret(RmvModule *rm) {
 
     while (!program_done && success) {
         if (program_state == WARDUINOstep) {
-            program_state = WARDUINOpause;
-            wa_printf("STEP DONE!\n");
-            wa_flush();
+            if((rm->m->warduino->until_pc == nullptr) ||
+               (rm->m->csp < rm->m->warduino->until_csp) ||
+               ((rm->m->csp == rm->m->warduino->until_csp) &&
+                  (rm->m->pc_ptr == rm->m->warduino->until_pc))){
+
+                if(rm->m->warduino->until_pc != nullptr){
+                    rm->m->warduino->until_pc = nullptr;
+                    rm->m->warduino->until_csp = -1;
+                }
+                program_state = WARDUINOpause;
+                wa_printf("STEP DONE!\n");
+                wa_flush();
+            }
         }
 
         if (program_state == WARDuinoProxyRun &&
@@ -1551,8 +1561,6 @@ bool interpret(RmvModule *rm) {
                 v = (StackValue *)malloc(sizeof(StackValue));
                 v->value_type = rm->m->stack[rm->m->sp].value_type;
                 v->value = rm->m->stack[rm->m->sp].value;
-                printf("returning result type=%" PRIu8 ", val=%" PRIu32 "\n",
-                       v->value_type, v->value);
             }
 
             // restore old state
@@ -1575,7 +1583,6 @@ bool interpret(RmvModule *rm) {
         if (rm->m->warduino->hasProxyCall() &&
             program_state != WARDuinoProxyRun) {
             proxydone_ps = program_state;
-            printf("proxydone_csp=%d\n", rm->m->csp);
             proxydone_csp = rm->m->csp;
             proxydone_sp = rm->m->sp;
             proxydone_success = true;
@@ -1583,16 +1590,11 @@ bool interpret(RmvModule *rm) {
             program_state = WARDuinoProxyRun;
             Type *t = rm->m->warduino->getProxyType();
             StackValue *args = rm->m->warduino->getProxyArgs();
-            printf("Prior push on stack sp=%d\n", rm->m->sp);
             for (uint32_t i = 0; i < t->param_count; i++)
                 rm->m->stack[++rm->m->sp] = args[i];
 
-            printf("post push on stack sp=%d\n", rm->m->sp);
             uint32_t proxy = rm->m->warduino->getProxy();
-            printf("setting up for %" PRIu32 "\n", proxy);
             setup_call(rm->m, proxy);
-            printf("new fp=%d\n", rm->m->fp);
-            printf("new csp=%d\n", rm->m->csp);
         }
 
         reset_wdt();
@@ -1605,7 +1607,8 @@ bool interpret(RmvModule *rm) {
         // if BP and not the one we just unpaused
         if (rm->m->warduino->isBreakpoint(rm->m->pc_ptr) &&
             (rm->m->warduino->skipBreakpoint != rm->m->pc_ptr) &&
-            !rm->m->warduino->hasProxyCall()) {
+            !rm->m->warduino->hasProxyCall() &&
+            (rm->m->warduino->until_pc == nullptr)) {
             program_state = WARDUINOpause;
             wa_evprintf("AT %p!\n", (void *)rm->m->pc_ptr);
             printf("at breakpoint\n");  // TODO remove

@@ -43,6 +43,7 @@ enum InteruptTypes {
     interruptHALT = 0x02,
     interruptPAUSE = 0x03,
     interruptSTEP = 0x04,
+    interruptUntil = 0x05,
     interruptBPAdd = 0x06,
     interruptBPRem = 0x07,
     interruptDUMP = 0x10,
@@ -726,6 +727,7 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                 wa_flush();
                 break;
             }
+            case interruptUntil:
             case interruptBPAdd:  // Breakpoint
             case interruptBPRem:  // Breakpoint remove
             {
@@ -737,14 +739,23 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                     bp |= interruptData[i + 2];
                 }
                 auto *bpt = (uint8_t *)bp;
-                wa_printf("BP %p!\n", static_cast<void *>(bpt));
+                if(*interruptData == 0x05){
+                    wa_printf("Until %p!\n", static_cast<void *>(bpt));
+                }
+                else{
+                    wa_printf("BP %p!\n", static_cast<void *>(bpt));
+                }
                 wa_flush();
 
                 if (*interruptData == 0x06)
                     rm->m->warduino->addBreakpoint(bpt);
-                else
+                else if(*interruptData == 0x07)
                     rm->m->warduino->delBreakpoint(bpt);
-
+                else{
+                    *program_state = WARDUINOstep;
+                    rm->m->warduino->until_pc = bpt;
+                    rm->m->warduino->until_csp = rm->m->csp;
+                }
                 free(interruptData);
 
                 break;
@@ -840,11 +851,10 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                 break;
             }
             case interruptProxyCall: {
-                printf("got proxycall request\n");
                 uint8_t *data = interruptData + 1;
                 uint32_t fidx = read_L32(&data);
 
-                printf("printf gotfunct %" PRIu32 "\n", fidx);
+                printf("ProxyCall func %" PRIu32 "\n", fidx);
 
                 Block *func = &rm->m->functions[fidx];
                 StackValue *args = nullptr;
@@ -852,10 +862,8 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                     args = (StackValue *)malloc(sizeof(StackValue) *
                                                 func->type->param_count);
                     for (auto i = 0; i < func->type->param_count; i++) {
-                        printf("args %d ", i);
                         args[i].value_type = (uint8_t)data[0];
                         data++;
-                        printf("vt %" PRIu8 "\n", args[i].value_type);
                         args[i].value.uint64 = 0;  // init whole union to 0
                         size_t qb = 4;
                         if ((args[i].value_type & I64) |
@@ -866,17 +874,17 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
 
                         uint8_t vt = args[i].value_type;
                         if (vt & I32) {
-                            printf("i32 value %" PRIu32 "\n",
+                            printf("arg %d: i32 value %" PRIu32 "\n", i,
                                    args[i].value.uint32);
                         } else if (vt & F32) {
-                            printf("i32 value %.7f \n", args[i].value.f32);
+                            printf("arg %d: F32 value %.7f \n", i, args[i].value.f32);
                         } else if (vt & I64) {
-                            printf("I64 value %" PRIu64 "\n",
+                            printf("arg %d: I64 value %" PRIu64 "\n", i,
                                    args[i].value.uint64);
                         }
 
                         else {
-                            printf("f64 value %.7f \n", args[i].value.f64);
+                            printf("arg %d: f64 value %.7f \n", i, args[i].value.f64);
                         }
                     }
                 }

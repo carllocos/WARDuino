@@ -1048,10 +1048,15 @@ void WARDuino::returnProxyCall(StackValue *v, bool success) {
 
         memcpy(raw, &suc, 1);
         memcpy(raw + 1, cp->raw, cp->len);
+        printf("sneding wa_proxy\n");
         wa_proxy(raw, cp->len + 1);
         free(v);
         free(cp);
         free(raw);
+    }
+    else{
+        uint8_t suc = success ? 1 : 0;
+        wa_proxy(&suc, 1);
     }
 }
 
@@ -1180,7 +1185,6 @@ char *tohex(unsigned char *raw, size_t len) {
         unsigned c2 = raw[i] & 0xF;
         hexa[i * 2 + 0] = c > 9 ? (c - 10 + 'A') : (c + '0');
         hexa[i * 2 + 1] = c2 > 9 ? (c2 - 10 + 'A') : (c2 + '0');
-        ;
     }
     return hexa;
 }
