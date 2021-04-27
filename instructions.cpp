@@ -14,6 +14,8 @@
 #include <inttypes.h>
 #include "printing.h"
 
+extern void doDump(RmvModule *rm);
+extern void dump_stack_values(Module *m);
 // Size of memory load.
 // This starts with the first memory load operator at opcode 0x28
 uint32_t LOAD_SIZE[] = {4, 8, 4, 8, 1, 1, 2, 2, 1, 1, 2, 2, 4, 4,  // loads
@@ -1521,6 +1523,7 @@ bool i_instr_conversion(Module *m, uint8_t opcode) {
 bool interpret(RmvModule *rm) {
     uint8_t *block_ptr;
     uint8_t opcode;
+    uint8_t *pc_error;
 
     // keep track of occuring errors
     bool success = true;
@@ -1618,6 +1621,7 @@ bool interpret(RmvModule *rm) {
 
         opcode = *rm->m->pc_ptr;
         block_ptr = rm->m->pc_ptr;
+        pc_error = rm->m->pc_ptr;
         rm->m->pc_ptr += 1;
 
         dbg_dump_stack(rm->m);
@@ -1812,7 +1816,12 @@ bool interpret(RmvModule *rm) {
               program_done ? "expectedly" : "unexpectedly",
               success ? "ok" : "error");
     if (!success) {
-        FATAL("%s\n", exception);
+        rm->pc_error = pc_error - rm->m->bytes;
+        wa_evprintf("{\"error\":\"%s\"}\n", exception);
+        doDump(rm);
+        dump_stack_values(rm->m);
+        printf("%"PRIu32 "\n",rm->pc_error);
+        // FATAL("%s\n", exception);
     }
     return success;
 }

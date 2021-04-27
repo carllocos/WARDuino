@@ -119,7 +119,8 @@ void format_constant_value(char *buf, StackValue *v) {
     }
 }
 
-void doDump(Module *m) {
+void doDump(RmvModule *rm) {
+    Module *m = rm->m;
     // FIXME replace write
     debug("asked for doDump\n");
 
@@ -129,7 +130,10 @@ void doDump(Module *m) {
 
     // current PC
     wa_printf(R"("pc":"%p",)", (void *)m->pc_ptr);
-
+    if(rm->pc_error != 0){
+        wa_printf("\"pc_error\":\"%" PRIu32"\"," , rm->pc_error);
+        printf("pc error %" PRIu32 "\n",  rm->pc_error);
+    }
     // start of bytes
     wa_printf(R"("start":["%p"],)", (void *)m->bytes);
 
@@ -141,25 +145,10 @@ void doDump(Module *m) {
                   (++i < m->warduino->breakpoints.size()) ? "," : "");
     }
     wa_printf("],");
-    // Functions
-
-    printf("getting functions\n");
-    wa_printf("\"functions\":[");
-
-    for (size_t i = m->import_count; i < m->function_count; i++) {
-        // TODO remove extra unnecessery function state.
-        wa_printf(
-            R"({"fidx":"0x%x","from":"%p","to":"%p","args":%d,"locs":%d}%s)",
-            m->functions[i].fidx,
-            static_cast<void *>(m->functions[i].start_ptr),
-            static_cast<void *>(m->functions[i].end_ptr),
-            m->functions[i].type->param_count, m->functions[i].local_count,
-            (i < m->function_count - 1) ? "," : "");
-    }
 
     printf("getting callstack (total %d)\n", m->csp);
     // Callstack
-    wa_printf("],\"callstack\":[");
+    wa_printf("\"callstack\":[");
     for (int i = 0; i <= m->csp; i++) {
         debug("getting frame %d\n", i);
         Frame *f = &m->callstack[i];
@@ -172,6 +161,7 @@ void doDump(Module *m) {
             f->block->block_type, f->block->fidx, f->sp, f->fp, block_key,
             static_cast<void *>(f->ra_ptr), (i < m->csp) ? "," : "");
     }
+
     printf("getting globals #%" PRIu32 "\n", m->global_count);
     // GLobals
     wa_printf("],\"globals\":[");
@@ -764,7 +754,7 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
             case interruptDUMP:
                 *program_state = WARDUINOpause;
                 free(interruptData);
-                doDump(rm->m);
+                doDump(rm);
                 break;
             case interruptDUMPLocals:
                 *program_state = WARDUINOpause;
@@ -811,13 +801,13 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                 if (receivingData) {
                     uint8_t *data = interruptData + 1;
                     rm->byte_count = read_B32(&data);
-                    ;
                     rm->new_bytes =
                         (uint8_t *)malloc(sizeof(uint8_t) * rm->byte_count);
                     // FIXME might be missing one byte so rm->byte_count + 1 !!
                     memcpy(rm->new_bytes, data, rm->byte_count);
                     receivingData = false;
                     *program_state = WARDuinorestart;
+                    rm->pc_error = 0;
                     wa_printf("done!\n");
                     wa_flush();
                 } else {
@@ -892,9 +882,6 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                 printf("calling prpoces scall\n");
 
                 rm->m->warduino->processProxyCall(func, args);
-                // rm->m->warduino->current_proxy = read_B32(&ps);
-                // rm->m->warduino->old_ps = *program_state;
-                // *program_state = WARDUINOrun;
                 free(interruptData);
                 break;
             }

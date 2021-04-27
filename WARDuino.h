@@ -187,6 +187,7 @@ typedef struct {
     uint8_t *new_bytes;
     uint32_t byte_count;
     RunningState state;
+    uint32_t pc_error;
 } RmvModule;
 
 typedef struct {
