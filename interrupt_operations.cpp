@@ -123,7 +123,7 @@ void doDump(RmvModule *rm) {
     Module *m = rm->m;
     // FIXME replace write
     debug("asked for doDump\n");
-
+    printf("asking for dump\n");
     wa_flush();
     wa_printf("DUMP!\n");
     wa_printf("{");
@@ -137,7 +137,6 @@ void doDump(RmvModule *rm) {
     // start of bytes
     wa_printf(R"("start":["%p"],)", (void *)m->bytes);
 
-    printf("getting breakpoints\n");
     wa_printf("\"breakpoints\":[");
     size_t i = 0;
     for (auto bp : m->warduino->breakpoints) {
@@ -146,7 +145,6 @@ void doDump(RmvModule *rm) {
     }
     wa_printf("],");
 
-    printf("getting callstack (total %d)\n", m->csp);
     // Callstack
     wa_printf("\"callstack\":[");
     for (int i = 0; i <= m->csp; i++) {
@@ -162,7 +160,6 @@ void doDump(RmvModule *rm) {
             static_cast<void *>(f->ra_ptr), (i < m->csp) ? "," : "");
     }
 
-    printf("getting globals #%" PRIu32 "\n", m->global_count);
     // GLobals
     wa_printf("],\"globals\":[");
     for (auto i = 0; i < m->global_count; i++) {
@@ -174,14 +171,12 @@ void doDump(RmvModule *rm) {
     }
     wa_printf("]");  // closing globals
 
-    printf("getting table\n");
     wa_printf(",\"table\":{\"max\":%d, \"init\":%d, \"elements\":[",
               m->table.maximum, m->table.initial);
     wa_flush();
     wa_write(m->table.entries, sizeof(uint32_t) * m->table.size);
     wa_printf("]}");  // closing table
 
-    printf("getting memory\n");
 
     // memory
     uint32_t total_elems =
@@ -193,7 +188,6 @@ void doDump(RmvModule *rm) {
     wa_write(m->memory.bytes, total_elems * sizeof(uint8_t));
     wa_printf("]}");  // closing memory
 
-    printf("getting br_table\n");
     wa_printf(",\"br_table\":{\"size\":\"0x%x\",\"labels\":[", BR_TABLE_SIZE);
     wa_flush();
     wa_write(m->br_table, BR_TABLE_SIZE * sizeof(uint32_t));
@@ -683,6 +677,7 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
     if (interruptData) {
         switch (*interruptData) {
             case interruptRUN:
+                printf("received run interrupt\n");
                 wa_printf("GO!\n");
                 wa_flush();
                 if (*program_state == WARDUINOpause &&
@@ -799,6 +794,7 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
             }
             case interruptUPDATEMOD: {
                 if (receivingData) {
+                    printf("interrupt Update Module\n");
                     uint8_t *data = interruptData + 1;
                     rm->byte_count = read_B32(&data);
                     rm->new_bytes =
@@ -819,6 +815,7 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                 break;
             }
             case interruptRecvProxies: {
+                printf("receiving functions list to proxy\n");
                 rm->m->warduino->clearProxyState();
                 uint8_t *data = interruptData + 1;
                 uint32_t count = read_B32(&data);
@@ -827,7 +824,7 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                     // TODO make one line
                     uint32_t fidx = read_B32(&data);
                     rm->m->warduino->addProxy(fidx);
-                    printf("func idx %" PRIu32 "\n", fidx);
+                    // printf("func idx %" PRIu32 "\n", fidx);
                 }
                 int portno = (int)read_B32(&data);
                 uint8_t host_size = (uint8_t)data[0];

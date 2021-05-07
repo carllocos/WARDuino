@@ -2,7 +2,7 @@
 #include <iostream>
 
 #ifndef SOCKET
-#define SOCKET 0
+#define SOCKET 1
 #endif
 
 #if SOCKET
@@ -16,8 +16,11 @@ int main(int /*argc*/, const char ** /*argv*/) {
     int portno = 8080;
     const char *host = "localhost";
     initializeServer(host, portno, nullptr, nullptr);
-    wac.run_module(wac.removable(
-        wac.load_module(hello_world_wasm, hello_world_wasm_len, {})));
+    RmvModule * rm = wac.removable(
+        wac.load_module(hello_world_wasm, hello_world_wasm_len, {}));
+
+    wac.initial_runstate = WARDUINOpause;
+    wac.run_module(rm);
     return 0;
 }
 

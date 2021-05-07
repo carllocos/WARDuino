@@ -1531,7 +1531,7 @@ bool interpret(RmvModule *rm) {
     bool program_done = false;
 
     // TODO: this is actually a property of warduino
-    RunningState program_state = WARDUINOrun;
+    RunningState program_state = rm->m->warduino->initial_runstate;
     RunningState proxydone_ps;
     int proxydone_csp;
     int proxydone_sp;

@@ -233,6 +233,8 @@ class WARDuino {
     uint8_t *until_pc = nullptr;
     int until_csp = -1;
 
+    // needed to potentialy start warduino in a paused state
+    RunningState initial_runstate = WARDUINOrun;
 
     WARDuino();
 

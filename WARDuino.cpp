@@ -897,6 +897,7 @@ int WARDuino::run_module(RmvModule *rm) {
     if (rm->state == WARDuinorestart) {
         rm->state = WARDUINOrun;
         this->unload_module(rm->m);
+        this->initial_runstate = WARDUINOrun; 
         rm->m = this->load_module(rm->new_bytes, rm->byte_count, rm->options);
         rm->byte_count = 0;
         rm->new_bytes = nullptr;
