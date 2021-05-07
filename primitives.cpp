@@ -52,7 +52,7 @@ void write_spi_bytes_16_prim(int times, uint32_t color) {
 #ifdef ARDUINO
 #define NUM_PRIMITIVES_ARDUINO 9
 #else
-#define NUM_PRIMITIVES_ARDUINO 8
+#define NUM_PRIMITIVES_ARDUINO 9
 #endif
 
 #define ALL_PRIMITIVES (NUM_PRIMITIVES + NUM_PRIMITIVES_ARDUINO)
@@ -244,6 +244,14 @@ def_prim(chip_delay, oneToNoneU32) {
     return true;
 }
 
+def_prim(chip_digital_read, oneToOneU32){
+    dbg_trace("EMU: reading pin %" PRIu32 "\n", arg0.uint32);
+    FATAL("Digital read not supported. Mock or Proxy instead\n");
+    pop_args(1);
+    pushInt32(0);
+    return true;
+}
+
 def_prim(chip_delay_us, oneToNoneU32) {
     using namespace std::this_thread;  // sleep_for, sleep_until
     using namespace std::chrono;       // nanoseconds, system_clock, seconds
@@ -306,6 +314,7 @@ void install_primitives() {
     install_primitive(chip_pin_mode);
     install_primitive(chip_digital_write);
     install_primitive(chip_delay);
+    install_primitive(chip_digital_read);
     install_primitive(chip_delay_us);
     install_primitive(spi_begin);
     install_primitive(write_spi_byte);
