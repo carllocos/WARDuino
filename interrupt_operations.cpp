@@ -47,7 +47,6 @@ enum InteruptTypes {
     interruptBPAdd = 0x06,
     interruptBPRem = 0x07,
     interruptDUMP = 0x10,
-    interruptDUMPLocals = 0x11,
     interruptUPDATEFun = 0x20,
     interruptUPDATELocal = 0x21,
     interruptRecvState = 0x22,
@@ -128,14 +127,18 @@ void doDump(RmvModule *rm) {
     wa_printf("DUMP!\n");
     wa_printf("{");
 
+    // printf("asked for pc\n");
     // current PC
     wa_printf(R"("pc":"%p",)", (void *)m->pc_ptr);
     if(rm->pc_error != 0){
         wa_printf("\"pc_error\":\"%" PRIu32"\"," , rm->pc_error);
         printf("pc error %" PRIu32 "\n",  rm->pc_error);
     }
+    // printf("asked for pc\n");
+
     // start of bytes
     wa_printf(R"("start":["%p"],)", (void *)m->bytes);
+    // printf("asked for bps\n");
 
     wa_printf("\"breakpoints\":[");
     size_t i = 0;
@@ -145,21 +148,33 @@ void doDump(RmvModule *rm) {
     }
     wa_printf("],");
 
+    // printf("asked for stack\n");
+    //stack
+    wa_printf("\"stack\":[");
+    char _value_str[256];
+    for (int i = 0; i <= m->sp; i++) {
+        auto v = &m->stack[i];
+        format_constant_value(_value_str, v);
+        wa_printf(R"({"idx":%d, %s}%s)", i, _value_str,
+                  (i == m->sp) ? "" : ",");
+    }
+    wa_printf("],");
+    // printf("asked for callstack\n");
+
     // Callstack
     wa_printf("\"callstack\":[");
     for (int i = 0; i <= m->csp; i++) {
-        debug("getting frame %d\n", i);
         Frame *f = &m->callstack[i];
-        if (f->block->block_type == 0)
-            debug("is func idx %d frame %d\n", f->block->fidx, i);
         uint8_t *block_key =
             f->block->block_type == 0 ? nullptr : find_opcode(m, f->block);
+        // printf("sending frame\n");
         wa_printf(
             R"({"type":%u,"fidx":"0x%x","sp":%d,"fp":%d,"block_key":"%p", "ra":"%p"}%s)",
             f->block->block_type, f->block->fidx, f->sp, f->fp, block_key,
             static_cast<void *>(f->ra_ptr), (i < m->csp) ? "," : "");
     }
 
+    // printf("asked for globals\n");
     // GLobals
     wa_printf("],\"globals\":[");
     for (auto i = 0; i < m->global_count; i++) {
@@ -171,13 +186,14 @@ void doDump(RmvModule *rm) {
     }
     wa_printf("]");  // closing globals
 
+    // printf("asked for table\n");
     wa_printf(",\"table\":{\"max\":%d, \"init\":%d, \"elements\":[",
               m->table.maximum, m->table.initial);
     wa_flush();
     wa_write(m->table.entries, sizeof(uint32_t) * m->table.size);
     wa_printf("]}");  // closing table
 
-
+    // printf("asked for mem\n");
     // memory
     uint32_t total_elems =
         m->memory.pages * (uint32_t)PAGE_SIZE;  // TODO debug PAGE_SIZE
@@ -188,6 +204,8 @@ void doDump(RmvModule *rm) {
     wa_write(m->memory.bytes, total_elems * sizeof(uint8_t));
     wa_printf("]}");  // closing memory
 
+
+    // printf("asked for br_table\n");
     wa_printf(",\"br_table\":{\"size\":\"0x%x\",\"labels\":[", BR_TABLE_SIZE);
     wa_flush();
     wa_write(m->br_table, BR_TABLE_SIZE * sizeof(uint32_t));
@@ -488,20 +506,20 @@ bool saveState(Module *m, uint8_t *interruptData) {
     return done == (uint8_t)1;
 }
 
-void dump_stack_values(Module *m) {
-    wa_flush();
-    wa_printf("STACK");
-    wa_printf(R"({"stack":[)");
-    char _value_str[256];
-    for (int i = 0; i <= m->sp; i++) {
-        auto v = &m->stack[i];
-        format_constant_value(_value_str, v);
-        wa_printf(R"({"idx":%d, %s}%s)", i, _value_str,
-                  (i == m->sp) ? "" : ",");
-    }
-    wa_printf("]}\n");
-    wa_flush();
-}
+// void dump_stack_values(Module *m) {
+//     wa_flush();
+//     wa_printf("STACK");
+//     wa_printf(R"({"stack":[)");
+//     char _value_str[256];
+//     for (int i = 0; i <= m->sp; i++) {
+//         auto v = &m->stack[i];
+//         format_constant_value(_value_str, v);
+//         wa_printf(R"({"idx":%d, %s}%s)", i, _value_str,
+//                   (i == m->sp) ? "" : ",");
+//     }
+//     wa_printf("]}\n");
+//     wa_flush();
+// }
 
 void doDumpLocals(Module *m) {
     fflush(stdout);
@@ -751,11 +769,11 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                 free(interruptData);
                 doDump(rm);
                 break;
-            case interruptDUMPLocals:
-                *program_state = WARDUINOpause;
-                free(interruptData);
-                dump_stack_values(rm->m);
-                break;
+            // case interruptDUMPStack:
+            //     *program_state = WARDUINOpause;
+            //     free(interruptData);
+            //     dump_stack_values(rm->m);
+            //     break;
             case interruptUPDATEFun:
                 printf("CHANGE local!\n");
                 debug("CHANGE local!\n");
@@ -841,7 +859,7 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                 uint8_t *data = interruptData + 1;
                 uint32_t fidx = read_L32(&data);
 
-                printf("ProxyCall func %" PRIu32 "\n", fidx);
+                // printf("ProxyCall func %" PRIu32 "\n", fidx);
 
                 Block *func = &rm->m->functions[fidx];
                 StackValue *args = nullptr;
@@ -869,15 +887,11 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                             printf("arg %d: I64 value %" PRIu64 "\n", i,
                                    args[i].value.uint64);
                         }
-
                         else {
                             printf("arg %d: f64 value %.7f \n", i, args[i].value.f64);
                         }
                     }
                 }
-
-                printf("calling prpoces scall\n");
-
                 rm->m->warduino->processProxyCall(func, args);
                 free(interruptData);
                 break;
