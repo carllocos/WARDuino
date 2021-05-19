@@ -39,6 +39,9 @@ struct ClientSocket* getEventSocket() {
 }
 
 struct ClientSocket* getProxyOutput() {
+    if(nsockets == 1){ //TODO remove
+        return getClient(0);
+    }
     return getClient(2);
 }
 
@@ -78,9 +81,9 @@ void initializeServer(const char* host, int portno, const char* ssid,
                       const char* password) {
     WiFi.begin(ssid, password);
 
+    Serial.println("Connecting to WiFi..");
     while (WiFi.status() != WL_CONNECTED) {
         delay(10);
-        Serial.println("Connecting to WiFi..");
     }
     Serial.println("Connected to the WiFi network");
     Serial.println(WiFi.localIP());
@@ -94,7 +97,7 @@ void initializeServer(const char* host, int portno, const char* ssid,
 
 void processIncomingEvents() {
     // TODO use for loop
-    if (!sockets[0].inuse || !sockets[1].inuse || !sockets[2].inuse) {
+    if (nsockets < MAX_SOCKETS) {
         WiFiClient client = wifiServer.available();
         if (client) {
             short int idx = 2;
@@ -103,11 +106,15 @@ void processIncomingEvents() {
             } else if (!sockets[1].inuse) {
                 idx = 1;
             }
-            printf("adding client %d\n", idx);
+            //printf("adding client %d\n", idx);
             sockets[idx].socket = client;
             sockets[idx].inuse = true;
             nsockets++;
         }
+    }
+
+    if(nsockets == 0){
+        return;
     }
 
     if (sockets[1].inuse && !sockets[1].socket.connected()) {
@@ -304,11 +311,11 @@ void processIncomingEvents() {
 }
 
 bool _readInput() {
-    printf("receiving input\n");
+    // printf("receiving input\n");
     int len = recv(sockets[0].fd, inputsocket.buff, SOCK_RECVBUF_SIZE, 0);
     if (len > 0) {
         inputsocket.size = len;
-        printf("received total #%" PRIu32 "\n", inputsocket.size);
+        // printf("received total #%" PRIu32 "\n", inputsocket.size);
         return true;
     }
     return false;
