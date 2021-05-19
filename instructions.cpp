@@ -363,6 +363,7 @@ bool i_instr_return(Module *m) {
     return true;
 }
 
+#ifdef PCBUILD
 bool proxy_call(uint32_t fidx, Module *m) {
     Block *fun = &m->functions[fidx];
     StackValue *args = nullptr;
@@ -381,6 +382,7 @@ bool proxy_call(uint32_t fidx, Module *m) {
     free(pr);
     return succ;
 }
+#endif
 
 /**
  * 0x10 call
@@ -394,9 +396,12 @@ bool i_instr_call(Module *m) {
             sprintf(exception, "call stack exhausted");
             return false;
         }
-        if (m->warduino->isProxy(fidx)) {
-            return proxy_call(fidx, m);
-        }
+
+        #ifdef PCBUILD
+            if (m->warduino->isProxy(fidx)) {
+                return proxy_call(fidx, m);
+            }
+        #endif
 
         setup_call(m, fidx);  // regular function call
         if (TRACE) {
@@ -455,9 +460,11 @@ bool i_instr_call_indirect(Module *m) {
             return false;
         }
 
+        #ifdef PCBUILD
         if (m->warduino->isProxy(fidx)) {
             return proxy_call(fidx, m);
         }
+        #endif
 
         setup_call(m, fidx);  // regular function call
 
@@ -526,6 +533,7 @@ bool i_instr_get_local(Module *m) {
     m->stack[++m->sp] = m->stack[m->fp + arg];
     return true;
 }
+
 
 /**
  * 0x21 set_local
@@ -1557,10 +1565,11 @@ bool interpret(RmvModule *rm) {
 
         if (program_state == WARDuinoProxyRun &&
             ((proxydone_csp == rm->m->csp) || !proxydone_success)) {
-            printf("proxy call done!\n");
+            // printf("proxy call done!\n");
             Type *t = rm->m->warduino->getProxyType();
             StackValue *v = nullptr;
             if (proxydone_success && (t->result_count > 0)) {
+                // printf("copying retunr proxy value\n");
                 v = (StackValue *)malloc(sizeof(StackValue));
                 v->value_type = rm->m->stack[rm->m->sp].value_type;
                 v->value = rm->m->stack[rm->m->sp].value;
@@ -1583,8 +1592,9 @@ bool interpret(RmvModule *rm) {
             rm->state = WARDuinorestart;
             return false;
         }
-        if (rm->m->warduino->hasProxyCall() &&
-            program_state != WARDuinoProxyRun) {
+        if (program_state != WARDuinoProxyRun &&
+            rm->m->warduino->hasProxyCall()) {
+            // printf("setting up call for proxy\n");
             proxydone_ps = program_state;
             proxydone_csp = rm->m->csp;
             proxydone_sp = rm->m->sp;
@@ -1618,7 +1628,6 @@ bool interpret(RmvModule *rm) {
             continue;
         }
         rm->m->warduino->skipBreakpoint = nullptr;
-
         opcode = *rm->m->pc_ptr;
         block_ptr = rm->m->pc_ptr;
         pc_error = rm->m->pc_ptr;
@@ -1816,11 +1825,11 @@ bool interpret(RmvModule *rm) {
               program_done ? "expectedly" : "unexpectedly",
               success ? "ok" : "error");
     if (!success) {
+        printf("unsuccesfull\n");
         rm->pc_error = pc_error - rm->m->bytes;
         wa_evprintf("{\"error\":\"%s\"}\n", exception);
         doDump(rm);
-        dump_stack_values(rm->m);
-        printf("%"PRIu32 "\n",rm->pc_error);
+        // printf("%"PRIu32 "\n",rm->pc_error);
         // FATAL("%s\n", exception);
     }
     return success;
