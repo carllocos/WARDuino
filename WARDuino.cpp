@@ -983,6 +983,7 @@ RmvModule *WARDuino::removable(Module *m) {
     rm->state = WARDUINOrun;
     rm->new_bytes = nullptr;
     rm->byte_count = 0;
+    rm->pc_error = 0;
     return rm;
 }
 
@@ -1008,7 +1009,6 @@ void WARDuino::clearProxyState() {
 
 // Proxy server
 void WARDuino::processProxyCall(Block *fun, StackValue *args) {
-    printf("registered relevant info\n");
     this->proxyServer.fun = fun;
     this->proxyServer.args = args;
 }
@@ -1031,7 +1031,7 @@ copyVals *copyStackValues(StackValue *vals, uint32_t amount);
 char *tohex(unsigned char *raw, size_t len);
 
 void WARDuino::returnProxyCall(StackValue *v, bool success) {
-    printf("reutnr proxycall\n");
+    // printf("return proxycall\n");
     if (this->proxyServer.fun == nullptr) return;
 
     this->proxyServer.fun = nullptr;
@@ -1049,7 +1049,7 @@ void WARDuino::returnProxyCall(StackValue *v, bool success) {
 
         memcpy(raw, &suc, 1);
         memcpy(raw + 1, cp->raw, cp->len);
-        printf("sneding wa_proxy\n");
+        // printf("sending wa_proxy\n");
         wa_proxy(raw, cp->len + 1);
         free(v);
         free(cp);
@@ -1102,7 +1102,7 @@ ProxyResult *WARDuino::proxyCall(Block *fun, StackValue *args) {
         pxc->connected = proxy_connect((const char *)pxc->host, pxc->port);
     }
 
-    printf("sending buffer %s\n", hexa);
+    // printf("sending buffer %s\n", hexa);
     uint8_t *res = (uint8_t *)proxy_send(hexa, total - 1);
     pr->succes = (uint8_t)res[0] == 1;
     pr->ret_value.value_type = 0;
@@ -1110,15 +1110,15 @@ ProxyResult *WARDuino::proxyCall(Block *fun, StackValue *args) {
     if (pr->succes) {
         uint8_t vt = res[1];
         pr->ret_value.value_type = vt;
-        if (vt & I32) {
+        if (vt == I32) {
             memcpy(&pr->ret_value.value.uint32, res + 2, sizeof(uint32_t));
-        } else if (vt & F32) {
+        } else if (vt == F32) {
             memcpy(&pr->ret_value.value.f32, res + 2, sizeof(float));
 
-        } else if (vt & I64) {
+        } else if (vt == I64) {
             memcpy(&pr->ret_value.value.uint64, res + 2, sizeof(uint64_t));
 
-        } else if (vt & F64) {
+        } else if (vt == F64) {
             memcpy(&pr->ret_value.value.f64, res + 2, sizeof(double));
         }
     }
@@ -1140,10 +1140,16 @@ copyVals *copyStackValues(StackValue *vals, uint32_t amount) {
     size_t vals_len = 0;
     for (uint32_t i = 0; i < amount; i++) {
         vals_len += 1;  // add type
-        if ((vals[i].value_type & I32) || (vals[i].value_type & F32))
+        if (vals[i].value_type == I32){
             vals_len += 4;
-        else
+        }else if(vals[i].value_type == F32){
+            vals_len += sizeof(float);
+        }else if(vals[i].value_type == F64){
+            vals_len += sizeof(double);
+        }
+        else{
             vals_len += 8;
+        }
     }
 
     unsigned char *raw = (unsigned char *)malloc(vals_len);
@@ -1153,22 +1159,22 @@ copyVals *copyStackValues(StackValue *vals, uint32_t amount) {
         memcpy(raw + offset, &vt, sizeof(uint8_t));
         offset += 1;
 
-        if (vt & I32) {
-            printf("copy I32\n");
+        if (vt == I32) {
+            // printf("copy I32\n");
             memcpy(raw + offset, &vals[i].value.uint32, sizeof(uint32_t));
             offset += 4;
-        } else if (vt & F32) {
-            printf("copy I32\n");
+        } else if (vt == F32) {
+            // printf("copy F32\n");
             memcpy(raw + offset, &vals[i].value.f32, sizeof(float));
-            offset += 4;
-        } else if (vt & I64) {
-            printf("copy I32\n");
+            offset += sizeof(float);
+        } else if (vt == I64) {
+            // printf("copy I64\n");
             memcpy(raw + offset, &vals[i].value.uint64, sizeof(uint64_t));
             offset += 8;
-        } else if (vt & F64) {
-            printf("copy I32\n");
+        } else if (vt == F64) {
+            // printf("copy F64\n");
             memcpy(raw + offset, &vals[i].value.f64, sizeof(double));
-            offset += 8;
+            offset += sizeof(double);
         }
     }
 
