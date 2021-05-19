@@ -50,9 +50,9 @@ void write_spi_bytes_16_prim(int times, uint32_t color) {
 
 #define NUM_PRIMITIVES 0
 #ifdef ARDUINO
-#define NUM_PRIMITIVES_ARDUINO 9
+#define NUM_PRIMITIVES_ARDUINO 11
 #else
-#define NUM_PRIMITIVES_ARDUINO 9
+#define NUM_PRIMITIVES_ARDUINO 11
 #endif
 
 #define ALL_PRIMITIVES (NUM_PRIMITIVES + NUM_PRIMITIVES_ARDUINO)
@@ -84,6 +84,8 @@ int prim_index = 0;
 #define pop_args(n) m->sp -= n
 #define get_arg(m, arg) m->stack[(m)->sp - (arg)].value
 #define pushInt32(arg) m->stack[m->sp].value.uint32 = arg
+#define pushFloat32(arg) m->stack[++m->sp].value.f32 = arg
+#define makeTopF32() m->stack[m->sp].value_type = F32//TODO: increment sp, change if needed
 #define arg0 get_arg(m, 0)
 #define arg1 get_arg(m, 1)
 #define arg2 get_arg(m, 2)
@@ -102,6 +104,7 @@ Type nullType;
 uint32_t param_arr_len0[0] = {};
 uint32_t param_I32_arr_len1[1] = {I32};
 uint32_t param_I32_arr_len2[2] = {I32, I32};
+uint32_t param_F32_arr_len1[1] = {F32};
 
 Type oneToNoneU32 = {
     .form = FUNC,
@@ -137,10 +140,28 @@ Type NoneToNoneU32 = {.form = FUNC,
                       .results = nullptr,
                       .mask = 0x80000};
 
+Type OneF32ToNone = {.form = FUNC,
+                      .param_count = 1,
+                      .params = param_F32_arr_len1,
+                      .result_count = 0,
+                      .results = nullptr,
+                      .mask = 0x80030}; //TODO fix mask?
+
+Type NoneToOneF32 = {.form = FUNC,
+                      .param_count = 0,
+                      .params = nullptr,
+                      .result_count = 1,
+                      .results = param_F32_arr_len1,
+                      .mask = 0x830000}; //TODO fix mask?
 //------------------------------------------------------
 // Arduino Specific Functions
 //------------------------------------------------------
+
+// #define ARDUINO
 #ifdef ARDUINO
+#include "SensorSHT3X.h"
+// #include "Adafruit_Sensor.h"
+// #include "SHT3X.h"
 
 def_prim(assert_int, oneToNoneU32) {
     uint8_t boolean = arg0.uint32;
@@ -171,7 +192,6 @@ def_prim(chip_digital_write, twoToNoneU32) {
 }
 
 def_prim(chip_delay, oneToNoneU32) {
-    // printf("chip_delay \n");
     delay(arg0.uint32);
     pop_args(1);
     return true;
@@ -210,6 +230,22 @@ def_prim(spi_begin, NoneToNoneU32) {
 def_prim(write_spi_bytes_16, twoToNoneU32) {
     write_spi_bytes_16_prim(arg1.uint32, arg0.uint32);
     pop_args(2);
+    return true;
+}
+
+def_prim(write_f32, OneF32ToNone) {
+    float v =  arg0.f32;
+    printf("%2.2fc\n",v);
+    pop_args(1);
+    return true;
+}
+
+
+def_prim(sht3x_ctemp, NoneToOneF32) {
+    senseData();
+    float t = getTemperature();
+    pushFloat32(t);
+    makeTopF32();
     return true;
 }
 
@@ -281,6 +317,18 @@ def_prim(write_spi_bytes_16, twoToNoneU32) {
     return true;
 }
 
+def_prim(write_f32, OneF32ToNone) {
+    float v =  arg0.f32;
+    printf("%2.2f\n",v);
+    pop_args(1);
+    return true;
+}
+
+def_prim(sht3x_ctemp, NoneToOneF32) {
+    FATAL("Temperature sensor not supported. Mock or Proxy instead\n");
+    return true;
+}
+
 #endif
 
 /*
@@ -308,6 +356,8 @@ void install_primitives() {
     install_primitive(spi_begin);
     install_primitive(write_spi_byte);
     install_primitive(write_spi_bytes_16);
+    install_primitive(write_f32);
+    install_primitive(sht3x_ctemp);
 #else
     dbg_info("INSTALLING FAKE ARDUINO\n");
     install_primitive(assert_int);
@@ -319,6 +369,8 @@ void install_primitives() {
     install_primitive(spi_begin);
     install_primitive(write_spi_byte);
     install_primitive(write_spi_bytes_16);
+    install_primitive(write_f32);
+    install_primitive(sht3x_ctemp);
 #endif
 }
 
