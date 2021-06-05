@@ -31,7 +31,7 @@
 
  (func $main (type $v2v)
     (local $arg i32)
-    (local.set $arg (i32.const 512))
+    (local.set $arg (i32.const 240))
     (loop 
        (local.get $arg)
        (call $fac)

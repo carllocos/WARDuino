@@ -48,10 +48,23 @@ if __name__ == "__main__":
                 serial.write(inputText.read(-1))
                 serial.write(b'\n\n')
             print("Bytes sent", file=sys.stderr)
-        print("Await start", file=sys.stderr)
-        await_output(serial, "START\n")
-        startTime = time.monotonic()
-        print("START found, waiting for DONE", file=sys.stderr)
-        await_output(serial, "DONE\n")
-        endTime = time.monotonic()
-        print(endTime - startTime)
+        # print("Await connected", file=sys.stderr)
+        # await_output(serial, "CONNECTED\n")
+        # print("Await start", file=sys.stderr)
+        # await_output(serial, "START\n")
+        measures = []
+
+        await_output(serial, "c\n")
+        for i in range(10):
+            startTime = time.monotonic()
+            await_output(serial, "c\n")
+            endTime = time.monotonic()
+            measures.append(endTime - startTime)
+
+        for i,x in enumerate(measures):
+            print(f"time={x}")
+
+        # print("START found, waiting for DONE", file=sys.stderr)
+        # await_output(serial, "DONE\n")
+        # endTime = time.monotonic()
+        # print(endTime - startTime)

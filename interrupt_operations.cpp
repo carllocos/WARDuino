@@ -46,13 +46,13 @@ enum InteruptTypes {
     interruptUntil = 0x05,
     interruptBPAdd = 0x06,
     interruptBPRem = 0x07,
-    interruptDUMP = 0x10,
+    interruptState = 0x10,
     interruptUPDATEFun = 0x20,
     interruptUPDATELocal = 0x21,
     interruptRecvState = 0x22,
     interruptOffset = 0x23,
     interruptUPDATEMOD = 0x24,
-    interruptRecvProxies = 0x25,
+    interruptMonitorProxies = 0x25,
     interruptProxyCall = 0x26
 };
 
@@ -122,7 +122,7 @@ void doDump(RmvModule *rm) {
     Module *m = rm->m;
     // FIXME replace write
     debug("asked for doDump\n");
-    printf("asking for dump\n");
+    // printf("asking for dump\n");
     wa_flush();
     wa_printf("DUMP!\n");
     wa_printf("{");
@@ -132,7 +132,7 @@ void doDump(RmvModule *rm) {
     wa_printf(R"("pc":"%p",)", (void *)m->pc_ptr);
     if(rm->pc_error != 0){
         wa_printf("\"pc_error\":\"%" PRIu32"\"," , rm->pc_error);
-        printf("pc error %" PRIu32 "\n",  rm->pc_error);
+        // printf("pc error %" PRIu32 "\n",  rm->pc_error);
     }
     // printf("asked for pc\n");
 
@@ -764,7 +764,7 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                 break;
             }
 
-            case interruptDUMP:
+            case interruptState:
                 *program_state = WARDUINOpause;
                 free(interruptData);
                 doDump(rm);
@@ -832,7 +832,7 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                 }
                 break;
             }
-            case interruptRecvProxies: {
+            case interruptMonitorProxies: {
                 printf("receiving functions list to proxy\n");
                 rm->m->warduino->clearProxyState();
                 uint8_t *data = interruptData + 1;

@@ -1,21 +1,41 @@
 (module
+ (import "env" "chip_pin_mode"      (func $pin_mode         (type $ii2v)))
+ (import "env" "chip_digital_write" (func $digital_write    (type $ii2v)))
+ (import "env" "chip_delay"         (func $delay            (type $i2v)))
+
  (; Type declarations ;)
+ (type $ii2v (func (param i32) (param i32) (result)))
+ (type $i2v (func (param i32)             (result)))
  (type $i32tov (func (param i32) (result)))
  (type $i32toi32 (func (param i32) (result i32)))
- (type $f32tov (func (param f32) (result )))
- (type $f64tov (func (param f64) (result )))
- (type $i64tov (func (param i64) (result )))
  (type $v2v (func (param) (result)))
 
  (; Define one function ;)
  (export "main" (func $main))
  (memory 2)
- (table funcref (elem  $main $ff64tov $fi64tov $ff32tov $fi32tov))
+ (table funcref (elem  $main))
 
- (func $fi32tov (type $i32tov))
- (func $ff32tov (type $f32tov))
- (func $fi64tov (type $i64tov))
- (func $ff64tov (type $f64tov))
+ (global $g1  i32   (i32.const 0)) ;; memory ix where gamestate starts
+ (global $g2 (mut i32) (i32.const 0)) ;; emptyboardFuncIxd
+
+ (func $wait (type $v2v)
+    (i32.const 500)
+    (call $delay))
+
+ (func $toggle (type $i32tov)
+  (if (i32.gt_s
+        (local.get 0)
+        (i32.const 0))
+      (then
+        (i32.const 26)
+        (i32.const 0)
+        (call $digital_write))
+      (else
+        (i32.const 26)
+        (i32.const 1)
+        (call $digital_write)))
+    (call $wait))
+
  (func $fac (type $i32toi32)
      (i32.gt_s
        (local.get 0)
@@ -41,23 +61,17 @@
 			 (local.set $i32 (i32.const 32))
 			 (local.set $i64 (i64.const 64))
 
-    (loop 
-       (local.get $f32 )
-       (local.get $f64 )
-       (local.get $i32 )
-       (local.get $i64 )
+       (i32.const 26)
+       (i32.const 2)
+       (call $pin_mode)
 
+    (loop 
 
 			 (i32.const 5)
 			 (call $fac)
-			 (call $fi32tov)
-			 (call $fi64tov)
-			 (call $fi32tov)
-			 (call $ff64tov)
-			 (call $ff32tov)
+			 (call $toggle)
 
        (br 0)))
 
- (; (start $fac5) ;)
 )
 

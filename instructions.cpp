@@ -1825,7 +1825,7 @@ bool interpret(RmvModule *rm) {
               program_done ? "expectedly" : "unexpectedly",
               success ? "ok" : "error");
     if (!success) {
-        printf("unsuccesfull\n");
+        // printf("unsuccesfull\n");
         rm->pc_error = pc_error - rm->m->bytes;
         wa_evprintf("{\"error\":\"%s\"}\n", exception);
         doDump(rm);
