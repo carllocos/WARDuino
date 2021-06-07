@@ -14,6 +14,7 @@
 #include "debug.h"
 #include "mem.h"
 
+//#define ARDUINO
 #ifdef ARDUINO
 #include "Arduino.h"
 
@@ -50,9 +51,9 @@ void write_spi_bytes_16_prim(int times, uint32_t color) {
 
 #define NUM_PRIMITIVES 0
 #ifdef ARDUINO
-#define NUM_PRIMITIVES_ARDUINO 11
+#define NUM_PRIMITIVES_ARDUINO 13
 #else
-#define NUM_PRIMITIVES_ARDUINO 11
+#define NUM_PRIMITIVES_ARDUINO 13
 #endif
 
 #define ALL_PRIMITIVES (NUM_PRIMITIVES + NUM_PRIMITIVES_ARDUINO)
@@ -88,7 +89,7 @@ int prim_index = 0;
 #define makeTopF32() m->stack[m->sp].value_type = F32//TODO: increment sp, change if needed
 #define arg0 get_arg(m, 0)
 #define arg1 get_arg(m, 1)
-#define arg2 get_arg(m, 2)
+#define arg2 get_arg(m, 2) //TODO arg3- arg4 incorrect? should be (m, 3), (m, 4)
 #define arg3 get_arg(m, 2)
 #define arg4 get_arg(m, 2)
 
@@ -153,6 +154,16 @@ Type NoneToOneF32 = {.form = FUNC,
                       .result_count = 1,
                       .results = param_F32_arr_len1,
                       .mask = 0x830000}; //TODO fix mask?
+
+Type oneU32ToOneF32 = {
+    .form = FUNC,
+    .param_count = 1,
+    .params = param_I32_arr_len1,
+    .result_count = 1,
+    .results = param_F32_arr_len1,
+    .mask = 0x80011 /* TODO fix mask*/
+};
+
 //------------------------------------------------------
 // Arduino Specific Functions
 //------------------------------------------------------
@@ -249,6 +260,47 @@ def_prim(sht3x_ctemp, NoneToOneF32) {
     return true;
 }
 
+//#include <WiFi.h>
+
+int counter = 30;
+def_prim(is_connected, oneToOneU32) {
+    Serial.print("invokign is connectd\n");
+    // WiFiClient client;
+    // const char * host = "192.168.1.51";
+    uint32_t port = arg0.uint32;
+    Serial.printf("at port %" PRIu32 "\n", port);
+    counter-=1;
+    if(counter > 0){
+         pushInt32(1);
+        Serial.println("connected");
+    }
+    else {
+        pushInt32(0);
+        Serial.println("disconnected");
+    }
+
+    if(counter == -1){
+        counter = 25;
+    }
+    Serial.printf("counter %d\n",counter);
+    // if (!client.connect(host, port)) {
+    //     Serial.println("Connection to host failed");
+    // }
+    // else{
+    //     Serial.println("connected");
+    //     pushInt32(1);
+    // }
+
+    return true;
+}
+
+def_prim(req_temp, oneU32ToOneF32) {
+    Serial.println("Asking for temperature");
+    pushFloat32(17.34);
+    return true;
+}
+
+
 #else
 
 def_prim(assert_int, oneToNoneU32) {
@@ -329,6 +381,38 @@ def_prim(sht3x_ctemp, NoneToOneF32) {
     return true;
 }
 
+
+int max_val = 2;
+int counter = max_val;
+def_prim(is_connected, oneToOneU32) {
+    printf("invokign is connectd\n");
+    uint32_t port = arg0.uint32;
+    counter-=1;
+    if(counter >= 0){
+        pushInt32(1);
+        printf("connected\n");
+    }
+    else {
+        pushInt32(0);
+        printf("disconnected\n");
+    }
+
+    if(counter == -2){
+        if(max_val > 0){
+            max_val -= 1;
+        }
+        counter = max_val;
+    }
+    printf("counter %d\n",counter);
+    return true;
+}
+
+def_prim(req_temp, oneU32ToOneF32) {
+    printf("Asking for temp\n");
+    pushFloat32(17.34);
+    return true;
+}
+
 #endif
 
 /*
@@ -358,6 +442,8 @@ void install_primitives() {
     install_primitive(write_spi_bytes_16);
     install_primitive(write_f32);
     install_primitive(sht3x_ctemp);
+    install_primitive(is_connected);
+    install_primitive(req_temp);
 #else
     dbg_info("INSTALLING FAKE ARDUINO\n");
     install_primitive(assert_int);
@@ -371,6 +457,8 @@ void install_primitives() {
     install_primitive(write_spi_bytes_16);
     install_primitive(write_f32);
     install_primitive(sht3x_ctemp);
+    install_primitive(is_connected);
+    install_primitive(req_temp);
 #endif
 }
 

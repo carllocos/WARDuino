@@ -1285,6 +1285,7 @@ bool i_instr_binary_f32(Module *m, uint8_t opcode) {
     float h = m->stack[m->sp].value.f32;
     float i;
     m->sp -= 1;
+    bool sucess = true;
     switch (opcode) {
         case 0x92:
             i = g + h;
@@ -1295,9 +1296,17 @@ bool i_instr_binary_f32(Module *m, uint8_t opcode) {
         case 0x94:
             i = g * h;
             break;  // f32.mul
-        case 0x95:
-            i = g / h;
+        case 0x95:{
+            if((h >= 0) &&  (h < 0.0001)){
+                printf("Divided by zero");
+                sprintf(exception, "Division by zero");
+                sucess = false;
+            }
+            else{
+                i = g / h;
+            }
             break;  // f32.div
+        }
         case 0x96:
             i = (float)wa_fmin(g, h);
             break;  // f32.min
@@ -1311,7 +1320,7 @@ bool i_instr_binary_f32(Module *m, uint8_t opcode) {
             return false;
     }
     m->stack[m->sp].value.f32 = i;
-    return true;
+    return sucess;
 }
 
 /**
@@ -1559,6 +1568,7 @@ bool interpret(RmvModule *rm) {
                 }
                 program_state = WARDUINOpause;
                 wa_printf("STEP DONE!\n");
+                printf("done stepping %p!\n", static_cast<void *>(rm->m->pc_ptr));
                 wa_flush();
             }
         }
