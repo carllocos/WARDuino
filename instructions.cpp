@@ -363,7 +363,7 @@ bool i_instr_return(Module *m) {
     return true;
 }
 
-#ifdef PCBUILD
+#ifndef ARDUINO
 bool proxy_call(uint32_t fidx, Module *m) {
     Block *fun = &m->functions[fidx];
     StackValue *args = nullptr;
@@ -397,7 +397,7 @@ bool i_instr_call(Module *m) {
             return false;
         }
 
-        #ifdef PCBUILD
+        #ifndef ARDUINO
             if (m->warduino->isProxy(fidx)) {
                 return proxy_call(fidx, m);
             }
@@ -460,7 +460,7 @@ bool i_instr_call_indirect(Module *m) {
             return false;
         }
 
-        #ifdef PCBUILD
+        #ifndef ARDUINO
         if (m->warduino->isProxy(fidx)) {
             return proxy_call(fidx, m);
         }

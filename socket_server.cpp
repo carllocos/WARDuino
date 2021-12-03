@@ -1,6 +1,6 @@
 #include "socket_server.h"
 
-#if defined(Arduino)
+#ifdef ARDUINO
 #include <WiFi.h>
 #define MAX_SOCKETS 3
 

@@ -1,5 +1,5 @@
 
-#if defined(Arduino)
+#ifdef Arduino
 bool proxy_connect(const char* host, int portno) { return false; }
 void proxy_send(void* buffer, int size) { return; };
 #else

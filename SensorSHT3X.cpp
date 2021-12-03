@@ -5,7 +5,7 @@ https://github.com/m5stack/M5StickC/blob/master/examples/Unit/ENVII_SHT30_BMP280
 
 #include "SensorSHT3X.h"
 
-#if defined(ARDUINO)
+#ifdef ARDUINO
 #include "Wire.h"
 #define ADDRESS 0x44
 
