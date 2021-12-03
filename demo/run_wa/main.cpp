@@ -8,7 +8,7 @@
 #if SOCKET
 #include "../../WARDuino.h"
 #include "../../socket_server.h"
-#include "wa_sources/hello_world.c"
+#include "wa_sources/blink_light/hello_world.c"
 
 //decr=2 Note memory pages 2!
 // unsigned char countdown_wasm[] = {
