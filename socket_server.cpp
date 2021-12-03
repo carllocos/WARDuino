@@ -281,12 +281,12 @@ void processIncomingEvents() {
     _fillfds();
 
     int timeout = 5;  // ms
-    int qevs = poll(fds, (MAX_SOCKETS + 1), timeout);
+    int qevs = poll(fds, MAX_SOCKETS, timeout);
     if (qevs < 0) _errorexit("poll()\n");
     if (qevs == 0)  // timeout
         return;
 
-    for (auto i = 0; i <= MAX_SOCKETS; i++) {
+    for (auto i = 0; i < MAX_SOCKETS; i++) {
         if (fds[i].revents == 0) continue;
 
         if (fds[i].revents != POLLIN) {
