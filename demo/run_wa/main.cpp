@@ -11,7 +11,6 @@
 #include "hello_world.c"
 
 
-
 WARDuino wac;
 
 int main(int /*argc*/, const char ** /*argv*/) {
