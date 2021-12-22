@@ -16,7 +16,7 @@ WARDuino wac;
 int main(int /*argc*/, const char ** /*argv*/) {
     int portno = 8080;
     const char *host = "localhost";
-    //initializeServer(host, portno, nullptr, nullptr);
+    initializeServer(host, portno, nullptr, nullptr);
     RmvModule * rm = wac.removable(
         // wac.load_module(countdown_wasm, countdown_wasm_len, {}));
         wac.load_module(hello_world_wasm, hello_world_wasm_len, {}));
