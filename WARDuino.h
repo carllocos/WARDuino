@@ -11,6 +11,7 @@
 #include <queue>  // std::queue
 #include <set>
 #include <vector>  //TODO maybe vector not needed
+#include "recording.h"
 
 // Constants
 #define WA_MAGIC 0x6d736100
@@ -163,6 +164,9 @@ typedef struct Module {
     uint32_t br_table[BR_TABLE_SIZE];  // br_table branch indexes
 
     char *exception;  // exception is set when the program fails
+
+    std::vector<record> snapshots;
+    uint32_t snapshot_count;
 } Module;
 
 typedef bool (*Primitive)(Module *);

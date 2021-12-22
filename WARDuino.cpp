@@ -310,6 +310,7 @@ Module *WARDuino::load_module(uint8_t *bytes, uint32_t byte_count,
     m->sp = -1;
     m->fp = -1;
     m->csp = -1;
+    m->snapshot_count = 0;
 
     m->bytes = bytes;
     m->byte_count = byte_count;

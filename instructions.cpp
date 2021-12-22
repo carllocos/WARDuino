@@ -376,7 +376,9 @@ bool proxy_call(uint32_t fidx, Module *m) {
     if (fun->type->result_count > 0) {
         m->stack[++m->sp].value_type = pr->ret_value.value_type;
         m->stack[m->sp].value = pr->ret_value.value;
+        m->snapshots.push_back((record){m->snapshot_count++, fidx, pr->ret_value});
     }
+
     bool succ = pr->succes;
     if (!succ) sprintf(exception, "proxycall unsuccesful");
     free(pr);

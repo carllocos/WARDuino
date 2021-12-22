@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.14)
 project (WARDuino)
 add_compile_options(-g -v -std=c++11  -Wall -Wextra -Wunused)
-set(SOURCE_FILES  mem.cpp util.cpp util_arduino.cpp  interrupt_operations.cpp debug.cpp WARDuino.cpp primitives.cpp instructions.cpp socket_server.cpp printing.cpp proxy.cpp)
+
+set(SOURCE_FILES  mem.cpp util.cpp util_arduino.cpp  interrupt_operations.cpp debug.cpp WARDuino.cpp primitives.cpp instructions.cpp socket_server.cpp printing.cpp proxy.cpp recording.cpp recording.h)
 add_executable(WARDuino demo/run_wa/main.cpp ${SOURCE_FILES})
 # add_executable(TestWARDuino tests/main.cpp ${SOURCE_FILES} tests/assertion.cpp tests/sexpr-parser/src/sexpr.c)
 
