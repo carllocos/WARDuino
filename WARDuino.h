@@ -38,7 +38,7 @@ typedef struct Module {
 
     char *exception;  // exception is set when the program fails
 
-    std::vector<record> snapshots;
+    std::vector<Record*> snapshots;
     uint32_t snapshot_count;
 } Module;
 

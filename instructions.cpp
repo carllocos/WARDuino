@@ -12,6 +12,7 @@
 #include "util.h"
 #include "util_arduino.h"
 #include <inttypes.h>
+#include <cstdio>
 #include "printing.h"
 
 extern void doDump(RmvModule *rm);
@@ -374,9 +375,16 @@ bool proxy_call(uint32_t fidx, Module *m) {
 
     ProxyResult *pr = m->warduino->proxyCall(fun, args);
     if (fun->type->result_count > 0) {
+
         m->stack[++m->sp].value_type = pr->ret_value.value_type;
         m->stack[m->sp].value = pr->ret_value.value;
-        m->snapshots.push_back((record){m->snapshot_count++, fidx, pr->ret_value});
+
+        Record *rec = new Record;
+        rec->value= pr->ret_value;
+        rec->fidx = fidx;
+        m->snapshot_count++;
+        m->snapshots.push_back(rec);
+        // m->snapshots.push_back((record){m->snapshot_count++, fidx, pr->ret_value});
     }
 
     bool succ = pr->succes;
