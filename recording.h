@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <cstdint>
-#include "WARDuino.h"
+#include "structs.h"
 
 struct record {
     uint32_t id;
