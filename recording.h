@@ -5,10 +5,10 @@
 #include <cstdint>
 #include "structs.h"
 
-struct record {
+typedef struct {
     uint32_t id;
     uint32_t fidx;
     StackValue value;
-};
+} Record;
 
 #endif  // RECORDING_H
