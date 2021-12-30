@@ -373,14 +373,22 @@ bool proxy_call(uint32_t fidx, Module *m) {
         m->sp -= rf->type->param_count;
         args = &m->stack[m->sp + 1];
     }
+
     rf->call(args);
     if(!rf->succes){
         //TODO exception might be too small and null terminated?
         memcpy(&exception, rf->exceptionMsg, strlen(rf->exceptionMsg));
         return false;
     }
-    if (rf->type->result_count > 0) 
+    if (rf->type->result_count > 0) {
         m->stack[++m->sp] = *rf->result;
+        Record *rec = new Record;
+        rec->value = *rf->result;
+        rec->fidx = fidx;
+        m->snapshot_count++;
+        m->snapshots.push_back(rec);
+        // m->snapshots.push_back((record){m->snapshot_count++, fidx, pr->ret_value});
+    }
     return true;
 }
 #endif
