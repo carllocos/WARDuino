@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <cstdio>
 
 #include "WARDuino.h"
 #include "debug.h"
@@ -11,6 +12,8 @@
 #include "mem.h"
 #include "string.h"
 #include "util.h"
+#include "proxy.h"
+#include "rfc.h"
 
 #if SOCKET
 #include "socket_server.h"
@@ -76,6 +79,12 @@ void freeState(Module *m, uint8_t *interruptData);
 uintptr_t readPointer(uint8_t **data);
 
 bool saveState(Module *m, uint8_t *interruptData);
+
+void registerRFCs(Module * m, uint8_t **data);
+
+void registerHost(uint8_t **data);
+StackValue *readRFCArgs(Block * func, uint8_t * data);
+
 
 // TODO inefficient. Keep extra state at each pushblock to ease opcode
 // retrieval?
@@ -177,7 +186,7 @@ void doDump(RmvModule *rm) {
     // printf("asked for globals\n");
     // GLobals
     wa_printf("],\"globals\":[");
-    for (auto i = 0; i < m->global_count; i++) {
+    for (uint32_t i = 0; i < m->global_count; i++) {
         char _value_str[256];
         auto v = m->globals + i;
         format_constant_value(_value_str, v);
@@ -214,7 +223,7 @@ void doDump(RmvModule *rm) {
 }
 
 uint32_t read_L32(uint8_t **bytes) {
-    uint8_t *b = *bytes;
+    // uint8_t *b = *bytes;
     uint32_t n = 0;
     memcpy(&n, *bytes, sizeof(uint32_t));
     *bytes += 4;
@@ -272,7 +281,7 @@ void freeState(Module *m, uint8_t *interruptData) {
                             amount, sizeof(StackValue), "globals");
                 } else {
                     debug("globals setting existing state to zero\n");
-                    for (auto i = 0; i < m->global_count; i++) {
+                    for (uint32_t i = 0; i < m->global_count; i++) {
                         debug("decreasing global_count\n");
                         StackValue *sv = &m->globals[i];
                         sv->value_type = 0;
@@ -413,7 +422,7 @@ bool saveState(Module *m, uint8_t *interruptData) {
                 uint8_t valtypes[] = {I32, I64, F32, F64};
 
                 debug("receiving #%" PRIu32 " globals\n", quantity_globals);
-                for (auto q = 0; q < quantity_globals; q++) {
+                for (uint32_t q = 0; q < quantity_globals; q++) {
                     uint8_t typeidx = *program_state++;
                     if (typeidx >= sizeof(valtypes)) {
                         debug("received unknown type %" PRIu8 "\n", typeidx);
@@ -731,6 +740,7 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
             case interruptPAUSE:
                 *program_state = WARDUINOpause;
                 wa_printf("PAUSE!\n");
+                printf("PAUSE!\n");
                 debug("PAUSE!\n");
                 free(interruptData);
                 break;
@@ -856,70 +866,36 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                 }
                 break;
             }
+            #ifndef Arduino
             case interruptMonitorProxies: {
                 printf("receiving functions list to proxy\n");
-                rm->m->warduino->clearProxyState();
                 uint8_t *data = interruptData + 1;
-                uint32_t count = read_B32(&data);
-                printf("funcs_total %" PRIu32 "\n", count);
-                for (auto i = 0; i < count; i++) {
-                    // TODO make one line
-                    uint32_t fidx = read_B32(&data);
-                    rm->m->warduino->addProxy(fidx);
-                    // printf("func idx %" PRIu32 "\n", fidx);
-                }
-                int portno = (int)read_B32(&data);
-                uint8_t host_size = (uint8_t)data[0];
-                data++;
-                char *host = (char *)malloc(sizeof(char) * (host_size + 1));
-                memcpy((void *)host, data, host_size);
-                host[host_size + 1] = '\0';
-                rm->m->warduino->addProxyHost(host, portno);
+                registerRFCs(rm->m, &data);
+                registerHost(&data);
                 free(interruptData);
+                ProxyHost *host = ProxyHost::getProxyHost();
+                if(!host->openConnection()){
+                    printf("problem opening socket: %s\n", host->exceptionMsg);
+                    exit(33);
+                }
                 wa_printf("done!\n");
                 break;
             }
+            #else
             case interruptProxyCall: {
                 uint8_t *data = interruptData + 1;
                 uint32_t fidx = read_L32(&data);
-
-                // printf("ProxyCall func %" PRIu32 "\n", fidx);
+                printf("ProxyCall func %" PRIu32 "\n", fidx);
 
                 Block *func = &rm->m->functions[fidx];
-                StackValue *args = nullptr;
-                if (func->type->param_count > 0) {
-                    args = (StackValue *)malloc(sizeof(StackValue) *
-                                                func->type->param_count);
-                    for (auto i = 0; i < func->type->param_count; i++) {
-                        args[i].value_type = (uint8_t)data[0];
-                        data++;
-                        args[i].value.uint64 = 0;  // init whole union to 0
-                        size_t qb = 4;
-                        if ((args[i].value_type & I64) |
-                            (args[i].value_type & F64))
-                            qb = 8;
-                        memcpy(&args[i].value, data, qb);
-                        data += qb;
+                StackValue *args = readRFCArgs(func, data);
+                printf("Registering %" PRIu32 "as Callee\n", func->fidx);
+                RFC::registerRFCallee(fidx, func->type, args);
 
-                        uint8_t vt = args[i].value_type;
-                        if (vt & I32) {
-                            printf("arg %d: i32 value %" PRIu32 "\n", i,
-                                   args[i].value.uint32);
-                        } else if (vt & F32) {
-                            printf("arg %d: F32 value %.7f \n", i, args[i].value.f32);
-                        } else if (vt & I64) {
-                            printf("arg %d: I64 value %" PRIu64 "\n", i,
-                                   args[i].value.uint64);
-                        }
-                        else {
-                            printf("arg %d: f64 value %.7f \n", i, args[i].value.f64);
-                        }
-                    }
-                }
-                rm->m->warduino->processProxyCall(func, args);
                 free(interruptData);
                 break;
             }
+            #endif
             default:
                 // handle later
                 printf("COULD not parse interrupt data!\n");
@@ -929,4 +905,79 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
         return true;
     }
     return false;
+}
+
+
+
+void registerRFCs(Module * m, uint8_t **data){
+    printf("registering_rfc_functions\n");
+    RFC::clearRFCs();
+
+    uint32_t amount_funcs = read_B32(data);
+    printf("funcs_total %" PRIu32 "\n", amount_funcs);
+    for (uint32_t i = 0; i < amount_funcs; i++) {
+        uint32_t fid = read_B32(data);
+        printf("registering fid=%" PRIu32 "\n", fid);
+        Type * type = (m->functions[fid]).type;
+        RFC::registerRFC(fid, type);
+    }
+}
+
+void registerHost(uint8_t **data) {
+    int portno = (int)read_B32(data);
+    uint8_t hostsize = (uint8_t)(*data)[0];
+    char *hostname = new char[hostsize + 1];
+    memcpy((void *)hostname, ++(*data), hostsize);
+    hostname[hostsize + 1] = '\0';
+    printf("Registering Proxy Host: %s PORT=%" PRIu8 "\n", hostname, portno);
+    ProxyHost::getProxyHost()->registerHost(hostname, portno);
+}
+
+StackValue *readRFCArgs(Block *func, uint8_t *data) {
+    if (func->type->param_count == 0){
+        printf("ProxyFunc %" PRIu32 "takes no arg\n", func->fidx);
+        return nullptr;
+    }
+
+    StackValue *args = new StackValue[func->type->param_count];
+    uint32_t *params = func->type->params;
+    for (uint32_t i = 0; i < func->type->param_count; i++) {
+        args[i].value.uint64 = 0;  // init whole union to 0
+        args[i].value_type = params[i];
+
+        switch (params[i]) {
+            case I32: {
+                memcpy(&args[i].value.uint32, data, sizeof(uint32_t));
+                data += sizeof(uint32_t);
+                printf("arg %d: i32 value %" PRIu32 "\n", i,
+                       args[i].value.uint32);
+                break;
+            }
+            case F32: {
+                memcpy(&args[i].value.f32, data, sizeof(float));
+                data += sizeof(float);
+                printf("arg %d: F32 value %.7f \n", i, args[i].value.f32);
+                break;
+            }
+            case I64: {
+                memcpy(&args[i].value.uint64, data, sizeof(uint64_t));
+                data += sizeof(uint64_t);
+                printf("arg %d: I64 value %" PRIu64 "\n", i,
+                       args[i].value.uint64);
+                break;
+            }
+            case F64: {
+                memcpy(&args[i].value.f64, data, sizeof(double));
+                data += sizeof(double);
+                printf("arg %d: f64 value %.7f \n", i, args[i].value.f64);
+                break;
+            }
+            default: {
+                printf("found a weird type!\n");
+                exit(33);
+                break;
+            }
+        }
+    }
+    return args;
 }
