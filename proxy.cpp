@@ -1,9 +1,5 @@
-
-#ifdef Arduino
-bool proxy_connect(const char* host, int portno) { return false; }
-void proxy_send(void* buffer, int size) { return; };
-#else
-
+#include "proxy.h"
+#include <asm-generic/errno-base.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -12,47 +8,130 @@ void proxy_send(void* buffer, int size) { return; };
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <cerrno>
 
-void error(const char *msg) {
-    perror(msg);
-    exit(0);
+//TODO exceptionmsg
+const char NO_HOST_ERR[] = "No host and port set";
+const char CREATE_SOCK_ERR[] = "Could not create Socket";
+const char INVALID_HOST[] = "Invalid host";
+const char CONNECT_ERR[] = "Socket failed to connect";
+const char WRITE_ERR[] = "ERROR writing to socket";
+const char READ_ERR[] = "ERROR reading from socket";
+
+struct ProxyHost::ServerData {
+    struct sockaddr_in aserv_addr;
+    struct hostent *aServer;
+};
+
+
+ProxyHost *ProxyHost::proxyHost = nullptr;
+
+ProxyHost* ProxyHost::getProxyHost(){
+    if(proxyHost == nullptr)
+        proxyHost = new ProxyHost();
+    return proxyHost;
 }
 
-int sockfd, portno, n;
-struct sockaddr_in aserv_addr;
-struct hostent *aServer;
-
-bool proxy_connect(const char *host, int portno) {
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) error("ERROR opening socket");
-    printf("sockfd open %d\n", sockfd);
-    aServer = gethostbyname(host);
-    if (aServer == NULL) {
-        fprintf(stderr, "ERROR, no such host\n");
-        exit(0);
+void ProxyHost::registerHost(char* t_host, int t_port){
+    if(this->host != nullptr){
+        this->closeConnection();
+        free(this->host);
     }
-    bzero((char *)&aserv_addr, sizeof(aserv_addr));
-    aserv_addr.sin_family = AF_INET;
-    bcopy((char *)aServer->h_addr, (char *)&aserv_addr.sin_addr.s_addr,
+    this->host = t_host;
+    this->port = t_port;
+}
+
+
+void ProxyHost::updateExcpMsg(const char * msg){
+    if(this->exceptionMsg != nullptr)
+        delete[] this->exceptionMsg;
+    auto msg_len = strlen(msg);
+    this->exceptionMsg = new char[(msg_len + 1) / sizeof(char)];
+    this->exceptionMsg[msg_len] = '\0';
+    memcpy(this->exceptionMsg,  msg, msg_len);
+
+}
+
+
+ProxyHost::ProxyHost(){
+    host = exceptionMsg = nullptr;
+    port = 0;
+    sockfd = -1;
+    data = (struct ServerData *) malloc(sizeof(struct ServerData));
+}
+
+bool ProxyHost::openConnection(){
+    if(this->host == nullptr){
+        this->updateExcpMsg(NO_HOST_ERR);
+        return false;
+    }
+
+    this->sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (this->sockfd < 0) {
+       this->updateExcpMsg(CREATE_SOCK_ERR);
+       return false;
+    }
+
+    struct hostent *aServer = gethostbyname(this->host);
+    if (aServer == NULL) {
+        this->updateExcpMsg(INVALID_HOST);
+        return false;
+    }
+
+    this->data->aServer = aServer;
+    struct sockaddr_in *aserv_addr = &this->data->aserv_addr;
+    bzero((char *)aserv_addr, sizeof(*aserv_addr));
+    aserv_addr->sin_family = AF_INET;
+    bcopy((char *)aServer->h_addr, (char *)&aserv_addr->sin_addr.s_addr,
           aServer->h_length);
-    aserv_addr.sin_port = htons(portno);
-    if (connect(sockfd, (struct sockaddr *)&aserv_addr, sizeof(aserv_addr)) < 0)
-        error("ERROR connecting");
-    printf("done connecting\n");
+    aserv_addr->sin_port = htons(this->port);
+    if (connect(sockfd, (struct sockaddr *) aserv_addr, sizeof(*aserv_addr)) < 0){
+        this->updateExcpMsg(CONNECT_ERR);
+        return false;
+    }
     return true;
 }
 
-char *proxy_send(void *buffer, int size) {
-    printf("sending\n");
-    n = write(sockfd, buffer, size);
-    if (n < 0) error("ERROR writing to socket");
-    char *b = (char *)malloc(sizeof(char) * 50);
-    bzero(b, 50);
-    printf("about to read. send total %d\n", n);
-    n = read(sockfd, b, 50);
-    if (n < 0) error("ERROR reading from socket");
 
-    return b;
+
+void ProxyHost::closeConnection(){
+    if(this->sockfd != -1){
+        if(close(this->sockfd) == -1){
+            if(errno == EINTR)
+                close(this->sockfd);
+        }
+        this->sockfd = -1;
+    }
 }
 
-#endif
+
+bool ProxyHost::send(void *buffer, int size) {
+    int n = write(this->sockfd, buffer, size);
+    if (n == size)
+        return true;
+
+    if (n < 0 && errno == EINTR) //write interrupted, thus retry
+        return this->send(buffer, size);
+    else if (n < 0){
+        this->updateExcpMsg(WRITE_ERR);
+        return false;
+    } 
+    //send remaining bytes
+    char * buf = (char * )buffer + n;
+    return this->send((void *) buf, size - n);
+}
+
+char* ProxyHost::readReply(short int amount) {
+    char *buffer = new char[amount + 1];
+    bzero(buffer, amount + 1);
+    int n = read(this->sockfd, buffer, amount);
+    if( n > 0)
+        return buffer;
+
+    delete[] buffer;
+    if(errno == EINTR) //read interrupted, thus retry
+        return this->readReply(amount);
+
+    this->updateExcpMsg(READ_ERR);
+    return nullptr;
+}
