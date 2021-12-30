@@ -2,3 +2,7 @@
 *.ipch
 *.o
 format.sh
+build/
+.cache/
+.nvimrc
+compile_commands.json
