@@ -1,7 +1,7 @@
 #ifndef RFC_H
 #define RFC_H
 
-#include "WARDuino.h"
+#include "structs.h"
 
 
 class RFC {
