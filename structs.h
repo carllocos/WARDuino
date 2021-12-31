@@ -1,16 +1,7 @@
 #ifndef STRUCTS_H
 #define STRUCTS_H
 
-#include <limits.h>
-#include <stdbool.h>
 #include <stdint.h>
-
-#include <array>
-#include <cstdio>
-#include <map>
-#include <queue>  // std::queue
-#include <set>
-#include <vector>  //TODO maybe vector not needed
 
 // Constants
 #define WA_MAGIC 0x6d736100

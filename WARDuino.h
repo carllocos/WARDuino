@@ -3,6 +3,10 @@
 #include "structs.h"
 #include "recording.h"
 
+#include <map>
+#include <queue>  // std::queue
+#include <set>
+
 class WARDuino;  // predeclare for it work in the module decl
 
 typedef struct Module {
