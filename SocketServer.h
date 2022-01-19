@@ -1,10 +1,10 @@
 #ifndef SOCKSERVER_H
 #define SOCKSERVER_H
 
+#ifdef Arduino
 #include <FreeRTOS.h>
 #include "AsyncTCP.h"
-
-class WARDuino;
+#include "WARDuino.h"
 
 class SocketServer {
   private:
@@ -24,7 +24,5 @@ class SocketServer {
 	  void begin();
 };
 
-#include "WARDuino.h"
-
-
+#endif
 #endif

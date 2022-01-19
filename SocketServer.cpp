@@ -1,3 +1,4 @@
+#ifdef Arduino
 #include <stdio.h>
 #include "SocketServer.h"
 
@@ -88,3 +89,5 @@ void SocketServer::unregisterClient(AsyncClient * t_client){
   t_client->free();
   delete t_client;
 }
+#endif
+

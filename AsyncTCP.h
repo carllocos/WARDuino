@@ -22,6 +22,8 @@
 #ifndef ASYNCTCP_H_
 #define ASYNCTCP_H_
 
+#ifdef Arduino
+
 #include "IPAddress.h"
 #include "sdkconfig.h"
 #include <functional>
@@ -213,5 +215,5 @@ class AsyncServer {
     int8_t _accepted(AsyncClient* client);
 };
 
-
+#endif
 #endif /* ASYNCTCP_H_ */

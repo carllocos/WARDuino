@@ -706,13 +706,15 @@ bool readChangeLocal(Module *m, uint8_t *bytes) {
  *            as payload (immediately following `0x10`), see #readChange
  */
 bool check_interrupts(RmvModule *rm, RunningState *program_state) {
-#if SOCKET
+#ifndef Arduino
+#ifdef SOCKET
     processIncomingEvents();
     if (receivedDataSize() > 0) {
         auto *data = (uint8_t *)getReceivedData();
         rm->m->warduino->handleInterrupt(receivedDataSize(), data);
         freeReceivedData();
     }
+#endif
 #endif
     // FIXME before doing dangerous interrupts e.g. interruptStep, checp if
     // program state is PRoxy if so delay interrupt
