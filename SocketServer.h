@@ -8,11 +8,20 @@ class WARDuino;
 
 class SocketServer {
   private:
-	AsyncServer _server = AsyncServer(80);
-	WARDuino *_warduino;
+	  AsyncServer asyncServer;
+
+	  WARDuino *_warduino;
+
   public:
-	void setWARDuino(WARDuino *);
-	void begin(uint16_t port);
+    AsyncClient *forIO;
+    AsyncClient *forEvents;
+    AsyncClient *forProxy;
+
+    SocketServer(uint16_t t_port, WARDuino * t_wrd);
+    void registerVM(WARDuino * t_warduino);
+    void registerClient(AsyncClient *t_client);
+    void unregisterClient(AsyncClient *t_client);
+	  void begin();
 };
 
 #include "WARDuino.h"
