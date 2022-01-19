@@ -15,17 +15,19 @@ struct ClientSocket* getEventSocket();
 
 struct ClientSocket* getProxyOutput();
 
-// TODO replace send2Client with write2Clien
-void send2Client(struct ClientSocket* client, char* buffer, int size);
-
 void write2Client(struct ClientSocket* client, const void* buff, int count);
 
 void flush2Client(struct ClientSocket* client);
 /*
 initializes socket server at host and port number.
 */
+class WARDuino;
+
 void initializeServer(const char* host, int portno, const char* ssid,
                       const char* password);
+
+void initializeServer(const char* host, int portno, const char* ssid,
+                      const char* password, WARDuino * wrd);
 
 void processIncomingEvents();
 

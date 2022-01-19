@@ -4,81 +4,92 @@
 #include <WiFi.h>
 #define MAX_SOCKETS 3
 
-struct InputSocket {
-    char* buff;
-    const uint32_t max_size = SOCK_RECVBUF_SIZE;
-    uint32_t size;
-} inputsocket;
+#include "SocketServer.h"
 
 struct ClientSocket {
-    WiFiClient socket;
-    bool inuse;
+  unsigned short int which;
 };
 
 struct ClientSocket sockets[MAX_SOCKETS];
-short int nsockets = 0;
+SocketServer *_socketServer;
 
-WiFiServer wifiServer(80);
-
-struct ClientSocket* getClient(int i) {
-    if (!sockets[i].inuse) return nullptr;
-
-    struct ClientSocket c = sockets[i];
-    if (c.socket.connected()) {
-        return sockets + i;
-    }
-    return nullptr;
+AsyncClient* getClient(ClientSocket * client){
+  switch(client->which){
+    case 0:
+      return _socketServer->forIO;
+    case 1:
+      return _socketServer->forEvents;
+    case 2:
+      return _socketServer->forProxy;
+    default:
+      printf("Requested incorrect Socket %hu. Giving regular IO\n", client->which);
+      return _socketServer->forIO;
+  }
 }
 
 struct ClientSocket* getOutputSocket() {
-    return getClient(0);
+  if(_socketServer->forIO == nullptr)
+    return nullptr;
+  return sockets;
 }
 
 struct ClientSocket* getEventSocket() {
-    return getClient(1);
+  if(_socketServer->forEvents == nullptr)
+    return nullptr;
+  return sockets + 1;
 }
 
 struct ClientSocket* getProxyOutput() {
-    if(nsockets == 1){ //TODO remove
-        return getClient(0);
-    }
-    return getClient(2);
+    if(_socketServer->forProxy != nullptr)
+      return sockets + 2;
+
+    if(_socketServer->forEvents == nullptr) //TODO remove
+        return getOutputSocket();
+
+    return nullptr;
 }
 
-void send2Client(struct ClientSocket* client, char* buffer, int size) {
-    if (client == nullptr) return;
-    client->socket.write(buffer);
-}
 
 void write2Client(struct ClientSocket* client, const void* buf, int count) {
     if (client == nullptr) return;
+    AsyncClient* c = getClient(client);
     const char* cbuf = (char*)buf;
-    uint32_t qw = client->socket.write(cbuf, count);
-
-    // FIXME
-    if (qw != count) Serial.println("writeClient not all send");
-    client->socket.flush();
+    size_t size_count = (size_t) count;
+    size_t space_left = c->space();
+    c->add(cbuf, size_count  > space_left ? space_left : size_count);
+    c->send();
+    if(size_count <= space_left){
+      return;
+    }
+    while(!c->canSend()){
+      printf("write2Client: looping cannot send to client yet\n");
+    }
+    write2Client(client, (const void *) (cbuf + space_left), (int) (size_count - space_left));
 }
 
 void flush2Client(struct ClientSocket* client) {
     if (client == nullptr) return;
-    client->socket.flush();
+    AsyncClient* c = getClient(client);
+    while(!c->canSend()){
+      printf("flush2Client: looping cannot send to client yet\n");
+    }
+    c->send();
 }
 
-char* getReceivedData() {
-    if (inputsocket.size > 0) return inputsocket.buff;
-    return nullptr;
-}
+char* getReceivedData() { return nullptr; }
 
-uint32_t receivedDataSize() {
-    if (inputsocket.size > 0) return inputsocket.size;
-    return 0;
-}
+uint32_t receivedDataSize() { return 0;}
 
-void freeReceivedData() { inputsocket.size = 0; }
+void freeReceivedData() {return;}
 
 void initializeServer(const char* host, int portno, const char* ssid,
-                      const char* password) {
+                      const char* password){
+  initializeServer(host, portno, ssid, password, nullptr);
+}
+
+
+void initializeServer(const char* host, int portno, const char* ssid,
+                      const char* password, WARDuino * wrd) {
     WiFi.begin(ssid, password);
 
     Serial.println("Connecting to WiFi..");
@@ -87,74 +98,15 @@ void initializeServer(const char* host, int portno, const char* ssid,
     }
     Serial.println("Connected to the WiFi network");
     Serial.println(WiFi.localIP());
-
-    wifiServer.begin();
-    inputsocket.buff = (char*)malloc(inputsocket.max_size);
-    sockets[0].inuse = false;
-    sockets[1].inuse = false;
-    sockets[2].inuse = false;
+    uint16_t port = (uint16_t) portno;
+    _socketServer = new SocketServer(port, wrd);
+    _socketServer->begin();
+    sockets[0].which = 0;
+    sockets[1].which = 1;
+    sockets[2].which = 2;
 }
 
-void processIncomingEvents() {
-    // TODO use for loop
-    if (nsockets < MAX_SOCKETS) {
-        WiFiClient client = wifiServer.available();
-        if (client) {
-            short int idx = 2;
-            if (!sockets[0].inuse) {
-                idx = 0;
-            } else if (!sockets[1].inuse) {
-                idx = 1;
-            }
-            //printf("adding client %d\n", idx);
-            sockets[idx].socket = client;
-            sockets[idx].inuse = true;
-            nsockets++;
-        }
-    }
-
-    if(nsockets == 0){
-        return;
-    }
-
-    if (sockets[1].inuse && !sockets[1].socket.connected()) {
-        sockets[1].socket.stop();
-        sockets[1].inuse = false;
-        nsockets--;
-        printf("stoping event client. nsockets %d\n", nsockets);
-    }
-
-    // todo use for loop!
-    if (sockets[0].inuse && !sockets[0].socket.connected()) {
-        sockets[0].socket.stop();
-        sockets[0].inuse = false;
-        nsockets--;
-        printf("stoping inout client. nsockets %d\n", nsockets);
-    } else if (sockets[0].inuse) {
-        WiFiClient c = sockets[0].socket;
-        uint32_t old_size = inputsocket.size;
-        inputsocket.size = 0;
-        while (c.available() > 0) {
-            inputsocket.buff[inputsocket.size++] = c.read();
-        }
-        inputsocket.size = inputsocket.size == 0 ? old_size : inputsocket.size;
-    }
-
-    if (sockets[2].inuse && !sockets[2].socket.connected()) {
-        sockets[2].socket.stop();
-        sockets[2].inuse = false;
-        nsockets--;
-        printf("stoping proxy client. nsockets %d\n", nsockets);
-    } else if (sockets[2].inuse) {
-        WiFiClient c = sockets[2].socket;
-        uint32_t old_size = inputsocket.size;
-        inputsocket.size = 0;
-        while (c.available() > 0) {
-            inputsocket.buff[inputsocket.size++] = c.read();
-        }
-        inputsocket.size = inputsocket.size == 0 ? old_size : inputsocket.size;
-    }
-}
+void processIncomingEvents(){return; }
 
 void socket_debug(const char* format, ...) {}
 
@@ -230,10 +182,6 @@ struct ClientSocket *getEventSocket() {
 
 struct ClientSocket *getProxyOutput() {
     return nullptr;
-}
-
-void send2Client(struct ClientSocket *client, char *buffer, int size) {
-    write(client->fd, buffer, size);
 }
 
 void write2Client(struct ClientSocket *client, const void *buff, int count) {
