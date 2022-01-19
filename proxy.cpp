@@ -1,5 +1,5 @@
 #include "proxy.h"
-#include <asm-generic/errno-base.h>
+/* #include <asm-generic/errno-base.h> */ //Might be needed
 #include <netdb.h>
 #include <netinet/in.h>
 #include <stdio.h>
