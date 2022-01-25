@@ -170,9 +170,7 @@ Type oneU32ToOneF32 = {
 
 // #define ARDUINO
 #ifdef ARDUINO
-#include "SensorSHT3X.h"
-// #include "Adafruit_Sensor.h"
-// #include "SHT3X.h"
+#include "SensorBMP280.h"
 
 def_prim(assert_int, oneToNoneU32) {
     uint8_t boolean = arg0.uint32;
@@ -252,8 +250,11 @@ def_prim(write_f32, OneF32ToNone) {
 }
 
 
-def_prim(sht3x_ctemp, NoneToOneF32) {
-    senseData();
+def_prim(bmp_ctemp, NoneToOneF32) {
+    /* senseData(); */
+    if(!sensorInitialized()){
+      initializeSensor();
+    }
     float t = getTemperature();
     pushFloat32(t);
     makeTopF32();
@@ -376,7 +377,8 @@ def_prim(write_f32, OneF32ToNone) {
     return true;
 }
 
-def_prim(sht3x_ctemp, NoneToOneF32) {
+def_prim(bmp_ctemp, NoneToOneF32) {
+    printf("asking for temperature\n");
     FATAL("Temperature sensor not supported. Mock or Proxy instead\n");
     return true;
 }
@@ -441,7 +443,7 @@ void install_primitives() {
     install_primitive(write_spi_byte);
     install_primitive(write_spi_bytes_16);
     install_primitive(write_f32);
-    install_primitive(sht3x_ctemp);
+    install_primitive(bmp_ctemp);
     install_primitive(is_connected);
     install_primitive(req_temp);
 #else
@@ -456,7 +458,7 @@ void install_primitives() {
     install_primitive(write_spi_byte);
     install_primitive(write_spi_bytes_16);
     install_primitive(write_f32);
-    install_primitive(sht3x_ctemp);
+    install_primitive(bmp_ctemp);
     install_primitive(is_connected);
     install_primitive(req_temp);
 #endif
