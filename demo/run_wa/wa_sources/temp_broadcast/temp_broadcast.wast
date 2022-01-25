@@ -1,6 +1,6 @@
 (module
   (import "env" "chip_delay"  (func $delay      (type $i32tovoid)))
-  (import "env" "sht3x_ctemp" (func $ctemp      (type $voidtof32)))
+  (import "env" "bmp_ctemp"   (func $ctemp      (type $voidtof32)))
   (import "env" "write_f32"   (func $sendtemp   (type $f32tovoid)))
 
   (type $i32tovoid  (func (param i32) (result)))
@@ -15,6 +15,6 @@
       (call $ctemp)
       (call $sendtemp)
 
-      (i32.const 100)
+      (i32.const 1000)
       (call $delay)
       (br 0))))
