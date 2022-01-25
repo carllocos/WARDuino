@@ -7,6 +7,8 @@ https://github.com/m5stack/M5StickC/blob/master/examples/Unit/ENVII_SHT30_BMP280
 
 #if defined(ARDUINO)
 
+bool sensorInitialized(void);
+void initializeSensor(void);
 void senseData(void);
 float getTemperature();
 float getHumidity();

@@ -3,15 +3,30 @@ code retried and modifed from
 https://github.com/m5stack/M5StickC/blob/master/examples/Unit/ENVII_SHT30_BMP280/SHT3X.cpp
 */
 
-#include "SensorSHT3X.h"
+#include "SensorBMP280.h"
 
 #ifdef ARDUINO
 #include "Wire.h"
+#include <Adafruit_BMP280.h>
 #define ADDRESS 0x44
 
+Adafruit_BMP280 bme;
 float cTemp=0;
 float fTemp=0;
 float humidity=0;
+bool sensorinit = false;
+
+bool sensorInitialized(){
+  return sensorinit;
+}
+
+void initializeSensor(){
+  Wire.begin(32, 33);
+  while (!bme.begin(0x76)){  
+    Serial.println("Could not find a valid BMP280 sensor, check wiring!");
+  }
+  sensorinit = true;
+}
 
 void senseData()
 {
@@ -43,7 +58,8 @@ void senseData()
 }
 
 float getTemperature(){
-  return cTemp;
+  return bme.readTemperature();
+  /* return cTemp; */
 };
 
 float getHumidity(){
