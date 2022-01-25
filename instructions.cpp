@@ -382,11 +382,11 @@ bool proxy_call(uint32_t fidx, Module *m) {
     }
     if (rf->type->result_count > 0) {
         m->stack[++m->sp] = *rf->result;
-        Record *rec = new Record;
-        rec->value = *rf->result;
-        rec->fidx = fidx;
-        m->snapshot_count++;
-        m->snapshots.push_back(rec);
+        /* Record *rec = new Record; */
+        /* rec->value = *rf->result; */
+        /* rec->fidx = fidx; */
+        /* m->snapshot_count++; */
+        /* m->snapshots.push_back(rec); */
         // m->snapshots.push_back((record){m->snapshot_count++, fidx, pr->ret_value});
     }
     return true;
