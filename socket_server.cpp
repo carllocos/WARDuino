@@ -61,9 +61,9 @@ void write2Client(struct ClientSocket* client, const void* buf, int count) {
     if(size_count <= space_left){
       return;
     }
-    while(!c->canSend()){
-      printf("write2Client: looping cannot send to client yet\n");
-    }
+    /* while(!c->canSend()){ */
+    /*   printf("write2Client: looping cannot send to client yet\n"); */
+    /* } */
     write2Client(client, (const void *) (cbuf + space_left), (int) (size_count - space_left));
 }
 
@@ -84,20 +84,18 @@ void freeReceivedData() {return;}
 
 void initializeServer(const char* host, int portno, const char* ssid,
                       const char* password){
-  initializeServer(host, portno, ssid, password, nullptr);
-}
-
+  initializeServer(host, portno, ssid, password, nullptr);}
 
 void initializeServer(const char* host, int portno, const char* ssid,
                       const char* password, WARDuino * wrd) {
-    WiFi.begin(ssid, password);
 
-    Serial.println("Connecting to WiFi..");
+    printf("Connecting to WiFi..\n\n");
+    WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
-        delay(10);
+       delay(10);
     }
-    Serial.println("Connected to the WiFi network");
-    Serial.println(WiFi.localIP());
+
+    printf("%d.%d.%d.%d\n\n", WiFi.localIP()[0], WiFi.localIP()[1], WiFi.localIP()[2], WiFi.localIP()[3]);
     uint16_t port = (uint16_t) portno;
     _socketServer = new SocketServer(port, wrd);
     _socketServer->begin();
@@ -190,8 +188,14 @@ void write2Client(struct ClientSocket *client, const void *buff, int count) {
 
 void flush2Client(struct ClientSocket *client) { return; }
 
+
 void initializeServer(const char *host, int portno, const char *ssid,
                       const char *password) {
+  initializeServer(host, portno, ssid, password, nullptr);
+}
+
+void initializeServer(const char *host, int portno, const char *ssid,
+                      const char *password, WARDuino *wrd) {
     printf("inializing socket at host %s - port %d\n", host, portno);
 
     int listen_sd = socket(AF_INET, SOCK_STREAM, 0);
