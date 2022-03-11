@@ -398,17 +398,17 @@ bool saveState(Module *m, uint8_t *interruptData) {
                         f->block = m->functions + fidx;
 
                         if (f->block->fidx != fidx) {
-                            debug("incorrect fidx: exp %" PRIu32 " got %" PRIu32
-                                  "\n",
+                            printf("incorrect fidx: exp %" PRIu32 " got %" PRIu32
+                                  ". Exiting program\n",
                                   fidx, f->block->fidx);
                             exit(55);
                         }
                         m->fp = f->sp + 1;
                     } else {
-                        debug("non function block\n");
+                        printf("non function block\n");
                         uint8_t *block_key =
                             (uint8_t *)readPointer(&program_state);
-                        debug("block_key=%p\n", static_cast<void *>(block_key));
+                        printf("block_key=%p\n", static_cast<void *>(block_key));
                         f->block = m->block_lookup[block_key];
                     }
                 }
@@ -528,6 +528,7 @@ bool saveState(Module *m, uint8_t *interruptData) {
             }
         }
     }
+    printf("saving done with one package\n");
     uint8_t done = (uint8_t)*program_state;
     return done == (uint8_t)1;
 }
@@ -887,11 +888,11 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
             case interruptProxyCall: {
                 uint8_t *data = interruptData + 1;
                 uint32_t fidx = read_L32(&data);
-                printf("ProxyCall func %" PRIu32 "\n", fidx);
+                /* printf("ProxyCall func %" PRIu32 "\n", fidx); */
 
                 Block *func = &rm->m->functions[fidx];
                 StackValue *args = readRFCArgs(func, data);
-                printf("Registering %" PRIu32 "as Callee\n", func->fidx);
+                /* printf("Registering %" PRIu32 "as Callee\n", func->fidx); */
                 RFC::registerRFCallee(fidx, func->type, args);
 
                 free(interruptData);
@@ -930,14 +931,14 @@ void registerHost(uint8_t **data) {
     uint8_t hostsize = (uint8_t)(*data)[0];
     char *hostname = new char[hostsize + 1];
     memcpy((void *)hostname, ++(*data), hostsize);
-    hostname[hostsize + 1] = '\0';
-    printf("Registering Proxy Host: %s PORT=%" PRIu8 "\n", hostname, portno);
+    hostname[hostsize] = '\0';
+    /* printf("Registering Proxy Host: %s PORT=%" PRIu8 "\n", hostname, portno); */
     ProxyHost::getProxyHost()->registerHost(hostname, portno);
 }
 
 StackValue *readRFCArgs(Block *func, uint8_t *data) {
     if (func->type->param_count == 0){
-        printf("ProxyFunc %" PRIu32 "takes no arg\n", func->fidx);
+        /* printf("ProxyFunc %" PRIu32 "takes no arg\n", func->fidx); */
         return nullptr;
     }
 
