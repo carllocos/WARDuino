@@ -21,6 +21,11 @@
 
 #include "printing.h"
 
+#ifdef Arduino
+#include <Arduino.h>
+#include <WiFi.h>
+#endif
+
 /**
  * Validate if there are interrupts and execute them
  *
@@ -56,7 +61,8 @@ enum InteruptTypes {
     interruptOffset = 0x23,
     interruptUPDATEMOD = 0x24,
     interruptMonitorProxies = 0x25,
-    interruptProxyCall = 0x26
+    interruptProxyCall = 0x26,
+    interruptToggleWiFi = 0x27
 };
 
 enum ReceiveState {
@@ -896,6 +902,23 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                 RFC::registerRFCallee(fidx, func->type, args);
 
                 free(interruptData);
+                break;
+            }
+            #endif
+            #ifdef Arduino
+            case interruptToggleWiFi: {
+                printf("in toggleWifi\n");
+                const uint8_t Led = 10;
+                if(WiFi.status() == WL_CONNECTED){
+                  WiFi.disconnect();
+                  digitalWrite(Led, 1);
+                }
+
+                else{
+                  WiFi.begin(getServerSSID(), getServerPswd());
+                  while(WiFi.status() != WL_CONNECTED){}
+                  digitalWrite(Led, 0);
+                }
                 break;
             }
             #endif
