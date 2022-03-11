@@ -1294,6 +1294,11 @@ bool i_instr_binary_f32(Module *m, uint8_t opcode) {
     float i;
     m->sp -= 1;
     bool sucess = true;
+    if (opcode & 0x95 && h == 0) {
+        printf("Divided by zero");
+        sprintf(exception, "Division by zero");
+        return false;
+    }
     switch (opcode) {
         case 0x92:
             i = g + h;
@@ -1305,14 +1310,7 @@ bool i_instr_binary_f32(Module *m, uint8_t opcode) {
             i = g * h;
             break;  // f32.mul
         case 0x95:{
-            if((h >= 0) &&  (h < 0.0001)){
-                printf("Divided by zero");
-                sprintf(exception, "Division by zero");
-                sucess = false;
-            }
-            else{
-                i = g / h;
-            }
+            i = g / h;
             break;  // f32.div
         }
         case 0x96:
