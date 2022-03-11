@@ -6,15 +6,42 @@
 
 #include "SocketServer.h"
 
-class Credentials { // TODO delete
+
+//TODO begin Delete
+class Credentials {
     public:
         const char* ssid;
         const char* pswd;
         Credentials(const char * t_ssid, const char * t_pswd): ssid(t_ssid), pswd(t_pswd) {}
 };
 
-Credentials* serverCredentials = nullptr; //TODO delete
+Credentials* serverCredentials = nullptr;
+uint8_t ledPinNr = 0;
 
+void setConnectivityStatusPin(uint8_t pinNr){
+  ledPinNr = pinNr;
+}
+
+void showLedConnectivy(){
+  digitalWrite(ledPinNr, WiFi.status() == WL_CONNECTED ? 0 : 1);
+}
+
+void toggleWiFiConnection(){
+  if(WiFi.status() == WL_CONNECTED){
+    WiFi.disconnect();
+    while(WiFi.status() != WL_DISCONNECTED){
+      delay(10);
+    }
+  }
+  else{
+    WiFi.begin(serverCredentials->ssid, serverCredentials->pswd);
+    while(WiFi.status() != WL_CONNECTED){
+      delay(10);
+    }
+  }
+  showLedConnectivy();
+}
+//TODO END delete
 
 struct ClientSocket {
   unsigned short int which;
@@ -22,14 +49,6 @@ struct ClientSocket {
 
 struct ClientSocket sockets[MAX_SOCKETS];
 SocketServer *_socketServer;
-
-const char* getServerSSID(){
-  return serverCredentials->ssid;
-}
-const char* getServerPswd(){
-  return serverCredentials->pswd;
-}
-
 
 AsyncClient* getClient(ClientSocket * client){
   switch(client->which){

@@ -21,11 +21,6 @@
 
 #include "printing.h"
 
-#ifdef Arduino
-#include <Arduino.h>
-#include <WiFi.h>
-#endif
-
 /**
  * Validate if there are interrupts and execute them
  *
@@ -907,18 +902,7 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
             #endif
             #ifdef Arduino
             case interruptToggleWiFi: {
-                printf("in toggleWifi\n");
-                const uint8_t Led = 10;
-                if(WiFi.status() == WL_CONNECTED){
-                  WiFi.disconnect();
-                  digitalWrite(Led, 1);
-                }
-
-                else{
-                  WiFi.begin(getServerSSID(), getServerPswd());
-                  while(WiFi.status() != WL_CONNECTED){}
-                  digitalWrite(Led, 0);
-                }
+                toggleWiFiConnection();
                 break;
             }
             #endif

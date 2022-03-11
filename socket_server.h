@@ -47,7 +47,8 @@ frees the received data
 */
 void freeReceivedData();
 
-const char* getServerSSID(); //TODO delete
-const char* getServerPswd(); //TODO delete
+void setConnectivityStatusPin(uint8_t pinNr);
+void toggleWiFiConnection();
+void showLedConnectivy();
 
 #endif
