@@ -171,6 +171,7 @@ Type oneU32ToOneF32 = {
 // #define ARDUINO
 #ifdef ARDUINO
 #include "SensorBMP280.h"
+#include <WiFi.h>
 
 def_prim(assert_int, oneToNoneU32) {
     uint8_t boolean = arg0.uint32;
@@ -261,15 +262,9 @@ def_prim(bmp_ctemp, NoneToOneF32) {
     return true;
 }
 
-int counter = 30;
 def_prim(is_connected, oneToOneU32) {
     uint32_t port = arg0.uint32;
-    pushInt32(--counter > 0 ? 1 : 0);
-    Serial.println(counter > 0 ? "connected" : "disconnected");
-    if(counter == -20){
-        counter = 30;
-    }
-    Serial.printf("counter %d\n",counter);
+    pushInt32(WiFi.status() != WL_CONNECTED ? 0: 1);
     return true;
 }
 
