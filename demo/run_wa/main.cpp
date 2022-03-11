@@ -10,7 +10,8 @@
 #include "../../socket_server.h"
 //#include "hello_world.c"
 //#include "blinkled.c"
-#include "temp_broadcast.c"
+//#include "temp_broadcast.c"
+#include "temp_monitor.c"
 
 
 WARDuino wac;
