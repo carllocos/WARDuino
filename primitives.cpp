@@ -261,43 +261,26 @@ def_prim(bmp_ctemp, NoneToOneF32) {
     return true;
 }
 
-//#include <WiFi.h>
-
 int counter = 30;
 def_prim(is_connected, oneToOneU32) {
-    Serial.print("invokign is connectd\n");
-    // WiFiClient client;
-    // const char * host = "192.168.1.51";
     uint32_t port = arg0.uint32;
-    Serial.printf("at port %" PRIu32 "\n", port);
-    counter-=1;
-    if(counter > 0){
-         pushInt32(1);
-        Serial.println("connected");
-    }
-    else {
-        pushInt32(0);
-        Serial.println("disconnected");
-    }
-
-    if(counter == -1){
-        counter = 25;
+    pushInt32(--counter > 0 ? 1 : 0);
+    Serial.println(counter > 0 ? "connected" : "disconnected");
+    if(counter == -20){
+        counter = 30;
     }
     Serial.printf("counter %d\n",counter);
-    // if (!client.connect(host, port)) {
-    //     Serial.println("Connection to host failed");
-    // }
-    // else{
-    //     Serial.println("connected");
-    //     pushInt32(1);
-    // }
-
     return true;
 }
 
 def_prim(req_temp, oneU32ToOneF32) {
-    Serial.println("Asking for temperature");
-    pushFloat32(17.34);
+    if(!sensorInitialized()){
+      initializeSensor();
+    }
+    float t = getTemperature();
+    Serial.printf("temperature %2.2f\n", t);
+    pushFloat32(t);
+    makeTopF32();
     return true;
 }
 
