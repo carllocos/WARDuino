@@ -6,12 +6,30 @@
 
 #include "SocketServer.h"
 
+class Credentials { // TODO delete
+    public:
+        const char* ssid;
+        const char* pswd;
+        Credentials(const char * t_ssid, const char * t_pswd): ssid(t_ssid), pswd(t_pswd) {}
+};
+
+Credentials* serverCredentials = nullptr; //TODO delete
+
+
 struct ClientSocket {
   unsigned short int which;
 };
 
 struct ClientSocket sockets[MAX_SOCKETS];
 SocketServer *_socketServer;
+
+const char* getServerSSID(){
+  return serverCredentials->ssid;
+}
+const char* getServerPswd(){
+  return serverCredentials->pswd;
+}
+
 
 AsyncClient* getClient(ClientSocket * client){
   switch(client->which){
@@ -94,6 +112,12 @@ void initializeServer(const char* host, int portno, const char* ssid,
     while (WiFi.status() != WL_CONNECTED) {
        delay(10);
     }
+
+
+    //TODO delete begin
+    /* if(serverCredentials != nullptr) */
+    /*   delete serverCredentials; */
+    serverCredentials = new Credentials(ssid, password); //TODO delete end
 
     printf("%d.%d.%d.%d\n\n", WiFi.localIP()[0], WiFi.localIP()[1], WiFi.localIP()[2], WiFi.localIP()[3]);
     uint16_t port = (uint16_t) portno;

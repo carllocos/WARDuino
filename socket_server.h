@@ -47,4 +47,7 @@ frees the received data
 */
 void freeReceivedData();
 
+const char* getServerSSID(); //TODO delete
+const char* getServerPswd(); //TODO delete
+
 #endif
