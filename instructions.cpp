@@ -1294,8 +1294,8 @@ bool i_instr_binary_f32(Module *m, uint8_t opcode) {
     float i;
     m->sp -= 1;
     bool sucess = true;
-    if (opcode & 0x95 && h == 0) {
-        printf("Divided by zero");
+    if (opcode == 0x95 && h == 0) {
+        printf("Divided by zero\n");
         sprintf(exception, "Division by zero");
         return false;
     }
@@ -1871,7 +1871,7 @@ bool interpret(RmvModule *rm) {
               program_done ? "expectedly" : "unexpectedly",
               success ? "ok" : "error");
     if (!success) {
-        rm->pc_error = pc_error - rm->m->bytes;
+        rm->pc_error = pc_error;
         wa_evprintf("{\"error\":\"%s\"}\n", exception);
         doDump(rm);
     }
