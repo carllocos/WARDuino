@@ -50,8 +50,7 @@ void SocketServer::registerClient(AsyncClient *t_client){
   WARDuino *wrd = this->_warduino;
   SocketServer *thisServer = this;
   t_client->onError([thisServer](void *r, AsyncClient* t_client, int8_t error){ 
-      printf("Event Error\n");
-      thisServer->unregisterClient(t_client);
+      printf("ClientSocket Error %" PRIu8 "\n", error);
       }, NULL);
   t_client->onDisconnect([thisServer](void *r, AsyncClient* t_client){
       printf("Client Disconnected\n");
@@ -81,11 +80,7 @@ void SocketServer::unregisterClient(AsyncClient * t_client){
   else if(this->forProxy == t_client){
     this->forProxy = nullptr;
   }
-  else{
-    printf("Unknown client is being closed!\n");
-    return;
-  }
-  t_client->close(true);
+  t_client->close(true); //TODO potential issue: close twice same client
   t_client->free();
   delete t_client;
 }
