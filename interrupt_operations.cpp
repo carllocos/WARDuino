@@ -140,8 +140,8 @@ void doDump(RmvModule *rm) {
     // printf("asked for pc\n");
     // current PC
     wa_printf(R"("pc":"%p",)", (void *)m->pc_ptr);
-    if(rm->pc_error != 0){
-        wa_printf("\"pc_error\":\"%" PRIu32"\"," , rm->pc_error);
+    if(rm->pc_error != nullptr){
+        wa_printf("\"pc_error\":\"%p\"," , rm->pc_error);
         // printf("pc error %" PRIu32 "\n",  rm->pc_error);
     }
     // printf("asked for pc\n");
@@ -902,6 +902,7 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
             #endif
             #ifdef Arduino
             case interruptToggleWiFi: {
+                printf("in ToggleWifi\n");
                 toggleWiFiConnection();
                 break;
             }
