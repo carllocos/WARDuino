@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.14)
-project (WARDuino)
+project (WOOD)
 add_compile_options(-g -v -std=c++11  -Wall -Wextra -Wunused)
 set(SOURCE_FILES  mem.cpp util.cpp util_arduino.cpp  interrupt_operations.cpp debug.cpp WARDuino.cpp primitives.cpp instructions.cpp socket_server.cpp printing.cpp proxy.cpp recording.cpp recording.h structs.h rfc.cpp SocketServer.cpp AsyncTCP.cpp)
-add_executable(WARDuino demo/run_wa/main.cpp ${SOURCE_FILES})
+add_executable(WOOD demo/run_wa/main.cpp ${SOURCE_FILES})
 # add_executable(TestWARDuino tests/main.cpp ${SOURCE_FILES} tests/assertion.cpp tests/sexpr-parser/src/sexpr.c)
 
 #add_definitions(-DARDUINO)
@@ -13,7 +13,7 @@ add_definitions(-DSOCKET=1)
 add_definitions(-DPCBUILD=1)
 
 # add_executable(WARDuinoBench benchmarks/benchmarks.cpp ${SOURCE_FILES})
-install (TARGETS WARDuino DESTINATION demo/run_wa/bin)
+install (TARGETS WOOD DESTINATION demo/run_wa/bin)
 
 # add_custom_command (
 #   TARGET WARDuinoBench
