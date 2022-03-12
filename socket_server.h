@@ -47,10 +47,11 @@ frees the received data
 */
 void freeReceivedData();
 
+#ifdef Arduino
 void setConnectivityStatusPin(uint8_t pinNr);
 void toggleWiFiConnection();
 void showLedConnectivy();
-
 bool isServerConnected();
+#endif
 
 #endif
