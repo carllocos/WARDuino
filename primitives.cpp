@@ -364,33 +364,13 @@ def_prim(bmp_ctemp, NoneToOneF32) {
 }
 
 
-int max_val = 2;
-int counter = max_val;
 def_prim(is_connected, oneToOneU32) {
-    printf("invokign is connectd\n");
     uint32_t port = arg0.uint32;
-    counter-=1;
-    if(counter >= 0){
-        pushInt32(1);
-        printf("connected\n");
-    }
-    else {
-        pushInt32(0);
-        printf("disconnected\n");
-    }
-
-    if(counter == -2){
-        if(max_val > 0){
-            max_val -= 1;
-        }
-        counter = max_val;
-    }
-    printf("counter %d\n",counter);
     return true;
 }
 
 def_prim(req_temp, oneU32ToOneF32) {
-    printf("Asking for temp\n");
+    printf("Mocking temp\n");
     pushFloat32(17.34);
     return true;
 }
