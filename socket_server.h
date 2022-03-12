@@ -51,4 +51,6 @@ void setConnectivityStatusPin(uint8_t pinNr);
 void toggleWiFiConnection();
 void showLedConnectivy();
 
+bool isServerConnected();
+
 #endif

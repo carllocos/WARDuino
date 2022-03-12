@@ -17,28 +17,23 @@ class Credentials {
 
 Credentials* serverCredentials = nullptr;
 uint8_t ledPinNr = 0;
+bool server_connected = false;
+
+bool isServerConnected(){
+  return server_connected;
+}
 
 void setConnectivityStatusPin(uint8_t pinNr){
   ledPinNr = pinNr;
+  pinMode(pinNr, OUTPUT);
 }
 
 void showLedConnectivy(){
-  digitalWrite(ledPinNr, WiFi.status() == WL_CONNECTED ? 0 : 1);
+  digitalWrite(ledPinNr, server_connected ? 0 : 1);
 }
 
 void toggleWiFiConnection(){
-  if(WiFi.status() == WL_CONNECTED){
-    WiFi.disconnect();
-    while(WiFi.status() != WL_DISCONNECTED){
-      delay(10);
-    }
-  }
-  else{
-    WiFi.begin(serverCredentials->ssid, serverCredentials->pswd);
-    while(WiFi.status() != WL_CONNECTED){
-      delay(10);
-    }
-  }
+  server_connected = !server_connected;
   showLedConnectivy();
 }
 //TODO END delete
@@ -136,7 +131,9 @@ void initializeServer(const char* host, int portno, const char* ssid,
     //TODO delete begin
     /* if(serverCredentials != nullptr) */
     /*   delete serverCredentials; */
-    serverCredentials = new Credentials(ssid, password); //TODO delete end
+    serverCredentials = new Credentials(ssid, password);
+    server_connected = true;
+    //TODO delete end
 
     printf("%d.%d.%d.%d\n\n", WiFi.localIP()[0], WiFi.localIP()[1], WiFi.localIP()[2], WiFi.localIP()[3]);
     uint16_t port = (uint16_t) portno;
