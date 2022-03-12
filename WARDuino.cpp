@@ -880,7 +880,6 @@ bool WARDuino::invoke(RmvModule *rm, uint32_t fidx) {
     dbg_trace("Call setup\n");
     result = interpret(rm);
     dbg_trace("Interpretation ended\n");
-
     if (rm->state != WARDuinorestart) {
         dbg_dump_stack(rm->m);
     }
@@ -896,7 +895,7 @@ int WARDuino::run_module(RmvModule *rm) {
     ASSERT(fidx != UNDEF, "Main not found");
     this->invoke(rm, fidx);
     if (rm->state == WARDuinorestart) {
-        rm->state = WARDUINOrun;
+        rm->state = this->initial_runstate; //Save tmp initial_runstate
         this->unload_module(rm->m);
         this->initial_runstate = WARDUINOrun; 
         rm->m = this->load_module(rm->new_bytes, rm->byte_count, rm->options);
@@ -904,6 +903,7 @@ int WARDuino::run_module(RmvModule *rm) {
         rm->new_bytes = nullptr;
         wa_printf("restart done!\n");
         wa_flush();
+        this->initial_runstate = rm->state; //restore initial_runstate
         this->run_module(rm);
     }
     return rm->m->stack->value.uint32;
