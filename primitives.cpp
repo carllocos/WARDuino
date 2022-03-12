@@ -13,6 +13,7 @@
 
 #include "debug.h"
 #include "mem.h"
+#include "socket_server.h"
 
 //#define ARDUINO
 #ifdef ARDUINO
@@ -264,7 +265,8 @@ def_prim(bmp_ctemp, NoneToOneF32) {
 
 def_prim(is_connected, oneToOneU32) {
     uint32_t port = arg0.uint32;
-    pushInt32(WiFi.status() != WL_CONNECTED ? 0: 1);
+    pushInt32(isServerConnected() ? 1 : 0);
+    /* pushInt32(WiFi.status() != WL_CONNECTED ? 0: 1); */
     return true;
 }
 
