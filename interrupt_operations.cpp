@@ -131,8 +131,8 @@ void format_constant_value(char *buf, StackValue *v) {
 void doDump(RmvModule *rm) {
     Module *m = rm->m;
     // FIXME replace write
+
     debug("asked for doDump\n");
-    // printf("asking for dump\n");
     wa_flush();
     wa_printf("DUMP!\n");
     wa_printf("{");
@@ -142,9 +142,7 @@ void doDump(RmvModule *rm) {
     wa_printf(R"("pc":"%p",)", (void *)m->pc_ptr);
     if(rm->pc_error != nullptr){
         wa_printf("\"pc_error\":\"%p\"," , rm->pc_error);
-        // printf("pc error %" PRIu32 "\n",  rm->pc_error);
     }
-    // printf("asked for pc\n");
 
     // start of bytes
     wa_printf(R"("start":["%p"],)", (void *)m->bytes);
@@ -169,7 +167,6 @@ void doDump(RmvModule *rm) {
                   (i == m->sp) ? "" : ",");
     }
     wa_printf("],");
-    // printf("asked for callstack\n");
 
     // Callstack
     wa_printf("\"callstack\":[");
@@ -177,7 +174,6 @@ void doDump(RmvModule *rm) {
         Frame *f = &m->callstack[i];
         uint8_t *block_key =
             f->block->block_type == 0 ? nullptr : find_opcode(m, f->block);
-        // printf("sending frame\n");
         wa_printf(
             R"({"type":%u,"fidx":"0x%x","sp":%d,"fp":%d,"block_key":"%p", "ra":"%p"}%s)",
             f->block->block_type, f->block->fidx, f->sp, f->fp, block_key,
@@ -411,6 +407,10 @@ bool saveState(Module *m, uint8_t *interruptData) {
                             (uint8_t *)readPointer(&program_state);
                         printf("block_key=%p\n", static_cast<void *>(block_key));
                         f->block = m->block_lookup[block_key];
+                        if(f->block == nullptr){
+                          printf("block_lookup cannot be nullptr\n");
+                          exit(33);
+                        }
                     }
                 }
                 break;
@@ -481,7 +481,7 @@ bool saveState(Module *m, uint8_t *interruptData) {
             }
             case brtblState: {
                 debug("receiving br_table\n");
-                printf("receiving br_tale\n");
+                printf("receiving br_table\n");
                 uint16_t beginidx = read_B16(&program_state);
                 uint16_t endidx = read_B16(&program_state);
                 debug("br_table offsets begin=%" PRIu16 " , end=%" PRIu16 "\n",
@@ -529,7 +529,6 @@ bool saveState(Module *m, uint8_t *interruptData) {
             }
         }
     }
-    printf("saving done with one package\n");
     uint8_t done = (uint8_t)*program_state;
     return done == (uint8_t)1;
 }
@@ -843,14 +842,12 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
             }
             case interruptOffset: {
                 free(interruptData);
-                printf("asking offset\n");
                 wa_printf("\"{\"offset\":\"%p\"}\"\n", (void *)rm->m->bytes);
                 wa_flush();
                 break;
             }
             case interruptUPDATEMOD: {
                 if (receivingData) {
-                    printf("interrupt Update Module\n");
                     uint8_t *data = interruptData + 1;
                     rm->byte_count = read_B32(&data);
                     rm->new_bytes =
@@ -859,7 +856,7 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                     memcpy(rm->new_bytes, data, rm->byte_count);
                     receivingData = false;
                     *program_state = WARDuinorestart;
-                    rm->pc_error = 0;
+                    rm->pc_error = nullptr;
                     wa_printf("done!\n");
                     wa_flush();
                 } else {
@@ -928,7 +925,7 @@ void registerRFCs(Module * m, uint8_t **data){
     printf("funcs_total %" PRIu32 "\n", amount_funcs);
     for (uint32_t i = 0; i < amount_funcs; i++) {
         uint32_t fid = read_B32(data);
-        printf("registering fid=%" PRIu32 "\n", fid);
+        /* printf("registering fid=%" PRIu32 "\n", fid); */
         Type * type = (m->functions[fid]).type;
         RFC::registerRFC(fid, type);
     }
