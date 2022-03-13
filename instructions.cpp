@@ -1625,7 +1625,6 @@ bool interpret(RmvModule *rm) {
                 }
                 program_state = WARDUINOpause;
                 wa_printf("STEP DONE!\n");
-                printf("done stepping %p!\n", static_cast<void *>(rm->m->pc_ptr));
                 wa_flush();
             }
         }
