@@ -984,6 +984,6 @@ RmvModule *WARDuino::removable(Module *m) {
     rm->state = WARDUINOrun;
     rm->new_bytes = nullptr;
     rm->byte_count = 0;
-    rm->pc_error = nullptr;
+    /* rm->pc_error = nullptr; */
     return rm;
 }

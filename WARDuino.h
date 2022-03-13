@@ -33,6 +33,7 @@ typedef struct Module {
     StackValue *globals;    // globals
     // Runtime state
     uint8_t *pc_ptr;                   // program counter
+    uint8_t *pc_error = nullptr;
     int sp;                            // operand stack pointer
     int fp;                            // current frame pointer into stack
     StackValue stack[STACK_SIZE];      // main operand stack
@@ -68,7 +69,7 @@ typedef struct {
     uint8_t *new_bytes;
     uint32_t byte_count;
     RunningState state;
-    uint8_t* pc_error;
+    /* uint8_t* pc_error; */
 } RmvModule;
 
 typedef struct {
