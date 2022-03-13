@@ -68,7 +68,8 @@ enum ReceiveState {
     tblState = 0x05,
     memState = 0x06,
     brtblState = 0x07,
-    stackvalsState = 0x08
+    stackvalsState = 0x08,
+    pcErrorState = 0x09
 };
 
 bool receivingData = false;
@@ -140,8 +141,8 @@ void doDump(RmvModule *rm) {
     // printf("asked for pc\n");
     // current PC
     wa_printf(R"("pc":"%p",)", (void *)m->pc_ptr);
-    if(rm->pc_error != nullptr){
-        wa_printf("\"pc_error\":\"%p\"," , rm->pc_error);
+    if(rm->m->pc_error != nullptr){
+        wa_printf("\"pc_error\":\"%p\"," , rm->m->pc_error);
     }
 
     // start of bytes
@@ -365,6 +366,12 @@ bool saveState(Module *m, uint8_t *interruptData) {
             case pcState: {  // PC
                 printf("reciving pc\n");
                 m->pc_ptr = (uint8_t *)readPointer(&program_state);
+                break;
+            }
+            case pcErrorState: {  // PC
+                printf("reciving pc_error\n");
+                m->pc_error = (uint8_t *)readPointer(&program_state);
+                printf("pointer received %p\n", static_cast<void *>(m->pc_error));
                 break;
             }
             case breakpointsState: {  // breakpoints
@@ -856,7 +863,7 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                     memcpy(rm->new_bytes, data, rm->byte_count);
                     receivingData = false;
                     *program_state = WARDuinorestart;
-                    rm->pc_error = nullptr;
+                    rm->m->pc_error = nullptr; //TODO remove?
                     wa_printf("done!\n");
                     wa_flush();
                 } else {

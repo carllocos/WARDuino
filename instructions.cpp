@@ -1870,7 +1870,8 @@ bool interpret(RmvModule *rm) {
               program_done ? "expectedly" : "unexpectedly",
               success ? "ok" : "error");
     if (!success) {
-        rm->pc_error = pc_error;
+        /* rm->pc_error = pc_error; */
+        rm->m->pc_error = pc_error;
         wa_evprintf("{\"error\":\"%s\"}\n", exception);
         doDump(rm);
     }
