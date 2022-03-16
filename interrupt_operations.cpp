@@ -341,7 +341,7 @@ void freeState(Module *m, uint8_t *interruptData) {
         }
     }
     debug("done with first msg\n");
-    printf("done with first msg\n");
+    /* printf("done with first msg\n"); */
 }
 
 uintptr_t readPointer(uint8_t **data) {
@@ -412,7 +412,7 @@ bool saveState(Module *m, uint8_t *interruptData) {
                         printf("non function block\n");
                         uint8_t *block_key =
                             (uint8_t *)readPointer(&program_state);
-                        printf("block_key=%p\n", static_cast<void *>(block_key));
+                        /* printf("block_key=%p\n", static_cast<void *>(block_key)); */
                         f->block = m->block_lookup[block_key];
                         if(f->block == nullptr){
                           printf("block_lookup cannot be nullptr\n");
@@ -842,7 +842,7 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                     wa_printf("%s!\n", receivingData ? "ack" : "done");
                     wa_flush();
                     if(!receivingData){
-                        printf("done\n");
+                        printf("receiving state done\n");
                     }
                 }
                 break;
@@ -865,6 +865,7 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                     *program_state = WARDuinorestart;
                     rm->m->pc_error = nullptr; //TODO remove?
                     wa_printf("done!\n");
+                    printf("Module updated\n");
                     wa_flush();
                 } else {
                     receivingData = true;
@@ -893,7 +894,7 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
             case interruptProxyCall: {
                 uint8_t *data = interruptData + 1;
                 uint32_t fidx = read_L32(&data);
-                /* printf("ProxyCall func %" PRIu32 "\n", fidx); */
+                printf("Call func %" PRIu32 "\n", fidx);
 
                 Block *func = &rm->m->functions[fidx];
                 StackValue *args = readRFCArgs(func, data);
@@ -964,27 +965,27 @@ StackValue *readRFCArgs(Block *func, uint8_t *data) {
             case I32: {
                 memcpy(&args[i].value.uint32, data, sizeof(uint32_t));
                 data += sizeof(uint32_t);
-                printf("arg %d: i32 value %" PRIu32 "\n", i,
-                       args[i].value.uint32);
+                /* printf("arg %d: i32 value %" PRIu32 "\n", i, */
+                /*        args[i].value.uint32); */
                 break;
             }
             case F32: {
                 memcpy(&args[i].value.f32, data, sizeof(float));
                 data += sizeof(float);
-                printf("arg %d: F32 value %.7f \n", i, args[i].value.f32);
+                /* printf("arg %d: F32 value %.7f \n", i, args[i].value.f32); */
                 break;
             }
             case I64: {
                 memcpy(&args[i].value.uint64, data, sizeof(uint64_t));
                 data += sizeof(uint64_t);
-                printf("arg %d: I64 value %" PRIu64 "\n", i,
-                       args[i].value.uint64);
+                /* printf("arg %d: I64 value %" PRIu64 "\n", i, */
+                /*        args[i].value.uint64); */
                 break;
             }
             case F64: {
                 memcpy(&args[i].value.f64, data, sizeof(double));
                 data += sizeof(double);
-                printf("arg %d: f64 value %.7f \n", i, args[i].value.f64);
+                /* printf("arg %d: f64 value %.7f \n", i, args[i].value.f64); */
                 break;
             }
             default: {

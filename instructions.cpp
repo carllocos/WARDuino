@@ -367,6 +367,7 @@ bool i_instr_return(Module *m) {
 
 #ifndef ARDUINO
 bool proxy_call(uint32_t fidx, Module *m) {
+    printf("Remote Call %" PRIu32 "\n", fidx);
     RFC *rf = RFC::getRFC(fidx);
     StackValue *args = nullptr;
     if (rf->type->param_count > 0){
