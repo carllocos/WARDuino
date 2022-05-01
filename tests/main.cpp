@@ -19,7 +19,7 @@ extern "C" {
 
 #define COMPILE(command) system(command.c_str());
 
-WARDuino wac;
+WARDuino wood;
 
 volatile bool handlingInterrupt = false;
 
@@ -33,7 +33,7 @@ void signalHandler(int /* signum */) {
         FILE *fp = fopen("/tmp/change", "rb");
         fread(data, statbuff.st_size, 1, fp);
         fclose(fp);
-        wac.handleInterrupt(statbuff.st_size, data);
+        wood.handleInterrupt(statbuff.st_size, data);
     }
 
     handlingInterrupt = false;
@@ -316,7 +316,7 @@ int main(int argc, char **argv) {
     // Remove compiled file
     remove(&out_path[0]);
 
-    Module *m = wac.load_module(bytes, byte_count, {});
+    Module *m = wood.load_module(bytes, byte_count, {});
     //(assert_return (invoke "fac-rec" (i64.const 25)) (i64.const
     // 7034535277573963776))
     char args[][40] = {"25"};
