@@ -14,20 +14,20 @@
 #include "temp_monitor.c"
 
 
-WARDuino wac;
+WARDuino wood;
 
 int main(int /*argc*/, const char ** /*argv*/) {
     int portno = 8080;
     const char *host = "localhost";
     initializeServer(host, portno, nullptr, nullptr);
-    RmvModule * rm = wac.removable(
-        wac.load_module(wasm, wasm_len, {}));
+    RmvModule * rm = wood.removable(
+        wood.load_module(wasm, wasm_len, {}));
 
-    wac.initial_runstate = WARDUINOpause;
+    wood.initial_runstate = WARDUINOpause;
     while (true)
     {
         printf("start executing\n");
-        wac.run_module(rm);
+        wood.run_module(rm);
     }
     
     return 0;
