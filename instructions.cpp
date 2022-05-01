@@ -367,7 +367,7 @@ bool i_instr_return(Module *m) {
 
 #ifndef ARDUINO
 bool proxy_call(uint32_t fidx, Module *m) {
-    printf("Remote Call %" PRIu32 "\n", fidx);
+    printf("Remote Function Call %" PRIu32 "\n", fidx);
     RFC *rf = RFC::getRFC(fidx);
     StackValue *args = nullptr;
     if (rf->type->param_count > 0){
@@ -383,6 +383,23 @@ bool proxy_call(uint32_t fidx, Module *m) {
     }
     if (rf->type->result_count > 0) {
         m->stack[++m->sp] = *rf->result;
+        /* StackValue v = m->stack[m->sp]; */
+        /* switch (v.value_type) { */
+        /*     case I32: */
+        /*         printf("%" PRIu32 "\n", v.value.uint32); */
+        /*         break; */
+        /*     case I64: */
+        /*         printf("%" PRIu64 "\n", v.value.uint64); */
+        /*         break; */
+        /*     case F32: */
+        /*         printf("%2.2f\n",v.value.f32); */
+        /*         break; */
+        /*     case F64: */
+        /*         printf("%2.2f\n",v.value.f64); */
+        /*         break; */
+        /*     default: */
+        /*         break; */
+        /* } */
         /* Record *rec = new Record; */
         /* rec->value = *rf->result; */
         /* rec->fidx = fidx; */
