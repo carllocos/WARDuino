@@ -52,9 +52,9 @@ void write_spi_bytes_16_prim(int times, uint32_t color) {
 
 #define NUM_PRIMITIVES 0
 #ifdef ARDUINO
-#define NUM_PRIMITIVES_ARDUINO 13
+#define NUM_PRIMITIVES_ARDUINO 14
 #else
-#define NUM_PRIMITIVES_ARDUINO 13
+#define NUM_PRIMITIVES_ARDUINO 14
 #endif
 
 #define ALL_PRIMITIVES (NUM_PRIMITIVES + NUM_PRIMITIVES_ARDUINO)
@@ -275,12 +275,19 @@ def_prim(req_temp, oneU32ToOneF32) {
       initializeSensor();
     }
     float t = getTemperature();
-    Serial.printf("temperature %2.2f\n", t);
+    /* Serial.printf("%2.2f\n", t); */
     pushFloat32(t);
     makeTopF32();
     return true;
 }
 
+
+def_prim(print, OneF32ToNone) {
+    float v = arg0.f32;
+    printf("%2.2f\n", v);
+    pop_args(1);
+    return true;
+}
 
 #else
 
@@ -375,6 +382,13 @@ def_prim(req_temp, oneU32ToOneF32) {
     return true;
 }
 
+def_prim(print, OneF32ToNone) {
+    float v = arg0.f32;
+    printf("%2.2f\n", v);
+    pop_args(1);
+    return true;
+}
+
 #endif
 
 /*
@@ -406,6 +420,7 @@ void install_primitives() {
     install_primitive(bmp_ctemp);
     install_primitive(is_connected);
     install_primitive(req_temp);
+    install_primitive(print);
 #else
     dbg_info("INSTALLING FAKE ARDUINO\n");
     install_primitive(assert_int);
@@ -421,6 +436,7 @@ void install_primitives() {
     install_primitive(bmp_ctemp);
     install_primitive(is_connected);
     install_primitive(req_temp);
+    install_primitive(print);
 #endif
 }
 
