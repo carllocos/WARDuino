@@ -907,7 +907,7 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
             #endif
             #ifdef Arduino
             case interruptToggleWiFi: {
-                printf("in ToggleWifi\n");
+                printf("Toggle WiFi\n");
                 toggleWiFiConnection();
                 break;
             }
