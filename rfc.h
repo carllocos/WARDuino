@@ -12,6 +12,7 @@ class RFC {
             uint32_t size;
         };
 
+        bool cached;
         struct SerializeData * serializeRFC();
         struct SerializeData * serializeRFCallee();
         void deserializeRFCResult(void);
@@ -23,6 +24,7 @@ class RFC {
         bool succes;
         char* exceptionMsg;
         uint16_t excpMsgSize;
+        bool useCache;
 
         RFC(uint32_t t_fid, Type * t_type, StackValue * t_args = nullptr);
         void call(StackValue *args);

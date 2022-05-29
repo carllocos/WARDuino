@@ -89,6 +89,8 @@ RFC::RFC(uint32_t t_fid, Type *t_type, StackValue *t_args): fid(t_fid), args(t_a
     this->excpMsgSize = 0;
     this->succes = true;
     this->result = nullptr;
+    this->useCache = true;
+    this->cached = false;
     if(t_type->result_count >  0){
         this->result = new StackValue;
         this->result->value_type = t_type->results[0];
@@ -245,6 +247,7 @@ void RFC::deserializeRFCResult(){
 
     if(this->type->result_count  == 0){
         delete[] call_result;
+        this->cached = true; // in case the developer would ask to cache a function that returns no result
         return;
     }
 
@@ -269,10 +272,13 @@ void RFC::deserializeRFCResult(){
         default:
             FATAL("Deserialization RFCResult\n");
     }
+    this->cached = true;
     delete[] call_result;
 }
 
 void RFC::call(StackValue * args){
+    if (this->useCache && this->cached) return;
+
     this->args = args;
     struct SerializeData * rfc_request = this->serializeRFC();
 

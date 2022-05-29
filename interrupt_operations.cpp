@@ -57,7 +57,9 @@ enum InteruptTypes {
     interruptUPDATEMOD = 0x24,
     interruptMonitorProxies = 0x25,
     interruptProxyCall = 0x26,
-    interruptToggleWiFi = 0x27
+    interruptToggleWiFi = 0x27,
+    interruptRFCNoCache = 0x28,
+    interruptRFCUseCache = 0x29,
 };
 
 enum ReceiveState {
@@ -86,7 +88,7 @@ void registerRFCs(Module * m, uint8_t **data);
 
 void registerHost(uint8_t **data);
 StackValue *readRFCArgs(Block * func, uint8_t * data);
-
+void setCacheRFCs(Module * m, uint8_t **data, bool cache);
 
 // TODO inefficient. Keep extra state at each pushblock to ease opcode
 // retrieval?
@@ -890,6 +892,20 @@ bool check_interrupts(RmvModule *rm, RunningState *program_state) {
                 wa_printf("done!\n");
                 break;
             }
+            case interruptRFCUseCache: {
+                printf("RFC enabling cache use for list\n");
+                uint8_t *data = interruptData + 1;
+                setCacheRFCs(rm->m, &data, true);
+                free(interruptData);
+                break;
+            }
+            case interruptRFCNoCache: {
+                printf("RFC disabling cache use for list\n");
+                uint8_t *data = interruptData + 1;
+                setCacheRFCs(rm->m, &data, false);
+                free(interruptData);
+                break;
+            }
             #else
             case interruptProxyCall: {
                 uint8_t *data = interruptData + 1;
@@ -936,6 +952,20 @@ void registerRFCs(Module * m, uint8_t **data){
         /* printf("registering fid=%" PRIu32 "\n", fid); */
         Type * type = (m->functions[fid]).type;
         RFC::registerRFC(fid, type);
+    }
+}
+
+void setCacheRFCs(Module * m, uint8_t **data, bool cache){
+    printf("changing RFC cache to %s\n", cache ? "true" : "false");
+
+    uint32_t amount_funcs = read_B32(data);
+    printf("funcs_total %" PRIu32 "\n", amount_funcs);
+    for (uint32_t i = 0; i < amount_funcs; i++) {
+        uint32_t fid = read_B32(data);
+        printf("cache for %" PRIu32 "\n", fid);
+        RFC* rfc = RFC::getRFC(fid);
+        if(rfc != nullptr)
+          rfc->useCache = cache;
     }
 }
 
