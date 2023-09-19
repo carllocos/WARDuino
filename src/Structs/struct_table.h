@@ -9,4 +9,3 @@ typedef struct Table {
     uint32_t size = 0;      // current table size
     uint32_t *entries = nullptr;
 } Table;
-

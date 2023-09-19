@@ -1,8 +1,8 @@
 #ifndef WARDUINO_PRIM_H
 #define WARDUINO_PRIM_H
 
-#include "../WARDuino.h"
 #include "../Structs/struct_primitive_entry.h"
+#include "../WARDuino.h"
 
 /**
  * Find a primitive function by looking it up
