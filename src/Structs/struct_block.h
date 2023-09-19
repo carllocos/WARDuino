@@ -1,4 +1,5 @@
 #pragma once
+
 #include <cstdint>
 
 #include "struct_type.h"
