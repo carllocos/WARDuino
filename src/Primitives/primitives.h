@@ -2,6 +2,7 @@
 #define WARDUINO_PRIM_H
 
 #include "../WARDuino.h"
+#include "../Structs/struct_primitive_entry.h"
 
 /**
  * Find a primitive function by looking it up

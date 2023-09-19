@@ -7,6 +7,7 @@
 #include <map>
 
 #include "../Interpreter/instructions.h"
+#include "../Structs/struct_primitive_entry.h"
 #include "../Utils/macros.h"
 #include "../Utils/util.h"
 

@@ -4,6 +4,7 @@
 #include <cstring>
 
 #include "../Memory/mem.h"
+#include "../Structs/struct_primitive_entry.h"
 #include "../Utils/macros.h"
 #include "../Utils/util.h"
 #include "../Utils/util_arduino.h"
