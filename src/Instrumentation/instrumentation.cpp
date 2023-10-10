@@ -138,6 +138,7 @@ bool InstrumentationManager::apply_primitive_call_instrumentation(
             FATAL("Other kind not yet supported\n");
     }
     // after
+    return false;
 }
 
 bool Instrumentation_interceptPrimitiveCall(Module *m) {
