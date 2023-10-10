@@ -9,6 +9,7 @@
 #include "../../lib/json/single_include/nlohmann/json.hpp"
 #endif
 
+#include "../Interrupts/interrupts.h"
 #include "../Memory/mem.h"
 #include "../Utils//util.h"
 #include "../Utils/macros.h"

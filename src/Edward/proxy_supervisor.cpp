@@ -13,6 +13,7 @@
 #include "../../lib/json/single_include/nlohmann/json.hpp"
 #endif
 
+#include "../Interrupts/interrupts.h"
 #include "../Utils/macros.h"
 #include "../Utils/util.h"
 
