@@ -20,7 +20,7 @@ class FreeingModuleFixture : public ::testing::Test {
         opts.mangle_table_index = false;
         opts.dlsym_trim_underscore = false;
         opts.return_exception = true;
-        opts.disable_strict_load = false;
+        opts.disable_strict_load = true;
         wasm_module->options = opts;
         wasm_module->warduino = this->warduino;
     }

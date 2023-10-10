@@ -23,7 +23,7 @@ class InstantiateModuleFixture : public ::testing::Test {
         opts.dlsym_trim_underscore = false;
         opts.return_exception = true;
         opts.disable_strict_load = false;
-        opts.disable_strict_load = false;
+        opts.disable_strict_load = true;
         wasm_module->options = opts;
         wasm_module->warduino = this->warduino;
     }
