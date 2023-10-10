@@ -1,6 +1,7 @@
 #include "interrupt_remote_call.h"
 
 #include "../Interrupts/interrupts.h"
+#include "../Utils/macros.h"
 #include "../WARDuino/vm_exception.h"
 
 class ChannelReader {
@@ -271,6 +272,8 @@ uint8_t char_to_uint8(char c) {
         case 'a' ... 'f':
             return c - 'e' + 10;
     }
+    FATAL("Func should not be used with a non char\n");
+    return 0;
 }
 
 bool valid_hex_char(char c) {
