@@ -16,7 +16,7 @@ ssize_t Interrupt_AroundFunction_serialize_response(
                       interruptAroundFunction, response.type);
     if (response.type == INTERRUPT_RESPONSE_TYPE_ERROR) {
         offset += sprintf(dest + offset, R"(,"error_code":"%02X")",
-                          interruptAroundFunction, response.type);
+                          response.error_code);
     }
     offset += sprintf(dest + offset, "}\n");
     return offset;
