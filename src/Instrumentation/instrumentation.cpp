@@ -87,8 +87,9 @@ bool InstrumentationManager::do_remote_call(
     if (response.type == INTERRUPT_RESPONSE_TYPE_ERROR) {
         printf("TODO copy error properly\n");
 
-        printf("Remotecall failed error_code" PRIu8 " \n", response.error_code);
-        VM_Exception_write("Remotecall failed error_code" PRIu8 " \n",
+        printf("Remotecall failed error_code%" PRIu8 " \n",
+               response.error_code);
+        VM_Exception_write("Remotecall failed error_code%" PRIu8 " \n",
                            response.error_code);
         return false;
     }
