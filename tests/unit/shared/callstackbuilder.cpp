@@ -1,4 +1,3 @@
-#pragma once
 #include "callstackbuilder.h"
 
 CallstackBuilder::CallstackBuilder(Module* wasm_module) : m{wasm_module} {}
