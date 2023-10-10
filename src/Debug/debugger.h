@@ -12,6 +12,7 @@
 
 #include "../Edward/proxy.h"
 #include "../Edward/proxy_supervisor.h"
+#include "../Instrumentation/instrumentation.h"
 #include "../Utils/sockets.h"
 
 struct Module;
@@ -139,6 +140,7 @@ class Debugger {
     bool freshMessages = false;
     Channel *channel;
     ProxySupervisor *supervisor = nullptr;
+    InstrumentationManager instrument;
 
     std::set<uint8_t *> breakpoints = {};  // Vector, we expect few breakpoints
     uint8_t *mark = 0;  // a unique temporary breakpoint that gets removed
@@ -207,4 +209,8 @@ class Debugger {
     void notifyPushedEvent() const;
 
     bool handlePushedEvent(char *bytes) const;
+
+    void handleAroundFunction(Module *m, uint8_t *data);
+
+    void handleFuncCall(Module *m, uint8_t *data);
 };

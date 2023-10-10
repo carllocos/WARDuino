@@ -9,6 +9,9 @@
 #include "../../lib/json/single_include/nlohmann/json.hpp"
 #endif
 
+#include "../Instrumentation/instrumentation.h"
+#include "../Interrupts/interrupt_around_function.h"
+#include "../Interrupts/interrupt_remote_call.h"
 #include "../Interrupts/interrupts.h"
 #include "../Memory/mem.h"
 #include "../Utils//util.h"
@@ -282,10 +285,18 @@ bool Debugger::checkDebugMessages(Module *m, RunningState *program_state) {
                 this->channel->write("%s!\n", receivingData ? "ack" : "done");
             }
             break;
-        case interruptProxyCall: {
+        case interruptProxyCall:
             this->handleProxyCall(m, program_state, interruptData + 1);
             free(interruptData);
-        } break;
+            break;
+        case interruptFunCall:
+            this->handleFuncCall(m, interruptData + 1);
+            free(interruptData);
+            break;
+        case interruptAroundFunction:
+            this->handleAroundFunction(m, interruptData + 1);
+            free(interruptData);
+            break;
         case interruptMonitorProxies: {
             printf("receiving functions list to proxy\n");
             this->handleMonitorProxies(m, interruptData + 1);
@@ -1325,4 +1336,13 @@ Debugger::~Debugger() {
     this->stop();
     delete this->supervisor_mutex;
     delete this->supervisor;
+}
+
+void Debugger::handleAroundFunction(Module *m, uint8_t *data) {
+    Interrupt_AroundFunction_handle_request(*this->channel, this->instrument, m,
+                                            data);
+}
+
+void Debugger::handleFuncCall(Module *m, uint8_t *data) {
+    Interrupt_RemoteCall_handle_request(*this->channel, m, data);
 }

@@ -65,6 +65,50 @@ StackValue *readWasmArgs(Type function, uint8_t *data);
  */
 bool deserialiseStackValue(uint8_t *input, bool decodeType, StackValue *value);
 
+typedef struct {
+    bool includeIndex;
+    bool includeType;
+} ValueSerializationConfig;
+
+size_t serializeStackValueSize(const StackValue *value,
+                               const ValueSerializationConfig &config);
+
+size_t serializeStackValue(const StackValue &value,
+                           const ValueSerializationConfig &config,
+                           uint8_t *buffer);
+
+size_t serializeStackValues(const StackValue *vals, uint32_t nr_vals,
+                            const ValueSerializationConfig &config,
+                            uint8_t *buffer);
+
+size_t deserializeStackValue(StackValue *value,
+                             const ValueSerializationConfig &config,
+                             uint8_t *buffer, uint8_t value_type = 0);
+
+StackValue *deserializeStackValues(uint8_t *buffer,
+                                   const ValueSerializationConfig &config,
+                                   Type *type = nullptr);
+
+size_t size_for_stackvalues(StackValue *val, uint32_t nr_vals,
+                            const ValueSerializationConfig &config);
+
+// Function to write a 32-bit integer in LEB32 format into a buffer
+size_t write_LEB(uint32_t value, uint8_t *buffer);
+
+size_t write_LEB(uint64_t value, uint8_t *buffer);
+
+size_t size_for_LEB(uint32_t value);
+
+size_t size_for_LEB(uint64_t value);
+
+uint8_t *findStartOfLEB128(uint8_t *ptr);
+
+size_t write_float(float value, uint8_t *buffer);
+
+float read_float(uint8_t **buffer);
+
+size_t size_for_float(float v);
+
 // Parse strings
 
 char *read_string(uint8_t **pos, uint32_t *result_len);
@@ -103,6 +147,8 @@ int read_B32_signed(uint8_t **bytes);
 uint32_t read_L32(uint8_t **bytes);
 void chars_as_hexa(unsigned char *dest, unsigned char *source,
                    uint32_t len_source);
+
+char *uint8_to_hex(uint8_t *data, size_t size);
 
 unsigned short int sizeof_valuetype(uint32_t);
 

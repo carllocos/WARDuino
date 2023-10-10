@@ -13,6 +13,9 @@ set(SOURCE_FILES
         ../../src/WARDuino/CallbackHandler.cpp
         ../../src/WARDuino/WARDuino.cpp
         ../../src/WARDuino/vm_exception.cpp
+        ../../src/Instrumentation/instrumentation.cpp
+        ../../src/Interrupts/interrupt_around_function.cpp
+        ../../src/Interrupts/interrupt_remote_call.cpp
 )
 
 

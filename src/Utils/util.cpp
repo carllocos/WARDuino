@@ -335,3 +335,213 @@ uint8_t *toPhysicalAddress(uint32_t virtualAddr, Module *m) {
 bool isToPhysicalAddrPossible(uint32_t virtualAddr, Module *m) {
     return virtualAddr < m->byte_count;
 }
+
+// Function to write a 32-bit integer in LEB32 format into a buffer
+size_t write_LEB(uint32_t value, uint8_t *buffer) {
+    size_t bytesWritten = 0;
+    do {
+        uint8_t byte = value & 0x7F;  // Extract the least significant 7 bits
+        value >>= 7;
+        if (value != 0) {
+            byte |= 0x80;  // Set the high bit to indicate more bytes
+        }
+        if (buffer != nullptr) {
+            buffer[bytesWritten] = byte;
+        }
+        bytesWritten++;
+    } while (value != 0);
+
+    return bytesWritten;
+}
+
+size_t size_for_LEB(uint32_t value) { write_LEB(value, nullptr); }
+// Function to encode a uint64_t value to LEB128 format
+
+size_t write_LEB(uint64_t value, uint8_t *buffer) {
+    size_t bytesWritten = 0;
+    do {
+        uint8_t byte = value & 0x7F;  // Extract the least significant 7 bits
+        value >>= 7;
+        if (value != 0) {
+            byte |= 0x80;  // Set the high bit to indicate more bytes
+        }
+        if (buffer != nullptr) {
+            buffer[bytesWritten++] = byte;
+        }
+    } while (value != 0);
+
+    return bytesWritten;
+}
+
+size_t size_for_LEB(uint64_t value) { write_LEB(value, nullptr); }
+
+uint8_t *findStartOfLEB128(uint8_t *ptr) {
+    while ((*ptr & 0x80) != 0) {
+        // If MSB is set, move the pointer backward
+        ptr--;
+    }
+    return ptr;
+}
+
+size_t write_float(float value, uint8_t *buffer) {
+    uint32_t *intPtr = (uint32_t *)&value;
+    size_t bytes_written{};
+    for (bytes_written = 0; bytes_written < sizeof(float); bytes_written++) {
+        buffer[bytes_written] =
+            (uint8_t)((*intPtr >> (8 * bytes_written)) & 0xFF);
+    }
+    return bytes_written;
+}
+
+float read_float(uint8_t **buffer) {
+    uint32_t intValue = 0;
+    for (int i = 0; i < sizeof(float); i++) {
+        intValue |= (uint32_t) * *buffer << (8 * i);
+        *buffer += 1;
+    }
+
+    float *floatPtr = (float *)&intValue;
+    return *floatPtr;
+}
+
+size_t size_for_float(float v) { return sizeof(float); }
+
+char *uint8_to_hex(uint8_t *data, size_t size) {
+    if (data == nullptr || size == 0) {
+        return nullptr;
+    }
+
+    size_t hex_size = size * 2;
+    char *hex_buffer = (char *)malloc(hex_size + 1);  // +1 for null termination
+
+    if (hex_buffer == nullptr) {
+        return nullptr;
+    }
+
+    // Convert each byte to a hexadecimal representation
+    for (size_t i = 0; i < size; i++) {
+        sprintf(hex_buffer + (i * 2), "%02X", data[i]);
+    }
+
+    // Add a null terminator to the end of the hex buffer
+    hex_buffer[hex_size] = '\0';
+
+    return hex_buffer;
+}
+
+size_t serializeStackValueSize(const StackValue *value,
+                               const ValueSerializationConfig &config) {
+    size_t size = 0;
+    if (config.includeType) {
+        size += 1;
+    }
+    if (config.includeIndex) {
+        FATAL("Index serialization not yet supported\n");
+    }
+    switch (value->value_type) {
+        case I32:
+            size += size_for_LEB(value->value.uint32);
+            break;
+        case I64:
+            size += size_for_LEB(value->value.uint64);
+            break;
+        case F32:
+            size += size_for_float(value->value.f32);
+            break;
+        case F64:
+            FATAL("Not yet supported\n");
+    }
+    return size;
+}
+
+size_t serializeStackValue(const StackValue &value,
+                           const ValueSerializationConfig &config,
+                           uint8_t *buffer) {
+    size_t offset = 0;
+    if (config.includeType) {
+        buffer[offset++] = value.value_type;
+    }
+
+    if (config.includeIndex) {
+        FATAL("Index serialization not yet supported\n");
+    }
+    switch (value.value_type) {
+        case I32:
+            offset += write_LEB(value.value.uint32, buffer + offset);
+            break;
+        case I64:
+            offset += write_LEB(value.value.uint64, buffer + offset);
+            break;
+        case F32:
+            offset += write_float(value.value.f32, buffer + offset);
+            break;
+        case F64:
+            FATAL("Not yet supported\n");
+    }
+    return offset;
+}
+
+size_t deserializeStackValue(StackValue *value,
+                             const ValueSerializationConfig &config,
+                             uint8_t *buffer, uint8_t value_type) {
+    uint8_t *data = buffer;
+    if (config.includeType) {
+        value_type = *data++;
+    }
+    if (config.includeIndex) {
+        FATAL("Index serialization not yet supported\n");
+    }
+
+    value->value.uint64 = 0;  // init all possible values to 0
+    switch (value_type) {
+        case I32:
+            value->value.int32 = read_LEB_signed(&data, 32);
+            break;
+        case I64:
+            value->value.int64 = read_LEB_signed(&data, 64);
+            break;
+        case F32: {
+            value->value.f32 = read_float(&data);
+            break;
+        }
+        case F64:
+            FATAL("F64 Not yet supported\n");
+        default:
+            FATAL("Unknown type\n");
+    }
+    value->value_type = value_type;
+
+    size_t bytesRead = data - buffer;
+    return bytesRead;
+}
+
+size_t serializeStackValues(const StackValue *vals, uint32_t nr_vals,
+                            const ValueSerializationConfig &config,
+                            uint8_t *buffer) {
+    size_t offset = write_LEB(nr_vals, buffer);
+    for (auto i = 0; i < nr_vals; ++i) {
+        offset += serializeStackValue(vals[i], config, buffer + offset);
+    }
+    return offset;
+}
+
+size_t size_for_stackvalues(StackValue *val, uint32_t nr_vals,
+                            const ValueSerializationConfig &config) {
+    size_t total_size = size_for_LEB(nr_vals);
+    for (auto i = 0; i < nr_vals; ++i) {
+        total_size += serializeStackValueSize(&val[i], config);
+    }
+    return total_size;
+}
+
+StackValue *deserializeStackValues(uint8_t *encoded_data,
+                                   const ValueSerializationConfig &config,
+                                   Type *type) {
+    uint32_t nr_args = read_LEB_32(&encoded_data);
+    StackValue *values = new StackValue[nr_args];
+    for (auto i = 0; i < nr_args; ++i) {
+        uint8_t value_type = type == nullptr ? 0 : type->params[i];
+        deserializeStackValue(&values[i], config, encoded_data, value_type);
+    }
+    return values;
+}

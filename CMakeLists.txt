@@ -51,7 +51,10 @@ if (BUILD_EMULATOR)
             src/Edward/proxy.cpp
             src/Edward/proxy_supervisor.cpp
             src/Edward/RFC.cpp
-            src/WARDuino/vm_exception.cpp)
+            src/WARDuino/vm_exception.cpp
+            src/Instrumentation/instrumentation.cpp
+            src/Interrupts/interrupt_around_function.cpp
+            src/Interrupts/interrupt_remote_call.cpp)
 
     add_definitions(-DINFO=0)
     add_definitions(-DDEBUG=0)
@@ -103,7 +106,10 @@ if (BUILD_UNITTEST)
             src/Edward/proxy.cpp
             src/Edward/proxy_supervisor.cpp
             src/Edward/RFC.cpp
-            src/WARDuino/vm_exception.cpp)
+            src/WARDuino/vm_exception.cpp
+            src/Instrumentation/instrumentation.cpp
+            src/Interrupts/interrupt_around_function.cpp
+            src/Interrupts/interrupt_remote_call.cpp)
 
     target_include_directories(warduino_lib PRIVATE ${EXTERNAL_LIB_HEADERS} "${PROJECT_BINARY_DIR}/include")
     target_include_directories(warduino_lib PUBLIC src/)
