@@ -50,7 +50,8 @@ if (BUILD_EMULATOR)
             src/Debug/debugger.cpp
             src/Edward/proxy.cpp
             src/Edward/proxy_supervisor.cpp
-            src/Edward/RFC.cpp)
+            src/Edward/RFC.cpp
+            src/WARDuino/vm_exception.cpp)
 
     add_definitions(-DINFO=0)
     add_definitions(-DDEBUG=0)
@@ -101,7 +102,8 @@ if (BUILD_UNITTEST)
             src/Debug/debugger.cpp
             src/Edward/proxy.cpp
             src/Edward/proxy_supervisor.cpp
-            src/Edward/RFC.cpp)
+            src/Edward/RFC.cpp
+            src/WARDuino/vm_exception.cpp)
 
     target_include_directories(warduino_lib PRIVATE ${EXTERNAL_LIB_HEADERS} "${PROJECT_BINARY_DIR}/include")
     target_include_directories(warduino_lib PUBLIC src/)

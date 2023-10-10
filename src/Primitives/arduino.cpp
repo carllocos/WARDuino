@@ -22,6 +22,7 @@
 #include "../Memory/mem.h"
 #include "../Utils/macros.h"
 #include "../Utils/util.h"
+#include "../WARDuino/vm_exception.h"
 #include "primitives.h"
 
 // NEOPIXEL
@@ -320,7 +321,7 @@ int32_t http_post_request(Module *m, const String url, const String body,
 //------------------------------------------------------
 
 def_prim(abort, NoneToNoneU32) {
-    sprintf(exception, "Trap: assertion failed.");
+    VM_Exception_write("Trap: assertion failed.");
     return false;
 }
 
@@ -855,9 +856,9 @@ int32_t http_get_request(Module *m, const String url, const uint32_t response,
         printf("HTTP Response code: %i\n", httpResponseCode);
         String payload = http.getString();
         if (payload.length() > size) {
-            sprintf(exception,
-                    "GET: buffer size is too small for response of %i bytes.",
-                    payload.length());
+            VM_Exception_write(
+                "GET: buffer size is too small for response of %i bytes.",
+                payload.length());
             return false;  // TRAP
         }
         for (unsigned long i = 0; i < payload.length(); i++) {

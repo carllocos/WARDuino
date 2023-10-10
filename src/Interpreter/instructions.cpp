@@ -8,6 +8,7 @@
 #include "../Utils/util.h"
 #include "../Utils/util_arduino.h"
 #include "../WARDuino/structs.h"
+#include "../WARDuino/vm_exception.h"
 
 // Size of memory load.
 // This starts with the first memory load operator at opcode 0x28
@@ -55,7 +56,7 @@ Block *pop_block(Module *m) {
     // Validate the return value
     if (t->result_count == 1) {
         if (m->stack[m->sp].value_type != t->results[0]) {
-            sprintf(exception, "call type mismatch");
+            VM_Exception_write("call type mismatch");
             return nullptr;
         }
     }
@@ -135,7 +136,8 @@ bool proxy_call(Module *m, uint32_t fidx) {
 
     if (!rfc->success) {
         // TODO exception bugger might be too small and msg not null terminated?
-        memcpy(&exception, rfc->exception, strlen(rfc->exception));
+        memcpy(VM_Exception_get_exception(), rfc->exception,
+               strlen(rfc->exception));
         return false;
     }
 
@@ -203,7 +205,7 @@ Formal specification:
 bool i_instr_block(Module *m, uint8_t *block_ptr) {
     read_LEB_32(&m->pc_ptr);  // ignore block type
     if (m->csp >= CALLSTACK_SIZE) {
-        sprintf(exception, "call stack exhausted");
+        VM_Exception_write("call stack exhausted");
         return false;
     }
     auto block_itr = m->block_lookup.find(block_ptr);
@@ -218,7 +220,7 @@ bool i_instr_block(Module *m, uint8_t *block_ptr) {
 bool i_instr_loop(Module *m, uint8_t *block_ptr) {
     read_LEB_32(&m->pc_ptr);  // ignore block type
     if (m->csp >= CALLSTACK_SIZE) {
-        sprintf(exception, "call stack exhausted");
+        VM_Exception_write("call stack exhausted");
         return false;
     }
     push_block(m, m->block_lookup[block_ptr], m->sp);
@@ -233,7 +235,7 @@ bool i_instr_if(Module *m, uint8_t *block_ptr) {
     Block *block = m->block_lookup[block_ptr];
 
     if (m->csp >= CALLSTACK_SIZE) {
-        sprintf(exception, "call stack exhausted");
+        VM_Exception_write("call stack exhausted");
         return false;
     }
     push_block(m, block, m->sp);
@@ -343,8 +345,8 @@ bool i_instr_br_table(Module *m) {
     uint32_t count = read_LEB_32(&m->pc_ptr);
     if (count > BR_TABLE_SIZE) {
         // TODO: check this prior to runtime
-        sprintf(exception, "br_table size %" PRIu32 " exceeds max %d\n", count,
-                BR_TABLE_SIZE);
+        VM_Exception_write("br_table size %" PRIu32 " exceeds max %d\n", count,
+                           BR_TABLE_SIZE);
         return false;
     }
     for (uint32_t i = 0; i < count; i++) {
@@ -396,7 +398,7 @@ bool i_instr_call(Module *m) {
         return ((Primitive)m->functions[fidx].func_ptr)(m);
     } else {
         if (m->csp >= CALLSTACK_SIZE) {
-            sprintf(exception, "call stack exhausted");
+            VM_Exception_write("call stack exhausted");
             return false;
         }
         setup_call(m, fidx);  // regular function call
@@ -427,9 +429,9 @@ bool i_instr_call_indirect(Module *m) {
         val = val - (uint32_t)((uint64_t)m->table.entries);
     }
     if (val >= m->table.maximum) {
-        sprintf(exception,
-                "undefined element 0x%" PRIx32 " (max: 0x%" PRIx32 ") in table",
-                val, m->table.maximum);
+        VM_Exception_write("undefined element 0x%" PRIx32 " (max: 0x%" PRIx32
+                           ") in table",
+                           val, m->table.maximum);
         return false;
     }
 
@@ -446,13 +448,13 @@ bool i_instr_call_indirect(Module *m) {
         Type *ftype = func->type;
 
         if (m->csp >= CALLSTACK_SIZE) {
-            sprintf(exception, "call stack exhausted");
+            VM_Exception_write("call stack exhausted");
             return false;
         }
         if (ftype->mask != m->types[tidx].mask) {
-            sprintf(exception,
-                    "indirect call type mismatch (call type and function type "
-                    "differ)");
+            VM_Exception_write(
+                "indirect call type mismatch (call type and function type "
+                "differ)");
             return false;
         }
 
@@ -461,14 +463,14 @@ bool i_instr_call_indirect(Module *m) {
         // Validate signatures match
         if ((int)(ftype->param_count + func->local_count) !=
             m->sp - m->fp + 1) {
-            sprintf(exception,
-                    "indirect call type mismatch (param counts differ)");
+            VM_Exception_write(
+                "indirect call type mismatch (param counts differ)");
             return false;
         }
         for (uint32_t f = 0; f < ftype->param_count; f++) {
             if (ftype->params[f] != m->stack[m->fp + f].value_type) {
-                sprintf(exception,
-                        "indirect call type mismatch (param types differ)");
+                VM_Exception_write(
+                    "indirect call type mismatch (param types differ)");
                 return false;
             }
         }
@@ -636,7 +638,7 @@ bool i_instr_mem_load(Module *m, uint8_t opcode) {
         if (overflow) {
             dbg_warn("memory start: %p, memory end: %p, maddr: %p\n",
                      m->memory.bytes, mem_end, maddr);
-            sprintf(exception, "out of bounds memory access");
+            VM_Exception_write("out of bounds memory access");
             return false;
         }
     }
@@ -742,7 +744,7 @@ bool i_instr_mem_store(Module *m, uint8_t opcode) {
         if (overflow) {
             dbg_warn("memory start: %p, memory end: %p, maddr: %p\n",
                      m->memory.bytes, mem_end, maddr);
-            sprintf(exception, "out of bounds memory access");
+            VM_Exception_write("out of bounds memory access");
             return false;
         }
     }
@@ -1102,7 +1104,7 @@ bool i_instr_binary_i32(Module *m, uint8_t opcode) {
     uint32_t c;
     m->sp -= 1;
     if (opcode >= 0x6d && opcode <= 0x70 && b == 0) {
-        sprintf(exception, "integer divide by zero");
+        VM_Exception_write("integer divide by zero");
         return false;
     }
     switch (opcode) {
@@ -1120,7 +1122,7 @@ bool i_instr_binary_i32(Module *m, uint8_t opcode) {
             break;  // i32.mul
         case 0x6d:
             if (a == 0x80000000 && b == (uint32_t)-1) {
-                sprintf(exception, "integer overflow");
+                VM_Exception_write("integer overflow");
                 return false;
             }
             c = (int32_t)a / (int32_t)b;
@@ -1166,7 +1168,7 @@ bool i_instr_binary_i32(Module *m, uint8_t opcode) {
             return false;
     }
     // if (o == 1) {
-    //    sprintf(exception, "integer overflow");
+    //    VM_Exception_write("integer overflow");
     //    return false;
     //}
     m->stack[m->sp].value.uint32 = c;
@@ -1182,7 +1184,7 @@ bool i_instr_binary_i64(Module *m, uint8_t opcode) {
     uint64_t f;
     m->sp -= 1;
     if (opcode >= 0x7f && opcode <= 0x82 && e == 0) {
-        sprintf(exception, "integer divide by zero");
+        VM_Exception_write("integer divide by zero");
         return false;
     }
     switch (opcode) {
@@ -1197,7 +1199,7 @@ bool i_instr_binary_i64(Module *m, uint8_t opcode) {
             break;  // i64.mul
         case 0x7f:
             if (d == 0x8000000000000000 && e == (uint32_t)-1) {
-                sprintf(exception, "integer overflow");
+                VM_Exception_write("integer overflow");
                 return false;
             }
             f = (int64_t)d / (int64_t)e;
@@ -1333,11 +1335,11 @@ bool i_instr_conversion(Module *m, uint8_t opcode) {
             break;  // i32.wrap/i64
         case 0xa8:
             if (std::isnan(m->stack[m->sp].value.f32)) {
-                sprintf(exception, "invalid conversion to integer");
+                VM_Exception_write("invalid conversion to integer");
                 return false;
             } else if (m->stack[m->sp].value.f32 >= INT32_MAX ||
                        m->stack[m->sp].value.f32 < INT32_MIN) {
-                sprintf(exception, "integer overflow");
+                VM_Exception_write("integer overflow");
                 return false;
             }
             m->stack[m->sp].value.int32 = m->stack[m->sp].value.f32;
@@ -1345,11 +1347,11 @@ bool i_instr_conversion(Module *m, uint8_t opcode) {
             break;  // i32.trunc_s/f32
         case 0xa9:
             if (std::isnan(m->stack[m->sp].value.f32)) {
-                sprintf(exception, "invalid conversion to integer");
+                VM_Exception_write("invalid conversion to integer");
                 return false;
             } else if (m->stack[m->sp].value.f32 >= UINT32_MAX ||
                        m->stack[m->sp].value.f32 <= -1) {
-                sprintf(exception, "integer overflow");
+                VM_Exception_write("integer overflow");
                 return false;
             }
             m->stack[m->sp].value.uint32 = m->stack[m->sp].value.f32;
@@ -1357,11 +1359,11 @@ bool i_instr_conversion(Module *m, uint8_t opcode) {
             break;  // i32.trunc_u/f32
         case 0xaa:
             if (std::isnan(m->stack[m->sp].value.f64)) {
-                sprintf(exception, "invalid conversion to integer");
+                VM_Exception_write("invalid conversion to integer");
                 return false;
             } else if (m->stack[m->sp].value.f64 > INT32_MAX ||
                        m->stack[m->sp].value.f64 < INT32_MIN) {
-                sprintf(exception, "integer overflow");
+                VM_Exception_write("integer overflow");
                 return false;
             }
             m->stack[m->sp].value.int32 = m->stack[m->sp].value.f64;
@@ -1369,11 +1371,11 @@ bool i_instr_conversion(Module *m, uint8_t opcode) {
             break;  // i32.trunc_s/f64
         case 0xab:
             if (std::isnan(m->stack[m->sp].value.f64)) {
-                sprintf(exception, "invalid conversion to integer");
+                VM_Exception_write("invalid conversion to integer");
                 return false;
             } else if (m->stack[m->sp].value.f64 > UINT32_MAX ||
                        m->stack[m->sp].value.f64 <= -1) {
-                sprintf(exception, "integer overflow");
+                VM_Exception_write("integer overflow");
                 return false;
             }
             m->stack[m->sp].value.uint32 = m->stack[m->sp].value.f64;
@@ -1390,11 +1392,11 @@ bool i_instr_conversion(Module *m, uint8_t opcode) {
             break;  // i64.extend_u/i32
         case 0xae:
             if (std::isnan(m->stack[m->sp].value.f32)) {
-                sprintf(exception, "invalid conversion to integer");
+                VM_Exception_write("invalid conversion to integer");
                 return false;
             } else if (m->stack[m->sp].value.f32 >= INT64_MAX ||
                        m->stack[m->sp].value.f32 < INT64_MIN) {
-                sprintf(exception, "integer overflow");
+                VM_Exception_write("integer overflow");
                 return false;
             }
             m->stack[m->sp].value.int64 = m->stack[m->sp].value.f32;
@@ -1402,11 +1404,11 @@ bool i_instr_conversion(Module *m, uint8_t opcode) {
             break;  // i64.trunc_s/f32
         case 0xaf:
             if (std::isnan(m->stack[m->sp].value.f32)) {
-                sprintf(exception, "invalid conversion to integer");
+                VM_Exception_write("invalid conversion to integer");
                 return false;
             } else if (m->stack[m->sp].value.f32 >= UINT64_MAX ||
                        m->stack[m->sp].value.f32 <= -1) {
-                sprintf(exception, "integer overflow");
+                VM_Exception_write("integer overflow");
                 return false;
             }
             m->stack[m->sp].value.uint64 = m->stack[m->sp].value.f32;
@@ -1414,11 +1416,11 @@ bool i_instr_conversion(Module *m, uint8_t opcode) {
             break;  // i64.trunc_u/f32
         case 0xb0:
             if (std::isnan(m->stack[m->sp].value.f64)) {
-                sprintf(exception, "invalid conversion to integer");
+                VM_Exception_write("invalid conversion to integer");
                 return false;
             } else if (m->stack[m->sp].value.f64 >= INT64_MAX ||
                        m->stack[m->sp].value.f64 < INT64_MIN) {
-                sprintf(exception, "integer overflow");
+                VM_Exception_write("integer overflow");
                 return false;
             }
             m->stack[m->sp].value.int64 = m->stack[m->sp].value.f64;
@@ -1426,11 +1428,11 @@ bool i_instr_conversion(Module *m, uint8_t opcode) {
             break;  // i64.trunc_s/f64
         case 0xb1:
             if (std::isnan(m->stack[m->sp].value.f64)) {
-                sprintf(exception, "invalid conversion to integer");
+                VM_Exception_write("invalid conversion to integer");
                 return false;
             } else if (m->stack[m->sp].value.f64 >= UINT64_MAX ||
                        m->stack[m->sp].value.f64 <= -1) {
-                sprintf(exception, "integer overflow");
+                VM_Exception_write("integer overflow");
                 return false;
             }
             m->stack[m->sp].value.uint64 = m->stack[m->sp].value.f64;
@@ -1573,7 +1575,7 @@ bool interpret(Module *m, bool waiting) {
             // Control flow operators
             //
             case 0x00:  // unreachable
-                sprintf(exception, "%s", "unreachable");
+                VM_Exception_write("%s", "unreachable");
                 success &= false;
             case 0x01:  // nop
                 continue;
@@ -1743,9 +1745,9 @@ bool interpret(Module *m, bool waiting) {
                 success &= i_instr_callback(m, opcode);
                 continue;
             default:
-                sprintf(exception, "unrecognized opcode 0x%x", opcode);
+                VM_Exception_write("unrecognized opcode 0x%x", opcode);
                 if (m->options.return_exception) {
-                    m->exception = strdup(exception);
+                    m->exception = strdup(VM_Exception_get_exception());
                 }
                 return false;
         }
@@ -1755,8 +1757,8 @@ bool interpret(Module *m, bool waiting) {
         dbg_info("Trap was thrown during proxy call.\n");
         RFC *rfc = m->warduino->debugger->topProxyCall();
         rfc->success = false;
-        rfc->exception = strdup(exception);
-        rfc->exception_size = strlen(exception);
+        rfc->exception = strdup(VM_Exception_get_exception());
+        rfc->exception_size = strlen(VM_Exception_get_exception());
         m->warduino->debugger->sendProxyCallResult(m);
     }
 
@@ -1768,9 +1770,9 @@ bool interpret(Module *m, bool waiting) {
               program_done ? "expectedly" : "unexpectedly",
               success ? "ok" : "error");
     if (!success && m->options.return_exception) {
-        m->exception = strdup(exception);
+        m->exception = strdup(VM_Exception_get_exception());
     } else if (!success) {
-        FATAL("%s\n", exception);
+        FATAL("%s\n", VM_Exception_get_exception());
     }
 
     return success;

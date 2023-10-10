@@ -12,7 +12,9 @@ set(SOURCE_FILES
         ../../src/Utils/util_arduino.cpp
         ../../src/WARDuino/CallbackHandler.cpp
         ../../src/WARDuino/WARDuino.cpp
-        )
+        ../../src/WARDuino/vm_exception.cpp
+)
+
 
 idf_component_register(SRCS "main.cpp" ${SOURCE_FILES} INCLUDE_DIRS ../../lib/json/single_include/ REQUIRES driver)
 

@@ -9,11 +9,10 @@
 #include "../Primitives/primitives.h"
 #include "../Utils/macros.h"
 #include "../Utils/util.h"
+#include "../WARDuino/vm_exception.h"
 
 #define UNDEF (uint32_t)(-1)
 #define pushUInt32(m, arg) m->stack[++(m)->sp].value.uint32 = arg
-
-char exception[512];
 
 // UTIL
 bool resolvesym(char *filename, char *symbol, uint8_t external_kind, void **val,
@@ -856,7 +855,7 @@ void WARDuino::instantiate_module(Module *m, uint8_t *bytes,
             result = interpret(m);
         }
         if (!result) {
-            FATAL("Exception: %s\n", exception);
+            FATAL("Exception: %s\n", VM_Exception_get_exception());
         }
     }
 

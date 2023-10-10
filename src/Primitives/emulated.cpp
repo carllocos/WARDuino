@@ -22,6 +22,7 @@
 #include "../Memory/mem.h"
 #include "../Utils/macros.h"
 #include "../Utils/util.h"
+#include "../WARDuino/vm_exception.h"
 #include "primitives.h"
 
 #define NUM_PRIMITIVES 0
@@ -322,7 +323,7 @@ def_prim(http_get, fourToOneU32) {
     // Construct response
     std::string answer = "Response code: 200.";
     if (answer.length() > size) {
-        sprintf(exception, "GET: buffer size is too small for response.");
+        VM_Exception_write("GET: buffer size is too small for response.");
         return false;  // TRAP
     }
     for (unsigned long i = 0; i < answer.length(); i++) {
