@@ -26,7 +26,7 @@
 #include "primitives.h"
 
 #define NUM_PRIMITIVES 0
-#define NUM_PRIMITIVES_ARDUINO 29
+#define NUM_PRIMITIVES_ARDUINO 25
 
 #define ALL_PRIMITIVES (NUM_PRIMITIVES + NUM_PRIMITIVES_ARDUINO)
 
@@ -394,12 +394,6 @@ def_prim(chip_analog_read, oneToOneI32) {
     return true;
 }
 
-def_prim(chip_analog_write, twoToNoneU32) {
-    debug("EMU: chip_analog_write(%u,%u) \n", arg1.uint32, arg0.uint32);
-    pop_args(2);
-    return true;
-}
-
 def_prim(chip_delay, oneToNoneU32) {
     using namespace std::this_thread;  // sleep_for, sleep_until
     using namespace std::chrono;       // nanoseconds, system_clock, seconds
@@ -460,33 +454,6 @@ def_prim(subscribe_interrupt, threeToNoneU32) {
     return true;
 }
 
-// Temporary Primitives needed for analogWrite in ESP32
-def_prim(chip_ledc_set_duty, threeToNoneU32) {
-    uint8_t channel = arg2.uint32;
-    uint32_t value = arg1.uint32;
-    uint32_t maxValue = arg0.uint32;
-    // calculate duty, 4095 from 2 ^ 12 - 1
-    printf("chip_analog_write(%u, %u, %u)\n", channel, value, maxValue);
-    pop_args(3);
-    return true;
-}
-
-def_prim(chip_ledc_setup, threeToNoneU32) {
-    uint32_t channel = arg2.uint32;
-    uint32_t freq = arg1.uint32;
-    uint32_t ledc_timer = arg0.uint32;
-    printf("chip_ledc_setup(%u, %u, %u)\n", channel, freq, ledc_timer);
-    pop_args(3);
-    return true;
-}
-
-def_prim(chip_ledc_attach_pin, twoToNoneU32) {
-    uint32_t pin = arg1.uint32;
-    uint32_t channel = arg0.uint32;
-    printf("chip_ledc_attach_pin(%u,%u)\n", pin, channel);
-    pop_args(2);
-    return true;
-}
 //------------------------------------------------------
 // Installing all the primitives
 //------------------------------------------------------
@@ -525,18 +492,21 @@ void install_primitives() {
     install_primitive(set_pixel_color);
     install_primitive(clear_pixels);
     install_primitive(show_pixels);
-
-    // temporary mock primitives needed for analogWrite in ESP32
-    install_primitive(chip_analog_write);
-    install_primitive(chip_ledc_setup);
-    install_primitive(chip_ledc_attach_pin);
-    install_primitive(chip_ledc_set_duty);
 }
 
 //------------------------------------------------------
 // resolving the primitives
 //------------------------------------------------------
-bool resolve_primitive(char *symbol, Primitive *val) {
+bool Primitive_Not_Supported(Module *m) {
+    uint8_t *pc_of_call = findStartOfLEB128(m->pc_ptr - 1);
+    uint32_t primitive_called = read_LEB_32(&pc_of_call);
+    VM_Exception_write("Primitive %" PRIu32 " not supported\n",
+                       primitive_called);
+    printf("Primitive %" PRIu32 " not supported\n", primitive_called);
+    return false;
+}
+
+bool resolve_primitive(char *symbol, Primitive *val, bool strict) {
     debug("Resolve primitives (%d) for %s  \n", ALL_PRIMITIVES, symbol);
 
     for (auto &primitive : primitives) {
@@ -547,8 +517,13 @@ bool resolve_primitive(char *symbol, Primitive *val) {
             return true;
         }
     }
-    FATAL("Could not find primitive %s \n", symbol);
-    return false;
+    if (strict) {
+        FATAL("Could not find primitive %s \n", symbol);
+        return false;
+    } else {
+        *val = &Primitive_Not_Supported;
+        return true;
+    }
 }
 
 Memory external_mem{};

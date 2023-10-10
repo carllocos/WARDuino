@@ -14,10 +14,12 @@ class ConversionFixture : public ::testing::Test {
 
     void SetUp() override {
         this->wasm_module = new Module;
-        opts = {.disable_memory_bounds = false,
-                .mangle_table_index = false,
-                .dlsym_trim_underscore = false,
-                .return_exception = true};
+        opts.disable_memory_bounds = false;
+        opts.mangle_table_index = false;
+        opts.dlsym_trim_underscore = false;
+        opts.return_exception = true;
+        opts.disable_strict_load = false;
+        opts.disable_strict_load = false;
         wasm_module->options = opts;
         wasm_module->warduino = this->warduino;
         warduino->instantiate_module(wasm_module, fac_wasm, fac_wasm_len);

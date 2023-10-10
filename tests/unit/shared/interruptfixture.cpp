@@ -14,10 +14,13 @@ InterruptFixture::InterruptFixture(const char* t_interruptName,
 InterruptFixture::~InterruptFixture() {}
 
 void InterruptFixture::SetUp() {
-    Options opts = {.disable_memory_bounds = false,
-                    .mangle_table_index = false,
-                    .dlsym_trim_underscore = false,
-                    .return_exception = true};
+    Options opts = {};
+    opts.disable_memory_bounds = false;
+    opts.mangle_table_index = false;
+    opts.dlsym_trim_underscore = false;
+    opts.return_exception = true;
+    opts.disable_strict_load = false;
+
     this->wasm_module = warduino->load_module(wasm, wasm_len, opts);
     this->dbgOutput = new DBGOutput(warduino->debugger);
     if (!this->dbgOutput->open()) {

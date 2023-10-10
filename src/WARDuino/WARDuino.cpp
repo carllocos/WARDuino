@@ -16,12 +16,12 @@
 
 // UTIL
 bool resolvesym(char *filename, char *symbol, uint8_t external_kind, void **val,
-                char **err) {
+                char **err, bool strict) {
     if (nullptr != filename && !strcmp(filename, "env")) {
         switch (external_kind) {
             case 0x00:  // Function
             {
-                return resolve_primitive(symbol, (Primitive *)val);
+                return resolve_primitive(symbol, (Primitive *)val, strict);
                 break;
             }
             case 0x01:  // Table
@@ -435,7 +435,8 @@ void WARDuino::instantiate_module(Module *m, uint8_t *bytes,
                     do {
                         // Try using module as handle filename
                         if (resolvesym(import_module, import_field,
-                                       external_kind, &val, &err)) {
+                                       external_kind, &val, &err,
+                                       !m->options.disable_strict_load)) {
                             break;
                         }
 
@@ -448,8 +449,8 @@ void WARDuino::instantiate_module(Module *m, uint8_t *bytes,
                                 sym[sidx] = '_';
                             }
                         }
-                        if (resolvesym(nullptr, sym, external_kind, &val,
-                                       &err)) {
+                        if (resolvesym(nullptr, sym, external_kind, &val, &err,
+                                       !m->options.disable_strict_load)) {
                             break;
                         }
 
@@ -460,7 +461,8 @@ void WARDuino::instantiate_module(Module *m, uint8_t *bytes,
                             (strncmp("_", import_field, 1) == 0)) {
                             sprintf(sym, "%s", import_field + 1);
                             if (resolvesym(nullptr, sym, external_kind, &val,
-                                           &err)) {
+                                           &err,
+                                           !m->options.disable_strict_load)) {
                                 break;
                             }
                         }
@@ -468,8 +470,8 @@ void WARDuino::instantiate_module(Module *m, uint8_t *bytes,
                         // Try the plain symbol by itself with module
                         // name/handle
                         sprintf(sym, "%s", import_field);
-                        if (resolvesym(nullptr, sym, external_kind, &val,
-                                       &err)) {
+                        if (resolvesym(nullptr, sym, external_kind, &val, &err,
+                                       !m->options.disable_strict_load)) {
                             break;
                         }
 

@@ -274,7 +274,8 @@ int main(int argc, const char *argv[]) {
                  {.disable_memory_bounds = false,
                   .mangle_table_index = false,
                   .dlsym_trim_underscore = false,
-                  .return_exception = return_exception});
+                  .return_exception = return_exception,
+                 .disable_strict_load = false});
     }
 
     // Parse options

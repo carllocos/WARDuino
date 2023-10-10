@@ -8,9 +8,10 @@
  *
  * @param symbol name of primitive function
  * @param val    location to store a pointer to the function
+ * @param strict if false disables FATAL and resolves to default primitive
  * @return true if function is found and assigned to val
  */
-bool resolve_primitive(char *symbol, Primitive *val);
+bool resolve_primitive(char *symbol, Primitive *val, bool strict);
 
 /**
  * Handle import of memory by keeping a array of 256 pages.

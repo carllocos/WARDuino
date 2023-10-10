@@ -13,6 +13,8 @@ unsigned char* wasm = upload_wasm;
 WARDuino* wac = WARDuino::instance();
 Module* m;
 
+Options options{};
+
 #define UART_PIN 3
 
 void startDebuggerStd(void* pvParameter) {
@@ -50,11 +52,17 @@ void setup(void) {
     Serial.println(ESP.getPsramSize());
     Serial.println("\nFree PSRAM: ");
     Serial.println(ESP.getFreePsram());
+
+    options.disable_memory_bounds = false;
+    options.mangle_table_index = false;
+    options.dlsym_trim_underscore = false;
+    options.return_exception = true;
+    options.disable_strict_load = true;
 }
 
 void loop() {
     disableCore0WDT();
-    m = wac->load_module(wasm, wasm_len, {});
+    m = wac->load_module(wasm, wasm_len, options);
 
     printf("LOADED \n\n");
     {{PAUSED}}
