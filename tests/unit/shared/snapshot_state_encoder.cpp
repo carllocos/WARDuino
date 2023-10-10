@@ -2,6 +2,7 @@
 
 #include <netinet/in.h>
 
+#include "../../src/Interrupts/interrupts.h"
 #include "../../src/Utils/util.h"
 
 uint8_t* getCodePointer(Block* block, Module* m) {
