@@ -23,7 +23,7 @@ void setFileDescriptorOptions(int socket_fd) {
 
 int createSocketFileDescriptor() {
     int socket_fd;
-    if ((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+    if ((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         perror("Failed to make a new socket file descriptor");
         exit(EXIT_FAILURE);
     }
