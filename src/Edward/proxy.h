@@ -5,9 +5,8 @@
 #include <cstdint>
 #include <stack>
 
+#include "../WARDuino/structs.h"
 #include "RFC.h"
-struct Module;
-struct Block;
 
 class Proxy {
    private:

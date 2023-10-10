@@ -7,6 +7,7 @@
 #include "../Utils/macros.h"
 #include "../Utils/util.h"
 #include "../Utils/util_arduino.h"
+#include "../WARDuino/structs.h"
 
 // Size of memory load.
 // This starts with the first memory load operator at opcode 0x28
