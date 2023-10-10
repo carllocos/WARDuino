@@ -51,6 +51,9 @@ void print_help() {
             "(default: 8192)\n");
     fprintf(stdout,
             "    --paused       Pause program on entry (default: false)\n");
+    fprintf(
+        stdout,
+        "    --mock port number       Activate mocking of some functions\n");
     fprintf(stdout,
             "    --proxy        Localhost port or serial port (ignored if mode "
             "is 'proxy')\n");
@@ -64,7 +67,7 @@ void print_help() {
     fprintf(stdout, "    --invoke       Invoke a function from the module\n");
 }
 
-Module *load(WARDuino wac, const char *file_name, Options opt) {
+Module *load(WARDuino &wac, const char *file_name, Options opt) {
     uint8_t *wasm;
     unsigned int file_size;
 
@@ -143,7 +146,7 @@ int connectToProxySocket(int proxy) {
 int connectToProxyFd(const char *proxyfd) { return open(proxyfd, O_RDWR); }
 
 WARDuino *wac = WARDuino::instance();
-Module *m;
+Module *m{};
 
 struct debugger_options {
     const char *socket;
@@ -250,6 +253,11 @@ StackValue parseParameter(const char *input, uint8_t value_type) {
     return value;
 }
 
+Module *load_module(const char *file_name, Options &options) {
+    dbg_info("=== LOAD MODULE INTO WARDUINO ===\n");
+    return load(*wac, file_name, options);
+}
+
 int main(int argc, const char *argv[]) {
     ARGV_SHIFT();  // Skip command name
 
@@ -262,20 +270,20 @@ int main(int argc, const char *argv[]) {
     const char *proxy = nullptr;
     const char *baudrate = nullptr;
     const char *mode = "interpreter";
+    const char *mock_port = nullptr;
 
     const char *fname = nullptr;
     std::vector<StackValue> arguments = std::vector<StackValue>();
 
+    Options options{};
+    options.disable_memory_bounds = false;
+    options.mangle_table_index = false;
+    options.dlsym_trim_underscore = false;
+    options.return_exception = return_exception;
+    options.disable_strict_load = false;
+
     if (argc > 0 && argv[0][0] != '-') {
         ARGV_GET(file_name);
-
-        dbg_info("=== LOAD MODULE INTO WARDUINO ===\n");
-        m = load(*wac, file_name,
-                 {.disable_memory_bounds = false,
-                  .mangle_table_index = false,
-                  .dlsym_trim_underscore = false,
-                  .return_exception = return_exception,
-                 .disable_strict_load = false});
     }
 
     // Parse options
@@ -299,6 +307,9 @@ int main(int argc, const char *argv[]) {
             ARGV_GET(socket);
         } else if (!strcmp("--paused", arg)) {
             initiallyPaused = true;
+        } else if (!strcmp("--mock", arg)) {
+            options.disable_strict_load = true;
+            ARGV_GET(mock_port);
         } else if (!strcmp("--proxy", arg)) {
             ARGV_GET(proxy);  // /dev/ttyUSB0
         } else if (!strcmp("--baudrate", arg)) {
@@ -307,7 +318,9 @@ int main(int argc, const char *argv[]) {
             ARGV_GET(mode);
         } else if (!strcmp("--invoke", arg)) {
             ARGV_GET(fname);
-
+            if (m == nullptr) {
+                m = load_module(file_name, options);
+            }
             // find function
             int fidx = wac->get_export_fidx(m, fname);
             if (fidx < 0) {
@@ -336,6 +349,9 @@ int main(int argc, const char *argv[]) {
     if (argc != 0 || file_name == nullptr) {
         print_help();
         return 1;
+    }
+    if (m == nullptr) {
+        m = load_module(file_name, options);
     }
 
     m->warduino = wac;
@@ -387,6 +403,21 @@ int main(int argc, const char *argv[]) {
 
             // Start supervising proxy device (new thread)
             wac->debugger->startProxySupervisor(connection);
+        }
+
+        if (mock_port != nullptr) {
+            Channel *connection{};
+            try {
+                int port = std::stoi(mock_port);
+                connection = new ClientSideSocket("127.0.0.1", port);
+                connection->open();
+            } catch (std::invalid_argument const &ex) {
+                // argument is an integer but is out of range
+                fprintf(stderr, "wdcli: invalid mock_port --proxy\n");
+                return 1;
+            }
+
+            wac->debugger->instrument.registerAroundFunctionChannel(connection);
         }
 
         // Start debugger (new thread)
