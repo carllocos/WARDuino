@@ -72,8 +72,8 @@ class WebSocket : public Channel {
 
 class ClientSideSocket : public Channel {
    private:
-    int port;
     const char *host{};
+    int port;
     int socketfd{-1};
 
    public:
