@@ -354,7 +354,7 @@ size_t write_LEB(uint32_t value, uint8_t *buffer) {
     return bytesWritten;
 }
 
-size_t size_for_LEB(uint32_t value) { write_LEB(value, nullptr); }
+size_t size_for_LEB(uint32_t value) { return write_LEB(value, nullptr); }
 // Function to encode a uint64_t value to LEB128 format
 
 size_t write_LEB(uint64_t value, uint8_t *buffer) {
@@ -373,7 +373,7 @@ size_t write_LEB(uint64_t value, uint8_t *buffer) {
     return bytesWritten;
 }
 
-size_t size_for_LEB(uint64_t value) { write_LEB(value, nullptr); }
+size_t size_for_LEB(uint64_t value) { return write_LEB(value, nullptr); }
 
 uint8_t *findStartOfLEB128(uint8_t *ptr) {
     while ((*ptr & 0x80) != 0) {
