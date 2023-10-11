@@ -506,8 +506,10 @@ size_t deserializeStackValue(StackValue *value,
         }
         case F64:
             FATAL("F64 Not yet supported\n");
+            break;
         default:
             FATAL("Unknown type\n");
+            break;
     }
     value->value_type = value_type;
 
