@@ -59,12 +59,9 @@ bool Interrupt_AroundFunction_deserialize_request(AroundFunctionRequest &dest,
         case RemoteCall:
             dest.action.target_fidx = read_LEB_32(&data);
             break;
-        case ProxyCall:
-        case UseResult:
-        case NativeCall:
+        default:
             printf("AroundFunction: around kind %02X is not yet supported\n",
                    dest.kind);
-        default:
             error_code = AROUND_FUNC_ERROR_CODE_UNEXISTING_AROUND_KIND;
             return false;
     }
