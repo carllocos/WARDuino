@@ -85,20 +85,19 @@ bool registerAroundFunctionAction(InstrumentationManager &manager, Module &m,
         error_code = AROUND_FUNC_ERROR_CODE_UNEXISTING_LOCAL_FUNC;
         return false;
     }
-    if (manager.has_AroundFunction(request.func_idx)) {
+    if (!manager.isAddActionAllowed(request.func_idx)) {
         error_code = AROUND_FUNC_ERROR_CODE_AROUND_ALREADY_EXISTS;
         return false;
     }
 
-    AroundFunction *around = manager.new_AroundFunction();
-    if (around == nullptr) {
-        error_code = AROUND_FUNC_ERROR_CODE_NO_MEMORY_LEFT;
+    if (!manager.addAroundFunctionAction(m, request.func_idx, request.action)) {
+        error_code =
+            AROUND_FUNC_ERROR_CODE_NO_MEMORY_LEFT;  // TODO change error_code
         return false;
     }
 
-    around->func_idx = request.func_idx;
-    around->kind = request.kind;
-    around->action.target_fidx = request.action.target_fidx;
+    return true;
+}
 
 bool deserialize_scheduling(AroundFunctionRequest &dest,
                             uint8_t **encoded_schedule, uint8_t &error_code) {
