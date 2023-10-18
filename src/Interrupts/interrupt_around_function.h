@@ -17,7 +17,7 @@ typedef struct {
 
 typedef struct {
     uint32_t func_idx;
-    AroundAction action;
+    Action action;
 } AroundFunctionRequest;
 
 void Interrupt_AroundFunction_handle_request(const Channel &channel,

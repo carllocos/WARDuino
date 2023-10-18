@@ -30,18 +30,19 @@ bool InstrumentationManager::isAddActionAllowed(uint32_t funID) {
     // is always tou replace the old one with the new one if the action is
     // something else than always such as once then that action is put in front
     // of the always so that once the once is consumed the always remains.
-    AroundAction *action = this->instr_primitive_funcs[funID]->action;
+    Action *action = this->instr_primitive_funcs[funID]->action;
     return action == nullptr || action->schedule.kind != ScheduleAlways;
 }
 
-bool InstrumentationManager::addAroundFunctionAction(
-    Module &m, uint32_t func_idx, const AroundAction &action) {
+bool InstrumentationManager::addAroundFunctionAction(Module &m,
+                                                     uint32_t func_idx,
+                                                     const Action &action) {
     if (func_idx > m.function_count) {
         return false;
     } else if (func_idx < m.import_count) {
         InstrumentationPrimitiveFunc *instr =
             this->start_primitive_call_interception(m, func_idx);
-        AroundAction *cpy{};
+        Action *cpy{};
         if (instr == nullptr || (cpy = Actions_copyAction(action)) == nullptr) {
             return false;
         }
@@ -65,14 +66,14 @@ void Interrupt_RemoteCall_free_response(FunCallResponse &response) {
 }
 
 void InstrumentationManager::remove_completed_action(
-    InstrumentationPrimitiveFunc *inst, AroundAction *action_completed) {
+    InstrumentationPrimitiveFunc *inst, Action *action_completed) {
     if (action_completed->schedule.kind == ScheduleAlways) {
         // No delete needed, action is scheduled for always
         return;
     }
 
-    AroundAction *actions = inst->action;
-    AroundAction *prev = nullptr;
+    Action *actions = inst->action;
+    Action *prev = nullptr;
     while (actions != nullptr) {
         if (actions == action_completed) {
             if (prev == nullptr) {
@@ -143,7 +144,7 @@ bool InstrumentationManager::do_remote_call(
 
 bool InstrumentationManager::do_value_substitution(Module *module,
                                                    uint32_t func_called,
-                                                   AroundAction *action) {
+                                                   Action *action) {
     Type *type = module->functions[func_called].type;
     module->sp -= type->param_count;  // pop args
     if (type->result_count > 0) {
@@ -179,7 +180,7 @@ bool InstrumentationManager::apply_primitive_call_instrumentation(
     }
 
     InstrumentationPrimitiveFunc *instr = iterator->second;
-    AroundAction *actionToRun =
+    Action *actionToRun =
         Actions_nextScheduledAction(instr->action, *currentTime);
     if (actionToRun == nullptr) {
         // We did not find an action to execute now, but maybe we have to wait

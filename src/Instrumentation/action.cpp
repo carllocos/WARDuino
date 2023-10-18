@@ -1,7 +1,6 @@
 #include "action.h"
 
-AroundAction *Actions_add_and_sort(AroundAction *actions,
-                                   AroundAction *action_to_add) {
+Action *Actions_add_and_sort(Action *actions, Action *action_to_add) {
     if (action_to_add == nullptr) {
         return actions;
     } else if (actions == nullptr) {
@@ -15,15 +14,15 @@ AroundAction *Actions_add_and_sort(AroundAction *actions,
     // event dependency < event dep. < ... < event dep. condition
     // Once < once < ... < once
     // always (only one allowed)
-    AroundAction *insert = actions;
+    Action *insert = actions;
     while (insert->nextAction != nullptr) {
         insert = insert->nextAction;
     }
     insert->nextAction = action_to_add;
 }
 
-AroundAction *Actions_nextScheduledAction(AroundAction *sorted_actions,
-                                          const TimeStamp &currentTime) {
+Action *Actions_nextScheduledAction(Action *sorted_actions,
+                                    const TimeStamp &currentTime) {
     // sorted actions go from timestamp, ev dep, cond, once, always
     // timestamp < timestamp < .. < timestamp
     // -> sub sort ts before(s) .... ts on ts .... ts after
@@ -31,7 +30,7 @@ AroundAction *Actions_nextScheduledAction(AroundAction *sorted_actions,
     // Once < once < ... < once
     // always (only one allowed)
 
-    AroundAction *action = sorted_actions;
+    Action *action = sorted_actions;
     while (action != nullptr) {
         switch (action->schedule.kind) {
             case ScheduleBeforeTimeStamp:
@@ -69,9 +68,9 @@ AroundAction *Actions_nextScheduledAction(AroundAction *sorted_actions,
     return nullptr;
 }
 
-bool Actions_isActionWaitingForEvent(AroundAction *sorted_actions,
+bool Actions_isActionWaitingForEvent(Action *sorted_actions,
                                      const TimeStamp &currentTime) {
-    AroundAction *action = sorted_actions;
+    Action *action = sorted_actions;
     while (action != nullptr) {
         // TODO decide: whether to move the code here to Sceduler.h
         switch (action->schedule.kind) {
@@ -89,8 +88,8 @@ bool Actions_isActionWaitingForEvent(AroundAction *sorted_actions,
     return false;
 }
 
-AroundAction *Actions_copyAction(const AroundAction &action) {
-    AroundAction *cpy = new AroundAction();
+Action *Actions_copyAction(const Action &action) {
+    Action *cpy = new Action();
     if (cpy != nullptr) {
         cpy->kind = action.kind;
         cpy->schedule = action.schedule;
@@ -113,7 +112,7 @@ AroundAction *Actions_copyAction(const AroundAction &action) {
     return cpy;
 }
 
-void Actions_free_action(AroundAction *action) {
+void Actions_free_action(Action *action) {
     action->nextAction = nullptr;
     if (action->kind == ValueSubstitution && action->value.result != nullptr) {
         delete action->value.result;

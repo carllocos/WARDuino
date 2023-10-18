@@ -11,7 +11,7 @@
 typedef struct InstrumentationPrimitiveFunc {
     uint32_t func_idx;  // func for which the around action is registered
     Primitive original_func{};  // original function that is restored
-    AroundAction *action{};     // action to perform instead of original_func
+    Action *action{};           // action to perform instead of original_func
 } InstrumentationPrimitiveFunc;
 
 class InstrumentationManager {
@@ -24,13 +24,13 @@ class InstrumentationManager {
     InstrumentationPrimitiveFunc *new_Primitive_Instrumentation();
 
     void remove_completed_action(InstrumentationPrimitiveFunc *inst,
-                                 AroundAction *action_completed);
+                                 Action *action_completed);
 
     bool do_remote_call(Channel &channel, Module *m,
                         InstrumentationPrimitiveFunc *instr);
 
     bool do_value_substitution(Module *module, uint32_t func_called,
-                               AroundAction *action);
+                               Action *action);
 
     InstrumentationPrimitiveFunc *start_primitive_call_interception(
         Module &m, uint32_t target_func);
@@ -39,7 +39,7 @@ class InstrumentationManager {
     InstrumentationManager();
 
     bool addAroundFunctionAction(Module &m, uint32_t func_idx,
-                                 const AroundAction &around);
+                                 const Action &around);
 
     bool has_AroundFunction(uint32_t funID);
 
