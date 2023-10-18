@@ -16,6 +16,8 @@ set(SOURCE_FILES
         ../../src/Instrumentation/instrumentation.cpp
         ../../src/Interrupts/interrupt_around_function.cpp
         ../../src/Interrupts/interrupt_remote_call.cpp
+        ../../src/Instrumentation/timestamp.cpp
+        ../../src/Instrumentation/action.cpp
 )
 
 

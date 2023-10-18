@@ -54,7 +54,9 @@ if (BUILD_EMULATOR)
             src/WARDuino/vm_exception.cpp
             src/Instrumentation/instrumentation.cpp
             src/Interrupts/interrupt_around_function.cpp
-            src/Interrupts/interrupt_remote_call.cpp)
+            src/Interrupts/interrupt_remote_call.cpp
+            src/Instrumentation/timestamp.cpp
+            src/Instrumentation/action.cpp)
 
     add_definitions(-DINFO=0)
     add_definitions(-DDEBUG=0)
@@ -109,7 +111,9 @@ if (BUILD_UNITTEST)
             src/WARDuino/vm_exception.cpp
             src/Instrumentation/instrumentation.cpp
             src/Interrupts/interrupt_around_function.cpp
-            src/Interrupts/interrupt_remote_call.cpp)
+            src/Interrupts/interrupt_remote_call.cpp
+            src/Instrumentation/timestamp.cpp
+            src/Instrumentation/action.cpp)
 
     target_include_directories(warduino_lib PRIVATE ${EXTERNAL_LIB_HEADERS} "${PROJECT_BINARY_DIR}/include")
     target_include_directories(warduino_lib PUBLIC src/)
@@ -130,13 +134,11 @@ if (BUILD_UNITTEST)
     aux_source_directory(${PATH_TO_UNIT_TEST}/shared/ SHARED_SRC)
 
 
-
     message(DEBUG "Shared source code for unit tests path: " ${SHARED_SRC})
 
     file(GLOB TEST_SRC_FILES ${PATH_TO_UNIT_TEST}/*.cpp)
 
     message(DEBUG "Unit test source codes: " ${TEST_SRC_FILES})
-
 
 
     foreach (TEST_FILE ${TEST_SRC_FILES})
