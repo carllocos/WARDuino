@@ -213,4 +213,6 @@ class Debugger {
     void handleAroundFunction(Module *m, uint8_t *data);
 
     void handleFuncCall(Module *m, uint8_t *data);
+
+    void handleMonitorAddr(Module *m, uint8_t *data);
 };

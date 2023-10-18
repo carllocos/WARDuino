@@ -30,6 +30,7 @@ enum InterruptTypes {
 
     // Instrumentation
     interruptAroundFunction = 0x50,
+    interruptMonitorAddr = 0x51,
 
     // Pull Debugging
     interruptSnapshot = 0x60,

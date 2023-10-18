@@ -299,6 +299,10 @@ bool Debugger::checkDebugMessages(Module *m, RunningState *program_state) {
             this->handleAroundFunction(m, interruptData + 1);
             free(interruptData);
             break;
+        case interruptMonitorAddr:
+            this->handleMonitorAddr(m, interruptData);
+            free(interruptData);
+            break;
         case interruptMonitorProxies: {
             printf("receiving functions list to proxy\n");
             this->handleMonitorProxies(m, interruptData + 1);
@@ -1348,3 +1352,5 @@ void Debugger::handleAroundFunction(Module *m, uint8_t *data) {
 void Debugger::handleFuncCall(Module *m, uint8_t *data) {
     Interrupt_RemoteCall_handle_request(*this->channel, m, data);
 }
+
+void Debugger::handleMonitorAddr(Module *m, uint8_t *data) { FATAL("TODO"); }
