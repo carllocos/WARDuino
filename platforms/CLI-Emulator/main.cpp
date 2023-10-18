@@ -124,6 +124,10 @@ void startDebuggerCommunication() {
         while ((valread = duplex->read(buffer, 1024)) != -1 && valread != 0) {
             WARDuino::instance()->handleInterrupt(valread, buffer);
         }
+        if (valread == 0) {
+            printf("connection closed\n");
+            duplex->open();
+        }
     }
 }
 
