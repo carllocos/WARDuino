@@ -3,6 +3,9 @@
 #include "./schedule.h"
 #include "./timestamp.h"
 
+#define ACTION_ERROR_CODE_SUBSTITUTE_VALUE_IS_MALFORMED 31;
+#define ACTION_ERROR_CODE_UNEXISTING_ACTION_KIND 32;
+
 enum ActionKind { RemoteCall = 0x01, ValueSubstitution = 0x02 };
 
 struct Action {
@@ -30,3 +33,9 @@ bool Actions_isActionWaitingForEvent(Action *sorted_actions,
 Action *Actions_copyAction(const Action &action);
 
 void Actions_free_action(Action *action);
+
+bool Actions_deserialize_action(Action &dest, uint8_t **encoded_action,
+                                uint8_t &error_code);
+
+bool Actions_deserialize_schedule(Schedule &dest, uint8_t **encoded_schedule,
+                                  uint8_t &error_code);

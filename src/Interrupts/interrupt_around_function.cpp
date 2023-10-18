@@ -11,12 +11,6 @@ bool registerAroundFunctionAction(InstrumentationManager &manager, Module &m,
                                   const AroundFunctionRequest &request,
                                   uint8_t &error_code);
 
-bool deserialize_scheduling(AroundFunctionRequest &dest,
-                            uint8_t **encoded_schedule, uint8_t &error_code);
-
-bool deserialize_action(AroundFunctionRequest &dest, uint8_t **data,
-                        uint8_t &error_code);
-
 /*
  * Public functions
  */
@@ -70,8 +64,7 @@ bool Interrupt_AroundFunction_deserialize_request(AroundFunctionRequest &dest,
     // format: Target func (LEB32) | Schedule | Action
     uint8_t *data = encoded_data;
     dest.func_idx = read_LEB_32(&data);
-    return deserialize_scheduling(dest, &data, error_code) &&
-           deserialize_action(dest, &data, error_code);
+    return Actions_deserialize_action(dest.action, &data, error_code);
 }
 
 /*
@@ -96,71 +89,5 @@ bool registerAroundFunctionAction(InstrumentationManager &manager, Module &m,
         return false;
     }
 
-    return true;
-}
-
-bool deserialize_scheduling(AroundFunctionRequest &dest,
-                            uint8_t **encoded_schedule, uint8_t &error_code) {
-    // format expected: SCHEDULE_KIND (1 BYTE)
-    // format timestamp: nr of instructions (LEB32) | nr of events (LEB32);
-
-    ScheduleKind schedule = (ScheduleKind) * *encoded_schedule;
-    *encoded_schedule += 1;
-    switch (schedule) {
-        case ScheduleOnce:
-        case ScheduleAlways:
-            break;
-        case ScheduleOnTimeStamp:
-        case ScheduleBeforeTimeStamp:
-        case ScheduleAfterTimeStamp:
-            dest.action.schedule.value.timeStamp.nr_of_instructions =
-                read_LEB_32(encoded_schedule);
-            dest.action.schedule.value.timeStamp.nr_of_events =
-                read_LEB_32(encoded_schedule);
-            break;
-        default:
-            error_code = AROUND_FUNC_ERROR_CODE_SCHEDULING_MODE_NOT_SUPPORTED;
-            return false;
-    }
-    dest.action.schedule.kind = schedule;
-    return true;
-}
-
-bool deserialize_action(AroundFunctionRequest &dest, uint8_t **encoded_action,
-                        uint8_t &error_code) {
-    // format expected: ActionKind (1 BYTE)
-    // RemoteCall: target fidx (LEB32)
-    // ValueSubstitution: hasValue (1 byte) | value;
-    ActionKind kind = (ActionKind) * *encoded_action;
-    *encoded_action += 1;
-    switch (kind) {
-        case RemoteCall:
-            dest.action.value.target_fidx = read_LEB_32(encoded_action);
-            break;
-        case ValueSubstitution: {
-            bool hasValue = **encoded_action;
-            *encoded_action += 1;
-            if (hasValue) {
-                ValueSerializationConfig config;
-                config.includeType = true;
-                config.includeIndex = false;
-                size_t bytes_read = deserializeStackValue(
-                    dest.action.value.result, config, *encoded_action);
-                if (bytes_read <= 0) {
-                    error_code =
-                        AROUND_FUNC_ERROR_CODE_SUBSTITUE_VALUE_IS_MALFORMED;
-                    return false;
-                }
-            } else {
-                dest.action.value.result = nullptr;
-            }
-            break;
-        }
-        default:
-            printf("ActionKind %02X is not supported\n", kind);
-            error_code = AROUND_FUNC_ERROR_CODE_UNEXISTING_AROUND_KIND;
-            return false;
-    }
-    dest.action.kind = kind;
     return true;
 }

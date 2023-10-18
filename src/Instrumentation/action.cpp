@@ -1,5 +1,16 @@
 #include "action.h"
 
+#include "../Utils/util.h"
+
+/*
+ * Declaration private functions
+ */
+bool Actions_deserialize_action_rest(Action &dest, uint8_t **encoded_action,
+                                     uint8_t &error_code);
+
+/*
+ * Public functions
+ */
 Action *Actions_add_and_sort(Action *actions, Action *action_to_add) {
     if (action_to_add == nullptr) {
         return actions;
@@ -51,8 +62,8 @@ Action *Actions_nextScheduledAction(Action *sorted_actions,
                 break;
             case ScheduleAfterTimeStamp:
                 // ScheduleAfterTimeStamp means that the action should
-                // be scheduled to run only after the current timestamp becomes
-                // greater than the timestamp assigned to the action
+                // be scheduled to run only after the current timestamp
+                // becomes greater than the timestamp assigned to the action
                 if (TimeStamp_is_t1_greater_t2(
                         currentTime, action->schedule.value.timeStamp)) {
                     return action;
@@ -118,4 +129,76 @@ void Actions_free_action(Action *action) {
         delete action->value.result;
     }
     delete action;
+}
+
+/*
+ * Private functions
+ */
+bool Actions_deserialize_action(Action &dest, uint8_t **encoded_action,
+                                uint8_t &error_code) {
+    // format expected: Schedule | Action
+    return Actions_deserialize_schedule(dest.schedule, encoded_action,
+                                        error_code) &&
+           Actions_deserialize_action_rest(dest, encoded_action, error_code);
+}
+
+bool Actions_deserialize_schedule(Schedule &dest, uint8_t **encoded_schedule,
+                                  uint8_t &error_code) {
+    // format expected: SCHEDULE_KIND (1 BYTE)
+    // format timestamp: nr of instructions (LEB32) | nr of events (LEB32);
+
+    ScheduleKind schedule = (ScheduleKind) * *encoded_schedule;
+    *encoded_schedule += 1;
+    switch (schedule) {
+        case ScheduleOnce:
+        case ScheduleAlways:
+            break;
+        case ScheduleOnTimeStamp:
+        case ScheduleBeforeTimeStamp:
+        case ScheduleAfterTimeStamp:
+            dest.value.timeStamp.nr_of_instructions =
+                read_LEB_32(encoded_schedule);
+            dest.value.timeStamp.nr_of_events = read_LEB_32(encoded_schedule);
+            break;
+        default:
+            return false;
+    }
+    dest.kind = schedule;
+    return true;
+}
+
+bool Actions_deserialize_action_rest(Action &dest, uint8_t **encoded_action,
+                                     uint8_t &error_code) {
+    ActionKind kind = (ActionKind) * *encoded_action;
+    *encoded_action += 1;
+    switch (kind) {
+        case RemoteCall:
+            dest.value.target_fidx = read_LEB_32(encoded_action);
+            break;
+        case ValueSubstitution: {
+            bool hasValue = **encoded_action;
+            *encoded_action += 1;
+            if (hasValue) {
+                ValueSerializationConfig config;
+                config.includeType = true;
+                config.includeIndex = false;
+                size_t bytes_read = deserializeStackValue(
+                    dest.value.result, config, *encoded_action);
+                if (bytes_read <= 0) {
+                    error_code =
+                        ACTION_ERROR_CODE_SUBSTITUTE_VALUE_IS_MALFORMED;
+                    return false;
+                }
+            } else {
+                dest.value.result = nullptr;
+            }
+            break;
+        }
+        default:
+            printf("ActionKind %02X is not supported\n", kind);
+            error_code = ACTION_ERROR_CODE_UNEXISTING_ACTION_KIND;
+            return false;
+    }
+    dest.kind = kind;
+    return true;
 }
