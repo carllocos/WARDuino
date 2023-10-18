@@ -123,19 +123,26 @@ WebSocket::WebSocket(int port) {
     this->port = port;
     this->fileDescriptor = -1;
     this->socket = -1;
+    this->addressBound = false;
 }
 
 void WebSocket::open() {
-    // bind socket to address
-    this->fileDescriptor = createSocketFileDescriptor();
-    struct sockaddr_in address = createAddress(this->port);
-    bindSocketToAddress(this->fileDescriptor, address);
-    startListening(this->fileDescriptor);
-    printf("Listening on port 127.0.0.1:%i\n", this->port);
-    fflush(stdout);
+    if (this->fileDescriptor == -1) {
+        this->fileDescriptor = createSocketFileDescriptor();
+    }
+    if (!this->addressBound) {
+        // bind socket to address
+        this->address = createAddress(this->port);
+        bindSocketToAddress(this->fileDescriptor, this->address);
+        startListening(this->fileDescriptor);
+        printf("Listening on port 127.0.0.1:%i\n", this->port);
+        fflush(stdout);
+        this->addressBound = true;
+    }
 
     // block until a connection is established
-    this->socket = listenForIncomingConnection(this->fileDescriptor, address);
+    this->socket =
+        listenForIncomingConnection(this->fileDescriptor, this->address);
 }
 
 int WebSocket::write(const char *fmt, ...) const {

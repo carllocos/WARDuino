@@ -1,5 +1,7 @@
 #pragma once
 
+#include <netinet/in.h>
+
 #include <cstdio>
 void setFileDescriptorOptions(int socket_fd);
 
@@ -60,6 +62,8 @@ class WebSocket : public Channel {
     int port;
     int fileDescriptor;
     int socket;
+    bool addressBound;
+    sockaddr_in address;
 
    public:
     explicit WebSocket(int port);
