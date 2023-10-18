@@ -15,7 +15,10 @@ typedef struct {
     uint8_t type{};
 } AroundFunctionResponse;
 
-typedef AroundFunction AroundFunctionRequest;
+typedef struct {
+    uint32_t func_idx;
+    AroundAction action;
+} AroundFunctionRequest;
 
 void Interrupt_AroundFunction_handle_request(const Channel &channel,
                                              InstrumentationManager &manager,
