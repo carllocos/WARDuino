@@ -1517,6 +1517,7 @@ bool interpret(Module *m, bool waiting) {
 
     // set to true when finishes successfully
     bool program_done = false;
+    TimeStamp *ts = &WARDuino::instance()->timeStamp;
 
     while ((!program_done && success) || waiting) {
         if (m->warduino->program_state == WARDUINOstep) {
@@ -1532,7 +1533,9 @@ bool interpret(Module *m, bool waiting) {
 
         // Resolve 1 callback event if queue is not empty and VM not paused, and
         // no event currently resolving
-        CallbackHandler::resolve_event();
+        if (CallbackHandler::resolve_event()) {
+            ts->nr_of_events += 1;
+        }
 
         // Sleep interpret loop if 'paused' or 'waiting drone'
         if (m->warduino->program_state == WARDUINOpause ||
@@ -1562,6 +1565,7 @@ bool interpret(Module *m, bool waiting) {
         opcode = *m->pc_ptr;
         block_ptr = m->pc_ptr;
         m->pc_ptr += 1;
+        ts->nr_of_instructions += 1;
 
         dbg_dump_stack(m);
         dbg_trace(" PC: %p OPCODE: <%s> in %s\n", block_ptr,

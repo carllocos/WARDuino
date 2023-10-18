@@ -55,6 +55,7 @@ class WARDuino {
    public:
     Debugger *debugger;
     RunningState program_state = WARDUINOrun;
+    TimeStamp timeStamp{};
 
     static WARDuino *instance();
 
