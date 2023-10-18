@@ -112,3 +112,11 @@ AroundAction *Actions_copyAction(const AroundAction &action) {
     }
     return cpy;
 }
+
+void Actions_free_action(AroundAction *action) {
+    action->nextAction = nullptr;
+    if (action->kind == ValueSubstitution && action->value.result != nullptr) {
+        delete action->value.result;
+    }
+    delete action;
+}

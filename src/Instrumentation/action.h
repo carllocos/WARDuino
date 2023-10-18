@@ -29,3 +29,5 @@ bool Actions_isActionWaitingForEvent(AroundAction *sorted_actions,
                                      const TimeStamp &currentTime);
 
 AroundAction *Actions_copyAction(const AroundAction &action);
+
+void Actions_free_action(AroundAction *action);
