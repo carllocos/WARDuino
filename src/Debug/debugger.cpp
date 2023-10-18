@@ -9,7 +9,6 @@
 #include "../../lib/json/single_include/nlohmann/json.hpp"
 #endif
 
-#include "../Instrumentation/instrumentation.h"
 #include "../Interrupts/interrupt_around_function.h"
 #include "../Interrupts/interrupt_monitor_addr.h"
 #include "../Interrupts/interrupt_remote_call.h"
