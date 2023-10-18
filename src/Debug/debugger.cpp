@@ -28,7 +28,9 @@ Debugger::Debugger(Channel *duplex) {
 // Public methods
 
 void Debugger::setChannel(Channel *duplex) {
-    delete this->channel;
+    if(this->channel != nullptr){
+        delete this->channel;
+    }
     this->channel = duplex;
 }
 
