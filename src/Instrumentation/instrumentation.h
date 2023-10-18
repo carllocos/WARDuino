@@ -2,6 +2,8 @@
 #include <cstdint>
 #include <unordered_map>
 
+#include "../Instrumentation/schedule.h"
+#include "../Instrumentation/timestamp.h"
 #include "../Utils/sockets.h"
 #include "../WARDuino/structs.h"
 #include "./action.h"
@@ -19,23 +21,32 @@ class InstrumentationManager {
     std::unordered_map<uint32_t, InstrumentationPrimitiveFunc *>
         instr_primitive_funcs{};
 
-    void free_Primitive_func_instr(InstrumentationPrimitiveFunc *instr);
+    InstrumentationPrimitiveFunc *new_Primitive_Instrumentation();
+
+    void remove_completed_action(InstrumentationPrimitiveFunc *inst,
+                                 AroundAction *action_completed);
 
     bool do_remote_call(Channel &channel, Module *m,
                         InstrumentationPrimitiveFunc *instr);
 
+    bool do_value_substitution(Module *module, uint32_t func_called,
+                               AroundAction *action);
+
+    InstrumentationPrimitiveFunc *start_primitive_call_interception(
+        Module &m, uint32_t target_func);
+
    public:
     InstrumentationManager();
 
-    AroundFunction *new_AroundFunction();
-
-    void free_AroundFunction(AroundFunction *around);
-
-    bool add_AroundFunction(Module &m, AroundFunction *around);
+    bool addAroundFunctionAction(Module &m, uint32_t func_idx,
+                                 const AroundAction &around);
 
     bool has_AroundFunction(uint32_t funID);
 
-    bool apply_primitive_call_instrumentation(Channel &channel, Module *module);
+    bool isAddActionAllowed(uint32_t funID);
+
+    bool apply_primitive_call_instrumentation(Module *module,
+                                              TimeStamp *currentTime);
 
     void registerAroundFunctionChannel(Channel *channel);
 };
