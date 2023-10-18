@@ -11,6 +11,7 @@
 
 #include "../Instrumentation/instrumentation.h"
 #include "../Interrupts/interrupt_around_function.h"
+#include "../Interrupts/interrupt_monitor_addr.h"
 #include "../Interrupts/interrupt_remote_call.h"
 #include "../Interrupts/interrupts.h"
 #include "../Memory/mem.h"
@@ -1353,4 +1354,7 @@ void Debugger::handleFuncCall(Module *m, uint8_t *data) {
     Interrupt_RemoteCall_handle_request(*this->channel, m, data);
 }
 
-void Debugger::handleMonitorAddr(Module *m, uint8_t *data) { FATAL("TODO"); }
+void Debugger::handleMonitorAddr(Module *m, uint8_t *data) {
+    Interrupt_MonitorAddr_handle_request(*this->channel, this->instrument, m,
+                                         data);
+}
