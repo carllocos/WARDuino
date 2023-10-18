@@ -121,7 +121,7 @@ void startDebuggerCommunication() {
     ssize_t valread;
     uint8_t buffer[1024] = {0};
     while (true) {
-        while ((valread = duplex->read(buffer, 1024)) != -1) {
+        while ((valread = duplex->read(buffer, 1024)) != -1 && valread != 0) {
             WARDuino::instance()->handleInterrupt(valread, buffer);
         }
     }
