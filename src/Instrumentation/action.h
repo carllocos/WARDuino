@@ -27,3 +27,5 @@ AroundAction *Actions_nextScheduledAction(AroundAction *sorted_actions,
 
 bool Actions_isActionWaitingForEvent(AroundAction *sorted_actions,
                                      const TimeStamp &currentTime);
+
+AroundAction *Actions_copyAction(const AroundAction &action);

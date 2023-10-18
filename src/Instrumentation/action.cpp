@@ -88,3 +88,27 @@ bool Actions_isActionWaitingForEvent(AroundAction *sorted_actions,
     }
     return false;
 }
+
+AroundAction *Actions_copyAction(const AroundAction &action) {
+    AroundAction *cpy = new AroundAction();
+    if (cpy != nullptr) {
+        cpy->kind = action.kind;
+        cpy->schedule = action.schedule;
+        switch (cpy->kind) {
+            case RemoteCall:
+                cpy->value.target_fidx = action.value.target_fidx;
+                break;
+            case ValueSubstitution:
+                if (action.value.result != nullptr) {
+                    cpy->value.result = new StackValue;
+                    cpy->value.result->value = action.value.result->value;
+                    cpy->value.result->value_type =
+                        action.value.result->value_type;
+                }
+                break;
+            default:
+                return nullptr;
+        }
+    }
+    return cpy;
+}
