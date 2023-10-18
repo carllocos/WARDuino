@@ -65,6 +65,9 @@ void print_help() {
             "    --mode         The mode to run in: interpreter, proxy "
             "(default: interpreter)\n");
     fprintf(stdout, "    --invoke       Invoke a function from the module\n");
+    fprintf(stdout,
+            "    --disable-strict-module-load       Disable strict module load "
+            "to enable instrumentations\n");
 }
 
 Module *load(WARDuino &wac, const char *file_name, Options opt) {
@@ -307,8 +310,9 @@ int main(int argc, const char *argv[]) {
             ARGV_GET(socket);
         } else if (!strcmp("--paused", arg)) {
             initiallyPaused = true;
-        } else if (!strcmp("--mock", arg)) {
+        } else if (!strcmp("--disable-strict-module-load", arg)) {
             options.disable_strict_load = true;
+        } else if (!strcmp("--mock", arg)) {
             ARGV_GET(mock_port);
         } else if (!strcmp("--proxy", arg)) {
             ARGV_GET(proxy);  // /dev/ttyUSB0
