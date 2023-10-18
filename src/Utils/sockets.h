@@ -63,7 +63,7 @@ class WebSocket : public Channel {
     int fileDescriptor;
     int socket;
     bool addressBound;
-    sockaddr_in address;
+    struct sockaddr_in address;
 
    public:
     explicit WebSocket(int port);
