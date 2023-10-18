@@ -4,22 +4,7 @@
 
 #include "../Utils/sockets.h"
 #include "../WARDuino/structs.h"
-
-enum AroundKind {
-    RemoteCall = 0x01,
-    ProxyCall = 0x02,
-    UseResult = 0x03,
-    NativeCall = 0x04
-};
-
-typedef struct {
-    AroundKind kind;
-    uint32_t func_idx;
-    union {
-        uint32_t target_fidx;
-        StackValue *value;
-    } action;
-} AroundFunction;
+#include "./action.h"
 
 typedef struct InstrumentationPrimitiveFunc {
     Primitive original_func{};
