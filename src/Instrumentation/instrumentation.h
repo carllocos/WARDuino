@@ -7,8 +7,9 @@
 #include "./action.h"
 
 typedef struct InstrumentationPrimitiveFunc {
-    Primitive original_func{};
-    AroundFunction *action{};
+    uint32_t func_idx;  // func for which the around action is registered
+    Primitive original_func{};  // original function that is restored
+    AroundAction *action{};     // action to perform instead of original_func
 } InstrumentationPrimitiveFunc;
 
 class InstrumentationManager {
