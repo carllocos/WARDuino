@@ -16,6 +16,11 @@ InstrumentationManager::new_Primitive_Instrumentation() {
     return new InstrumentationPrimitiveFunc{};
 }
 
+InstrumentationWasmAddr *
+InstrumentationManager::new_WasmAddress_Instrumentation() {
+    return new InstrumentationWasmAddr{};
+}
+
 bool InstrumentationManager::has_AroundFunction(uint32_t funID) {
     return this->instr_primitive_funcs.count(funID) > 0;
 }

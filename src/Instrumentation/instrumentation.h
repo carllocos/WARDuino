@@ -14,6 +14,12 @@ typedef struct InstrumentationPrimitiveFunc {
     Action *action{};           // action to perform instead of original_func
 } InstrumentationPrimitiveFunc;
 
+typedef struct {
+    uint32_t address{};         // wasm address that needs to be intercepted
+    uint8_t original_opcode{};  // original opcode
+    Action *action{};           // actions to perform on address
+} InstrumentationWasmAddr;
+
 class InstrumentationManager {
    private:
     Channel *fun_call_channel{};
@@ -21,7 +27,11 @@ class InstrumentationManager {
     std::unordered_map<uint32_t, InstrumentationPrimitiveFunc *>
         instr_primitive_funcs{};
 
+    std::unordered_map<uint32_t, InstrumentationWasmAddr *> instr_wasmaddrs{};
+
     InstrumentationPrimitiveFunc *new_Primitive_Instrumentation();
+
+    InstrumentationWasmAddr *new_WasmAddress_Instrumentation();
 
     void remove_completed_action(InstrumentationPrimitiveFunc *inst,
                                  Action *action_completed);
