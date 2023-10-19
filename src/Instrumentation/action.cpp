@@ -165,6 +165,7 @@ bool Actions_deserialize_schedule(Schedule &dest, uint8_t **encoded_schedule,
             dest.value.timeStamp.nr_of_events = read_LEB_32(encoded_schedule);
             break;
         default:
+            error_code = ACTION_ERROR_CODE_UNEXISTING_SCHEDULE_KIND;
             return false;
     }
     dest.kind = schedule;
