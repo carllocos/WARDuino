@@ -70,8 +70,9 @@ ssize_t Interrupt_MonitorAddr_serialize_response(
 void Interrupt_MonitorAddr_send_response(const Channel &channel,
                                          const MonitorAddrResponse &response) {
     char buffer[100]{};
-    Interrupt_MonitorAddr_serialize_response(response, buffer);
-    channel.write(buffer);
+    if (Interrupt_MonitorAddr_serialize_response(response, buffer) > 0) {
+        channel.write(buffer);
+    }
 }
 
 /*

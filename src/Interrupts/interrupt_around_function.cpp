@@ -24,8 +24,9 @@ ssize_t Interrupt_AroundFunction_serialize_response(
 void Interrupt_AroundFunction_send_response(
     const Channel &channel, const AroundFunctionResponse &response) {
     char buffer[100]{};
-    Interrupt_AroundFunction_serialize_response(response, buffer);
-    channel.write(buffer);
+    if (Interrupt_AroundFunction_serialize_response(response, buffer) > 0) {
+        channel.write(buffer);
+    }
 }
 
 void Interrupt_AroundFunction_handle_request(const Channel &channel,
