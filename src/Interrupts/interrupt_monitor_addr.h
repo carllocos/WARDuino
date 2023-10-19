@@ -26,9 +26,9 @@ typedef struct {
 } MonitorAddrResponse;
 
 void Interrupt_MonitorAddr_handle_request(const Channel &channel,
-                                          const Module &module,
+                                          Module &module,
                                           InstrumentationManager &manager,
-                                          Module *m, uint8_t *encoded_request);
+                                          uint8_t *encoded_request);
 
 bool Interrupt_MonitorAddr_deserialize_request(MonitorAddrRequest &request,
                                                uint8_t *encoded_request,

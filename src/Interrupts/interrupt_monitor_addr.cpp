@@ -15,9 +15,9 @@ bool registerMonitorAddrAction(InstrumentationManager &manager, Module &m,
  */
 
 void Interrupt_MonitorAddr_handle_request(const Channel &channel,
-                                          const Module &module,
+                                          Module &module,
                                           InstrumentationManager &manager,
-                                          Module *m, uint8_t *encoded_request) {
+                                          uint8_t *encoded_request) {
     Action action{};
     MonitorAddrRequest request;
     request.action = &action;
@@ -27,7 +27,7 @@ void Interrupt_MonitorAddr_handle_request(const Channel &channel,
 
     if (Interrupt_MonitorAddr_deserialize_request(request, encoded_request,
                                                   error) &&
-        registerMonitorAddrAction(manager, *m, request, error)) {
+        registerMonitorAddrAction(manager, module, request, error)) {
         response.type = INTERRUPT_RESPONSE_TYPE_SUCCESS;
     } else {
         response.type = INTERRUPT_RESPONSE_TYPE_ERROR;

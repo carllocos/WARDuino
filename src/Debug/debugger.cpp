@@ -1355,5 +1355,5 @@ void Debugger::handleFuncCall(Module *m, uint8_t *data) {
 
 void Debugger::handleMonitorAddr(Module *m, uint8_t *data) {
     Interrupt_MonitorAddr_handle_request(*this->channel, *m, this->instrument,
-                                         m, data);
+                                         data);
 }
