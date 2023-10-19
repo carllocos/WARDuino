@@ -29,6 +29,9 @@ Action *Actions_add_and_sort(Action *actions, Action *action_to_add) {
     while (insert->nextAction != nullptr) {
         insert = insert->nextAction;
     }
+    if (insert->nextAction != nullptr) {
+        action_to_add->nextAction = insert->nextAction;
+    }
     insert->nextAction = action_to_add;
 }
 
