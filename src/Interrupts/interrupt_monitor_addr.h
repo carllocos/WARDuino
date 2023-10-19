@@ -35,7 +35,7 @@ bool Interrupt_MonitorAddr_deserialize_request(const Module &module,
                                                uint8_t *encoded_request,
                                                uint8_t &error_code);
 
-char *Interrupt_MonitorAddr_serialize_response(
+ssize_t Interrupt_MonitorAddr_serialize_response(
     const MonitorAddrResponse &response, char *dest);
 
 void Interrupt_MonitorAddr_send_response(const Channel &channel,
