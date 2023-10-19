@@ -30,8 +30,7 @@ void Interrupt_MonitorAddr_handle_request(const Channel &channel,
                                           InstrumentationManager &manager,
                                           Module *m, uint8_t *encoded_request);
 
-bool Interrupt_MonitorAddr_deserialize_request(const Module &module,
-                                               MonitorAddrRequest &request,
+bool Interrupt_MonitorAddr_deserialize_request(MonitorAddrRequest &request,
                                                uint8_t *encoded_request,
                                                uint8_t &error_code);
 
