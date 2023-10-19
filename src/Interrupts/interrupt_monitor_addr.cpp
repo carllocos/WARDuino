@@ -61,8 +61,11 @@ bool Interrupt_MonitorAddr_deserialize_request(MonitorAddrRequest &dest,
     return Actions_deserialize_action(*dest.action, &data, error_code);
 }
 
-char *Interrupt_MonitorAddr_serialize_response(
-    const MonitorAddrResponse &response, char *dest) {}
+ssize_t Interrupt_MonitorAddr_serialize_response(
+    const MonitorAddrResponse &response, char *dest) {
+    return Interrupt_serialize_JSON_response(
+        interruptMonitorAddr, response.type, response.error_code, dest);
+}
 
 void Interrupt_MonitorAddr_send_response(const Channel &channel,
                                          const MonitorAddrResponse &response) {

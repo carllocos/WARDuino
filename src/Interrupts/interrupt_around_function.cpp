@@ -17,15 +17,8 @@ bool registerAroundFunctionAction(InstrumentationManager &manager, Module &m,
 
 ssize_t Interrupt_AroundFunction_serialize_response(
     const AroundFunctionResponse &response, char *dest) {
-    ssize_t offset = 0;
-    offset += sprintf(dest, R"({"interrupt":"%02X","kind":"%02X")",
-                      interruptAroundFunction, response.type);
-    if (response.type == INTERRUPT_RESPONSE_TYPE_ERROR) {
-        offset += sprintf(dest + offset, R"(,"error_code":"%02X")",
-                          response.error_code);
-    }
-    offset += sprintf(dest + offset, "}\n");
-    return offset;
+    return Interrupt_serialize_JSON_response(
+        interruptAroundFunction, response.type, response.error_code, dest);
 }
 
 void Interrupt_AroundFunction_send_response(
