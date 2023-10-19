@@ -63,6 +63,24 @@ bool InstrumentationManager::addAroundFunctionAction(Module &m,
     }
 }
 
+bool InstrumentationManager::addActionOnWasmAddress(Module &module,
+                                                    uint32_t addr,
+                                                    Action &action) {
+    if (!isToPhysicalAddrPossible(addr, &module)) {
+        // address is not in module
+        return false;
+    }
+    InstrumentationWasmAddr *instr =
+        this->start_wasm_addr_intercept(module, addr);
+
+    Action *cpy{};
+    if (instr == nullptr || (cpy = Actions_copyAction(action)) == nullptr) {
+        return false;
+    }
+    instr->action = Actions_add_and_sort(instr->action, cpy);
+    return true;
+}
+
 void Interrupt_RemoteCall_free_response(FunCallResponse &response) {
     if (response.result != nullptr) {
         if (response.result->value != nullptr) {
@@ -233,6 +251,12 @@ bool InstrumentationManager::apply_primitive_call_instrumentation(
     return around_successful;
 }
 
+bool InstrumentationManager::apply_wasm_addr_instrumentation(
+    Module *module, TimeStamp *currentTime) {
+    FATAL("TODO\n");
+    return false;
+}
+
 InstrumentationPrimitiveFunc *
 InstrumentationManager::start_primitive_call_interception(
     Module &m, uint32_t target_func) {
@@ -247,6 +271,23 @@ InstrumentationManager::start_primitive_call_interception(
         this->instr_primitive_funcs[target_func] = instr;
         m.functions[target_func].func_ptr =
             (void (*)()) & Instrumentation_interceptPrimitiveCall;
+    }
+    return instr;
+}
+
+InstrumentationWasmAddr *InstrumentationManager::start_wasm_addr_intercept(
+    Module &module, const uint32_t addr) {
+    if (this->has_ActionOnWasmAddr(addr)) {
+        return this->instr_wasmaddrs[addr];
+    }
+
+    // The first time for which an instrumentation occurs for the wasm address
+    InstrumentationWasmAddr *instr = this->new_WasmAddress_Instrumentation();
+    if (instr != nullptr) {
+        instr->address = addr;
+        instr->original_opcode = module.bytes[addr];
+        module.bytes[addr] = INSTRUMENTATION_INTERCEPT_OPCODE;
+        instr->action = nullptr;
     }
     return instr;
 }

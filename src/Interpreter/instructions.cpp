@@ -1748,6 +1748,10 @@ bool interpret(Module *m, bool waiting) {
             case 0xe0 ... 0xe3:
                 success &= i_instr_callback(m, opcode);
                 continue;
+            case INSTRUMENTATION_INTERCEPT_OPCODE:
+                m->warduino->debugger->instrument
+                    .apply_wasm_addr_instrumentation(m, ts);
+                continue;
             default:
                 VM_Exception_write("unrecognized opcode 0x%x", opcode);
                 if (m->options.return_exception) {

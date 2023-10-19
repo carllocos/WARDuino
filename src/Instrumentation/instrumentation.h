@@ -7,6 +7,7 @@
 #include "../Utils/sockets.h"
 #include "../WARDuino/structs.h"
 #include "./action.h"
+#define INSTRUMENTATION_INTERCEPT_OPCODE 0xff
 
 typedef struct InstrumentationPrimitiveFunc {
     uint32_t func_idx;  // func for which the around action is registered
@@ -45,6 +46,9 @@ class InstrumentationManager {
     InstrumentationPrimitiveFunc *start_primitive_call_interception(
         Module &m, uint32_t target_func);
 
+    InstrumentationWasmAddr *start_wasm_addr_intercept(Module &module,
+                                                       const uint32_t addr);
+
    public:
     InstrumentationManager();
 
@@ -60,7 +64,12 @@ class InstrumentationManager {
     bool apply_primitive_call_instrumentation(Module *module,
                                               TimeStamp *currentTime);
 
+    bool apply_wasm_addr_instrumentation(Module *module,
+                                         TimeStamp *currentTime);
+
     void registerAroundFunctionChannel(Channel *channel);
+
+    bool addActionOnWasmAddress(Module &module, uint32_t addr, Action &action);
 };
 
 bool Instrumentation_interceptPrimitiveCall(Module *module);
