@@ -1,7 +1,7 @@
 #include "interrupt_monitor_addr.h"
 
 #include "../Utils/util.h"
-#include "interrupts.h"
+#include "interrupt_response.h"
 
 /*
  * Declaration private functions

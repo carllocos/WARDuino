@@ -1,6 +1,6 @@
 #include "interrupt_around_function.h"
 
-#include "../Interrupts/interrupts.h"
+#include "../Interrupts/interrupt_response.h"
 #include "../Utils/macros.h"
 #include "../Utils/util.h"
 

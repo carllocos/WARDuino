@@ -1,9 +1,5 @@
 #pragma once
 
-#define INTERRUPT_RESPONSE_TYPE_SUCCESS 01
-#define INTERRUPT_RESPONSE_TYPE_ERROR 02
-#define INTERRUPT_RESPONSE_TYPE_SUBSCRIPTION 03
-
 enum InterruptTypes {
     // Remote Debugging
     interruptRUN = 0x01,

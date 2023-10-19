@@ -56,6 +56,7 @@ if (BUILD_EMULATOR)
             src/Interrupts/interrupt_around_function.cpp
             src/Interrupts/interrupt_remote_call.cpp
             src/Interrupts/interrupt_monitor_addr.cpp
+            src/Interrupts/interrupt_response.cpp
             src/Instrumentation/timestamp.cpp
             src/Instrumentation/action.cpp)
 
@@ -114,6 +115,7 @@ if (BUILD_UNITTEST)
             src/Interrupts/interrupt_around_function.cpp
             src/Interrupts/interrupt_remote_call.cpp
             src/Interrupts/interrupt_monitor_addr.cpp
+            src/Interrupts/interrupt_response.cpp
             src/Instrumentation/timestamp.cpp
             src/Instrumentation/action.cpp)
 

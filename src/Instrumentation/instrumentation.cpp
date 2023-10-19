@@ -1,7 +1,7 @@
 #include "instrumentation.h"
 
 #include "../Interrupts/interrupt_remote_call.h"
-#include "../Interrupts/interrupts.h"
+#include "../Interrupts/interrupt_response.h"
 #include "../Utils/macros.h"
 #include "../WARDuino/vm_exception.h"
 
