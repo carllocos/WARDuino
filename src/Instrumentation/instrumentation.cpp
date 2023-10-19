@@ -25,6 +25,10 @@ bool InstrumentationManager::has_AroundFunction(uint32_t funID) {
     return this->instr_primitive_funcs.count(funID) > 0;
 }
 
+bool InstrumentationManager::has_ActionOnWasmAddr(uint32_t addr) {
+    return this->instr_wasmaddrs.count(addr) > 0;
+}
+
 bool InstrumentationManager::isAddActionAllowed(uint32_t funID) {
     if (!this->has_AroundFunction(funID)) return true;
     // Dissallows actions that have been scheduled for always if one is

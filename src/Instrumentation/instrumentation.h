@@ -53,6 +53,8 @@ class InstrumentationManager {
 
     bool has_AroundFunction(uint32_t funID);
 
+    bool has_ActionOnWasmAddr(uint32_t addr);
+
     bool isAddActionAllowed(uint32_t funID);
 
     bool apply_primitive_call_instrumentation(Module *module,
