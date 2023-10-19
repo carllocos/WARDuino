@@ -15,6 +15,7 @@ bool registerMonitorAddrAction(InstrumentationManager &manager, Module &m,
  */
 
 void Interrupt_MonitorAddr_handle_request(const Channel &channel,
+                                          const Module &module,
                                           InstrumentationManager &manager,
                                           Module *m, uint8_t *encoded_request) {
     Action action{};
@@ -24,8 +25,8 @@ void Interrupt_MonitorAddr_handle_request(const Channel &channel,
     MonitorAddrResponse response;
     uint8_t error{};
 
-    if (Interrupt_MonitorAddr_deserialize_request(request, encoded_request,
-                                                  error) &&
+    if (Interrupt_MonitorAddr_deserialize_request(module, request,
+                                                  encoded_request, error) &&
         registerMonitorAddrAction(manager, *m, request, error)) {
         response.type = INTERRUPT_RESPONSE_TYPE_SUCCESS;
     } else {
@@ -36,7 +37,8 @@ void Interrupt_MonitorAddr_handle_request(const Channel &channel,
     Interrupt_MonitorAddr_send_response(channel, response);
 }
 
-bool Interrupt_MonitorAddr_deserialize_request(MonitorAddrRequest &dest,
+bool Interrupt_MonitorAddr_deserialize_request(const Module &module,
+                                               MonitorAddrRequest &dest,
                                                uint8_t *encoded_request,
                                                uint8_t &error_code) {
     // format: InterruptNr (1 byte)| addr (LEB32) | InstrumentMoment (1 byte) |
@@ -48,6 +50,10 @@ bool Interrupt_MonitorAddr_deserialize_request(MonitorAddrRequest &dest,
         return false;
     }
     dest.addr = read_LEB_32(&data);
+    if (!isToPhysicalAddrPossible(dest.addr, (Module *)&module)) {
+        error_code = MONITOR_ADDR_ERROR_CODE_REQUEST_HAS_UNEXISTING_ADDR;
+        return false;
+    }
     dest.moment = (InstrumentMoment)*data++;
     switch (dest.moment) {
         case InstrumentBefore:
