@@ -33,6 +33,7 @@ Action *Actions_add_and_sort(Action *actions, Action *action_to_add) {
         action_to_add->nextAction = insert->nextAction;
     }
     insert->nextAction = action_to_add;
+    return actions;
 }
 
 Action *Actions_nextScheduledAction(Action *sorted_actions,
