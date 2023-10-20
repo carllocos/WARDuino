@@ -229,3 +229,31 @@ void printValue(const Channel &output, StackValue *v, uint32_t idx, bool end) {
     }
     output.write(R"({"idx":%d,%s}%s)", idx, buff, end ? "" : ",");
 }
+
+StateToInspect *Interrupt_Inspect_new_state_to_inspect() {
+    return new StateToInspect;
+}
+
+void Interrupt_Inspect_free_state_to_inspect(StateToInspect *to_free) {
+    if (to_free != nullptr && to_free->requestedState != nullptr) {
+        free(to_free->requestedState);
+    }
+    delete to_free;
+}
+
+bool Interrupt_Inspect_copy_state_to_inspect(
+    StateToInspect &dest, const StateToInspect &state_to_cpy) {
+    if (state_to_cpy.requestedState == nullptr ||
+        state_to_cpy.numberOfInspects == 0) {
+        return false;
+    }
+    dest.numberOfInspects = state_to_cpy.numberOfInspects;
+    dest.requestedState =
+        (ExecutionState *)malloc(state_to_cpy.numberOfInspects);
+    if (dest.requestedState == nullptr) {
+        return false;
+    }
+    memcpy(dest.requestedState, state_to_cpy.requestedState,
+           state_to_cpy.numberOfInspects);
+    return true;
+}

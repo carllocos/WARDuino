@@ -35,3 +35,10 @@ bool Interrupt_Inspect_deserialize_request(InspectStateRequest &request,
 void Interrupt_Inspect_inspect_json_output(const Channel &requester,
                                            const Module *m,
                                            const StateToInspect &state);
+
+bool Interrupt_Inspect_copy_state_to_inspect(
+    StateToInspect &dest, const StateToInspect &state_to_cpy);
+
+StateToInspect *Interrupt_Inspect_new_state_to_inspect();
+
+void Interrupt_Inspect_free_state_to_inspect(StateToInspect *to_free);
