@@ -33,6 +33,9 @@ bool Actions_isActionWaitingForEvent(Action *sorted_actions,
 
 Action *Actions_copyAction(const Action &action);
 
+Action *Actions_remove_completed_action(Action *first_action,
+                                        Action *action_completed);
+
 void Actions_free_action(Action *action);
 
 bool Actions_deserialize_action(Action &dest, uint8_t **encoded_action,

@@ -43,9 +43,6 @@ class InstrumentationManager {
 
     InstrumentationWasmAddr *new_WasmAddress_Instrumentation();
 
-    Action *remove_completed_action(Action *first_action,
-                                    Action *action_completed);
-
     bool do_remote_call(Channel &channel, Module *m, uint32_t local_fidx,
                         uint32_t func_to_call);
 

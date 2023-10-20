@@ -101,36 +101,6 @@ void Interrupt_RemoteCall_free_response(FunCallResponse &response) {
     }
 }
 
-Action *InstrumentationManager::remove_completed_action(
-    Action *first_action, Action *action_completed) {
-    if (action_completed->schedule.kind == ScheduleAlways) {
-        // No delete needed, action is scheduled for always
-        return first_action;
-    }
-
-    Action *actions = first_action;
-    Action *prev = nullptr;
-    while (actions != nullptr) {
-        if (actions == action_completed) {
-            if (prev != nullptr) {
-                prev->nextAction = actions->nextAction;
-            }
-            break;
-        }
-        prev = actions;
-        actions = actions->nextAction;
-    }
-
-    if (actions != nullptr) {
-        Actions_free_action(action_completed);
-    }
-    if (prev == nullptr) {
-        return first_action->nextAction;
-    } else {
-        return first_action;
-    }
-}
-
 bool InstrumentationManager::do_remote_call(Channel &channel, Module *module,
                                             uint32_t local_fidx,
                                             uint32_t func_to_call) {
@@ -238,7 +208,7 @@ bool InstrumentationManager::apply_primitive_call_instrumentation(
 
     bool around_successful =
         this->run_action(*module, primitive_called, *actionToRun);
-    instr->action = this->remove_completed_action(instr->action, actionToRun);
+    instr->action = Actions_remove_completed_action(instr->action, actionToRun);
 
     // After call instrumentation(s)
     return around_successful;

@@ -36,6 +36,36 @@ Action *Actions_add_and_sort(Action *actions, Action *action_to_add) {
     return actions;
 }
 
+Action *Actions_remove_completed_action(Action *first_action,
+                                        Action *action_completed) {
+    if (action_completed->schedule.kind == ScheduleAlways) {
+        // No delete needed, action is scheduled for always
+        return first_action;
+    }
+
+    Action *actions = first_action;
+    Action *prev = nullptr;
+    while (actions != nullptr) {
+        if (actions == action_completed) {
+            if (prev != nullptr) {
+                prev->nextAction = actions->nextAction;
+            }
+            break;
+        }
+        prev = actions;
+        actions = actions->nextAction;
+    }
+
+    if (actions != nullptr) {
+        Actions_free_action(action_completed);
+    }
+    if (prev == nullptr) {
+        return first_action->nextAction;
+    } else {
+        return first_action;
+    }
+}
+
 Action *Actions_nextScheduledAction(Action *sorted_actions,
                                     const TimeStamp &currentTime) {
     // sorted actions go from timestamp, ev dep, cond, once, always
