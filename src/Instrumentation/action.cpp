@@ -145,10 +145,24 @@ Action *Actions_copyAction(const Action &action) {
             case ValueSubstitution:
                 if (action.value.result != nullptr) {
                     cpy->value.result = new StackValue;
-                    cpy->value.result->value = action.value.result->value;
-                    cpy->value.result->value_type =
-                        action.value.result->value_type;
+                    if (cpy->value.result == nullptr) {
+                        delete cpy;
+                        cpy = nullptr;
+                    } else {
+                        cpy->value.result->value = action.value.result->value;
+                        cpy->value.result->value_type =
+                            action.value.result->value_type;
+                    }
                 }
+                break;
+            case StateInspect:
+                cpy->value.state = Interrupt_Inspect_new_state_to_inspect();
+                if (!Interrupt_Inspect_copy_state_to_inspect(
+                        *cpy->value.state, *action.value.state)) {
+                    delete cpy;
+                    cpy = nullptr;
+                }
+                Interrupt_Inspect_free_state_to_inspect(action.value.state);
                 break;
             default:
                 return nullptr;
@@ -229,6 +243,20 @@ bool Actions_deserialize_action_rest(Action &dest, uint8_t **encoded_action,
             }
             break;
         }
+        case StateInspect:
+            // TODO unfiromly malloc or free during deserialization
+            dest.value.state = Interrupt_Inspect_new_state_to_inspect();
+            if (dest.value.state == nullptr) {
+                error_code = ACTION_ERROR_CODE_INSUFFICIENT_MEMORY;
+                return false;
+            }
+            if (!Interrupt_Inspect_deserialize_request(
+                    *dest.value.state, *encoded_action, error_code)) {
+                error_code =
+                    ACTION_ERROR_CODE_SUBSTITUTE_STATE_INSPECT_IS_MALFORMED;
+                return false;
+            }
+            break;
         default:
             printf("ActionKind %02X is not supported\n", kind);
             error_code = ACTION_ERROR_CODE_UNEXISTING_ACTION_KIND;

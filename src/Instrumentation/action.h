@@ -1,4 +1,5 @@
 #pragma once
+#include "../Interrupts/interrupt_inspect.h"
 #include "../WARDuino/structs.h"
 #include "./schedule.h"
 #include "./timestamp.h"
@@ -6,14 +7,21 @@
 #define ACTION_ERROR_CODE_SUBSTITUTE_VALUE_IS_MALFORMED 31;
 #define ACTION_ERROR_CODE_UNEXISTING_ACTION_KIND 32;
 #define ACTION_ERROR_CODE_UNEXISTING_SCHEDULE_KIND 33;
+#define ACTION_ERROR_CODE_SUBSTITUTE_STATE_INSPECT_IS_MALFORMED 34;
+#define ACTION_ERROR_CODE_INSUFFICIENT_MEMORY 34;
 
-enum ActionKind { RemoteCall = 0x01, ValueSubstitution = 0x02 };
+enum ActionKind {
+    RemoteCall = 0x01,
+    ValueSubstitution = 0x02,
+    StateInspect = 0x03,
+};
 
 struct Action {
     ActionKind kind;
     union {
         uint32_t target_fidx;
         StackValue *result{};
+        StateToInspect *state;
     } value;
     Schedule schedule;
     Action *nextAction{};
