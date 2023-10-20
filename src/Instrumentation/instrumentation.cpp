@@ -25,8 +25,17 @@ bool InstrumentationManager::has_AroundFunction(uint32_t funID) {
     return this->instr_primitive_funcs.count(funID) > 0;
 }
 
-bool InstrumentationManager::has_ActionOnWasmAddr(uint32_t addr) {
-    return this->instr_wasmaddrs.count(addr) > 0;
+bool InstrumentationManager::has_ActionOnWasmAddr(uint32_t addr,
+                                                  InstrumentMoment moment) {
+    switch (moment) {
+        case InstrumentBefore:
+            return this->instr_wasm_addr_before.count(addr) > 0;
+        case InstrumentAfter:
+            return this->instr_wasm_addr_after.count(addr) > 0;
+        default:
+            FATAL("Around monitor not supported");
+    }
+    return false;
 }
 
 bool InstrumentationManager::isAddActionAllowed(uint32_t funID) {
@@ -63,15 +72,15 @@ bool InstrumentationManager::addAroundFunctionAction(Module &m,
     }
 }
 
-bool InstrumentationManager::addActionOnWasmAddress(Module &module,
-                                                    uint32_t addr,
-                                                    Action &action) {
+bool InstrumentationManager::addActionOnWasmAddress(
+    Module &module, uint32_t addr, Action &action,
+    const InstrumentMoment moment) {
     if (!isToPhysicalAddrPossible(addr, &module)) {
         // address is not in module
         return false;
     }
     InstrumentationWasmAddr *instr =
-        this->start_wasm_addr_intercept(module, addr);
+        this->start_wasm_addr_intercept(module, addr, moment);
 
     Action *cpy{};
     if (instr == nullptr || (cpy = Actions_copyAction(action)) == nullptr) {
@@ -276,9 +285,13 @@ InstrumentationManager::start_primitive_call_interception(
 }
 
 InstrumentationWasmAddr *InstrumentationManager::start_wasm_addr_intercept(
-    Module &module, const uint32_t addr) {
-    if (this->has_ActionOnWasmAddr(addr)) {
-        return this->instr_wasmaddrs[addr];
+    Module &module, const uint32_t addr, InstrumentMoment moment) {
+    if (this->has_ActionOnWasmAddr(addr, moment)) {
+        if (moment == InstrumentBefore) {
+            return this->instr_wasm_addr_before[addr];
+        } else {
+            return this->instr_wasm_addr_after[addr];
+        }
     }
 
     // The first time for which an instrumentation occurs for the wasm address
@@ -288,6 +301,11 @@ InstrumentationWasmAddr *InstrumentationManager::start_wasm_addr_intercept(
         instr->original_opcode = module.bytes[addr];
         module.bytes[addr] = INSTRUMENTATION_INTERCEPT_OPCODE;
         instr->action = nullptr;
+        if (moment == InstrumentBefore) {
+            this->instr_wasm_addr_before[addr] = instr;
+        } else {
+            this->instr_wasm_addr_after[addr] = instr;
+        }
     }
     return instr;
 }

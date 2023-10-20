@@ -87,7 +87,8 @@ bool registerMonitorAddrAction(InstrumentationManager &manager, Module &m,
         error_code = MONITOR_ADDR_ERROR_CODE_REQUEST_HAS_UNEXISTING_ADDR;
         return false;
     }
-    if (!manager.addActionOnWasmAddress(m, request.addr, *request.action)) {
+    if (!manager.addActionOnWasmAddress(m, request.addr, *request.action,
+                                        request.moment)) {
         error_code = MONITOR_ADDR_ERROR_CODE_COULD_NOT_ADD_ACTION;
         return false;
     }

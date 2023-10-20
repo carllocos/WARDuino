@@ -33,7 +33,11 @@ class InstrumentationManager {
     std::unordered_map<uint32_t, InstrumentationPrimitiveFunc *>
         instr_primitive_funcs{};
 
-    std::unordered_map<uint32_t, InstrumentationWasmAddr *> instr_wasmaddrs{};
+    std::unordered_map<uint32_t, InstrumentationWasmAddr *>
+        instr_wasm_addr_before{};
+
+    std::unordered_map<uint32_t, InstrumentationWasmAddr *>
+        instr_wasm_addr_after{};
 
     InstrumentationPrimitiveFunc *new_Primitive_Instrumentation();
 
@@ -51,8 +55,8 @@ class InstrumentationManager {
     InstrumentationPrimitiveFunc *start_primitive_call_interception(
         Module &m, uint32_t target_func);
 
-    InstrumentationWasmAddr *start_wasm_addr_intercept(Module &module,
-                                                       const uint32_t addr);
+    InstrumentationWasmAddr *start_wasm_addr_intercept(
+        Module &module, const uint32_t addr, const InstrumentMoment moment);
 
    public:
     InstrumentationManager();
@@ -62,7 +66,7 @@ class InstrumentationManager {
 
     bool has_AroundFunction(uint32_t funID);
 
-    bool has_ActionOnWasmAddr(uint32_t addr);
+    bool has_ActionOnWasmAddr(uint32_t addr, InstrumentMoment moment);
 
     bool isAddActionAllowed(uint32_t funID);
 
@@ -74,7 +78,8 @@ class InstrumentationManager {
 
     void registerAroundFunctionChannel(Channel *channel);
 
-    bool addActionOnWasmAddress(Module &module, uint32_t addr, Action &action);
+    bool addActionOnWasmAddress(Module &module, uint32_t addr, Action &action,
+                                const InstrumentMoment moment);
 };
 
 bool Instrumentation_interceptPrimitiveCall(Module *module);
