@@ -53,6 +53,7 @@ if (BUILD_EMULATOR)
             src/Edward/RFC.cpp
             src/WARDuino/vm_exception.cpp
             src/Instrumentation/instrumentation.cpp
+            src/Interrupts/interrupt_inspect.cpp
             src/Interrupts/interrupt_around_function.cpp
             src/Interrupts/interrupt_remote_call.cpp
             src/Interrupts/interrupt_monitor_addr.cpp
@@ -112,6 +113,7 @@ if (BUILD_UNITTEST)
             src/Edward/RFC.cpp
             src/WARDuino/vm_exception.cpp
             src/Instrumentation/instrumentation.cpp
+            src/Interrupts/interrupt_inspect.cpp
             src/Interrupts/interrupt_around_function.cpp
             src/Interrupts/interrupt_remote_call.cpp
             src/Interrupts/interrupt_monitor_addr.cpp
