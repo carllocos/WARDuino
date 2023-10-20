@@ -706,13 +706,14 @@ bool Debugger::handlePushedEvent(char *bytes) const {
 }
 
 void Debugger::snapshot(Module *m) {
-    uint16_t numberBytes = 10;
+    StateToInspect inspect{};
+    inspect.numberOfInspects = 10;
     ExecutionState state[] = {
         pcState,        breakpointsState, callstackState,      globalsState,
         tableState,     memoryState,      branchingTableState, stackState,
         callbacksState, eventsState};
-    Interrupt_Inspect_inspect_json_output(*this->channel, m, numberBytes,
-                                          state);
+    inspect.requestedState = state;
+    Interrupt_Inspect_inspect_json_output(*this->channel, m, inspect);
 }
 
 void Debugger::freeState(Module *m, uint8_t *interruptData) {
