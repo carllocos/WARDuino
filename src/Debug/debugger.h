@@ -32,19 +32,6 @@ enum RunningState {
                // sends messages for primitives, do forward interrupts)
 };
 
-enum ExecutionState {
-    pcState = 0x01,
-    breakpointsState = 0x02,
-    callstackState = 0x03,
-    globalsState = 0x04,
-    tableState = 0x05,
-    memoryState = 0x06,
-    branchingTableState = 0x07,
-    stackState = 0x08,
-    callbacksState = 0x09,
-    eventsState = 0x0A
-};
-
 class Debugger {
    private:
     std::deque<uint8_t *> debugMessages = {};
@@ -103,8 +90,6 @@ class Debugger {
 
     void dumpCallbackmapping() const;
 
-    void inspect(Module *m, uint16_t sizeStateArray, uint8_t *state);
-
     //// Handle live code update
 
     static bool handleChangedFunction(Module *m, uint8_t *bytes);
@@ -122,8 +107,6 @@ class Debugger {
     //// Handle out-of-place debugging
 
     void freeState(Module *m, uint8_t *interruptData);
-
-    static uint8_t *findOpcode(Module *m, Block *block);
 
     bool saveState(Module *m, uint8_t *interruptData);
 
