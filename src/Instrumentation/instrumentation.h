@@ -9,6 +9,11 @@
 #include "./action.h"
 #define INSTRUMENTATION_INTERCEPT_OPCODE 0xff
 
+enum InstrumentMoment {
+    InstrumentBefore = 0x01,
+    InstrumentAfter = 0x02,
+};
+
 typedef struct InstrumentationPrimitiveFunc {
     uint32_t func_idx;  // func for which the around action is registered
     Primitive original_func{};  // original function that is restored

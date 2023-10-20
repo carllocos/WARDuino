@@ -10,11 +10,6 @@
 #define MONITOR_ADDR_ERROR_CODE_REQUEST_HAS_UNEXISTING_ADDR 3;
 #define MONITOR_ADDR_ERROR_CODE_COULD_NOT_ADD_ACTION 4;
 
-enum InstrumentMoment {
-    InstrumentBefore = 0x01,
-    InstrumentAfter = 0x02,
-};
-
 typedef struct {
     uint32_t addr{};
     InstrumentMoment moment{};
