@@ -2,6 +2,7 @@
 
 #include <netinet/in.h>
 
+#include "../../src/Interrupts/interrupt_inspect.h"
 #include "../../src/Interrupts/interrupts.h"
 #include "../../src/Utils/util.h"
 
