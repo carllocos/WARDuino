@@ -43,11 +43,13 @@ class InstrumentationManager {
 
     InstrumentationWasmAddr *new_WasmAddress_Instrumentation();
 
-    void remove_completed_action(InstrumentationPrimitiveFunc *inst,
-                                 Action *action_completed);
+    Action *remove_completed_action(Action *first_action,
+                                    Action *action_completed);
 
-    bool do_remote_call(Channel &channel, Module *m,
-                        InstrumentationPrimitiveFunc *instr);
+    bool do_remote_call(Channel &channel, Module *m, uint32_t local_fidx,
+                        uint32_t func_to_call);
+
+    bool run_action(Module &module, uint32_t local_fidx, Action &action);
 
     bool do_value_substitution(Module *module, uint32_t func_called,
                                Action *action);

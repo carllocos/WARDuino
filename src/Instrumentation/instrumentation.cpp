@@ -101,20 +101,18 @@ void Interrupt_RemoteCall_free_response(FunCallResponse &response) {
     }
 }
 
-void InstrumentationManager::remove_completed_action(
-    InstrumentationPrimitiveFunc *inst, Action *action_completed) {
+Action *InstrumentationManager::remove_completed_action(
+    Action *first_action, Action *action_completed) {
     if (action_completed->schedule.kind == ScheduleAlways) {
         // No delete needed, action is scheduled for always
-        return;
+        return first_action;
     }
 
-    Action *actions = inst->action;
+    Action *actions = first_action;
     Action *prev = nullptr;
     while (actions != nullptr) {
         if (actions == action_completed) {
-            if (prev == nullptr) {
-                inst->action = actions->nextAction;
-            } else {
+            if (prev != nullptr) {
                 prev->nextAction = actions->nextAction;
             }
             break;
@@ -126,20 +124,23 @@ void InstrumentationManager::remove_completed_action(
     if (actions != nullptr) {
         Actions_free_action(action_completed);
     }
+    if (prev == nullptr) {
+        return first_action->nextAction;
+    } else {
+        return first_action;
+    }
 }
 
-bool InstrumentationManager::do_remote_call(
-    Channel &channel, Module *module, InstrumentationPrimitiveFunc *instr) {
+bool InstrumentationManager::do_remote_call(Channel &channel, Module *module,
+                                            uint32_t local_fidx,
+                                            uint32_t func_to_call) {
     if (this->fun_call_channel == nullptr) {
         VM_Exception_write("No channel set to perform around function call\n");
         return false;
     }
 
-    // get fun idx
-    uint32_t func_to_call = instr->func_idx;
-
     // get args
-    Type *func_type = module->functions[instr->action->value.target_fidx].type;
+    Type *func_type = module->functions[local_fidx].type;
     StackValue *args = nullptr;
     if (func_type->param_count > 0) {
         module->sp -= func_type->param_count;  // pop args
@@ -235,29 +236,26 @@ bool InstrumentationManager::apply_primitive_call_instrumentation(
         }
     }
 
-    bool around_successful = true;
-    switch (actionToRun->kind) {
-        case RemoteCall:
-            around_successful =
-                this->do_remote_call(*this->fun_call_channel, module, instr);
-            break;
-        case ValueSubstitution:
-            around_successful = this->do_value_substitution(
-                module, primitive_called, instr->action);
-            break;
-        default:
-            VM_Exception_write("Unsupported around action\n");
-            around_successful = false;
-    }
-
-    this->remove_completed_action(instr, actionToRun);
-
-    if (!around_successful) {
-        return false;
-    }
+    bool around_successful =
+        this->run_action(*module, primitive_called, *actionToRun);
+    instr->action = this->remove_completed_action(instr->action, actionToRun);
 
     // After call instrumentation(s)
     return around_successful;
+}
+
+bool InstrumentationManager::run_action(Module &module, uint32_t local_fidx,
+                                        Action &action) {
+    switch (action.kind) {
+        case RemoteCall:
+            return this->do_remote_call(*this->fun_call_channel, &module,
+                                        local_fidx, action.value.target_fidx);
+        case ValueSubstitution:
+            return this->do_value_substitution(&module, local_fidx, &action);
+        default:
+            VM_Exception_write("Unsupported around action\n");
+            return false;
+    }
 }
 
 bool InstrumentationManager::apply_wasm_addr_instrumentation(
