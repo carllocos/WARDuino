@@ -101,8 +101,6 @@ class Debugger {
 
     void dumpCallstack(Module *m) const;
 
-    void dumpEvents(long start, long size) const;
-
     void dumpCallbackmapping() const;
 
     void inspect(Module *m, uint16_t sizeStateArray, uint8_t *state);
@@ -160,6 +158,8 @@ class Debugger {
     void stop();
 
     void pauseRuntime(Module *m);  // pause runtime for given module
+
+    void dumpEvents(long start, long size) const;
 
     // Interrupts
 
