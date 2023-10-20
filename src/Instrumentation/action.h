@@ -23,7 +23,7 @@ struct Action {
         StackValue *result{};
         StateToInspect *state;
     } value;
-    Schedule schedule;
+    Schedule schedule{};
     Action *nextAction{};
 };
 
