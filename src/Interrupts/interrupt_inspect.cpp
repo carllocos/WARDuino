@@ -1,5 +1,6 @@
 #include "interrupt_inspect.h"
 
+#include "../Interrupts/interrupts.h"
 #include "../Utils/macros.h"
 #include "../Utils/util.h"
 
@@ -10,16 +11,50 @@ uint8_t *findOpcode(Module *m, Block *block);
 
 void Interrupt_Inspect_handle_request(const Channel &requester, Module *m,
                                       uint8_t *encode_request) {
-    uint8_t *data = encode_request + 1;
-    uint16_t numberBytes = read_B16(&data);
-    ExecutionState *state = (ExecutionState *)data;
-    Interrupt_Inspect_inspect_json_output(requester, m, numberBytes, state);
+    InspectStateRequest request{};
+    uint8_t error_code{};
+    if (!Interrupt_Inspect_deserialize_request(request, encode_request,
+                                               error_code)) {
+        return;
+    }
+    Interrupt_Inspect_inspect_json_output(requester, m, request);
+}
+
+bool Interrupt_Inspect_deserialize_request(InspectStateRequest &request,
+                                           uint8_t *encoded_request,
+                                           uint8_t &error_code) {
+    if (encoded_request[0] != interruptInspect) {
+        error_code = INSPECT_ERROR_CODE_REQUEST_HAS_INVALID_INTERRUPT_NR;
+        return false;
+    }
+    uint8_t *data = encoded_request + 1;
+    request.numberOfInspects = read_B16(&data);
+    request.requestedState = (ExecutionState *)data;
+
+    for (auto i = 0; i < request.numberOfInspects; ++i) {
+        switch (request.requestedState[i]) {
+            case pcState:
+            case breakpointsState:
+            case callstackState:
+            case globalsState:
+            case tableState:
+            case memoryState:
+            case branchingTableState:
+            case stackState:
+            case callbacksState:
+            case eventsState:
+                return true;
+            default:
+                error_code = INSPECT_ERROR_CODE_REQUEST_HAS_INVALID_STATE_KIND;
+                return false;
+        }
+    }
+    return true;
 }
 
 void Interrupt_Inspect_inspect_json_output(const Channel &requester,
                                            const Module *m,
-                                           uint16_t sizeStateArray,
-                                           const ExecutionState *state) {
+                                           const StateToInspect &state) {
     debug("asked for inspect\n");
     uint16_t idx = 0;
     auto toVA = [m](uint8_t *addr) {
@@ -30,8 +65,8 @@ void Interrupt_Inspect_inspect_json_output(const Channel &requester,
     requester.write("DUMP!\n");
     requester.write("{");
 
-    while (idx < sizeStateArray) {
-        switch (state[idx++]) {
+    while (idx < state.numberOfInspects) {
+        switch (state.requestedState[idx++]) {
             case pcState: {  // PC
                 requester.write("\"pc\":%" PRIu32 "", toVA(m->pc_ptr));
                 addComma = true;
