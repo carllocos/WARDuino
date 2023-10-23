@@ -10,10 +10,10 @@ void printValue(const Channel &output, StackValue *v, uint32_t idx,
 uint8_t *findOpcode(Module *m, Block *block);
 
 void Interrupt_Inspect_handle_request(const Channel &requester, Module *m,
-                                      uint8_t *encode_request) {
+                                      uint8_t *encoded_request) {
     InspectStateRequest request{};
     uint8_t error_code{};
-    if (!Interrupt_Inspect_deserialize_request(request, encode_request,
+    if (!Interrupt_Inspect_deserialize_request(request, encoded_request,
                                                error_code)) {
         return;
     }
