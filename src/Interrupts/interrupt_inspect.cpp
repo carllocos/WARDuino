@@ -52,7 +52,7 @@ bool Interrupt_Inspect_deserialize_request(InspectStateRequest &request,
     return true;
 }
 
-void Interrupt_Inspect_inspect_json_output(const Channel &requester,
+bool Interrupt_Inspect_inspect_json_output(const Channel &requester,
                                            const Module *m,
                                            const StateToInspect &state) {
     debug("asked for inspect\n");
@@ -179,12 +179,15 @@ void Interrupt_Inspect_inspect_json_output(const Channel &requester,
                 break;
             }
             default: {
-                debug("dumpExecutionState: Received unknown state request\n");
-                break;
+                debug(
+                    "dumpExecutionState: Received unknown state "
+                    "request\n");
+                return false;
             }
         }
     }
     requester.write("}\n");
+    return true;
 }
 uint8_t *findOpcode(Module *m, Block *block) {
     auto find =

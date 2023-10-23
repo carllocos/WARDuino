@@ -32,7 +32,7 @@ bool Interrupt_Inspect_deserialize_request(InspectStateRequest &request,
                                            uint8_t *encoded_request,
                                            uint8_t &error_code);
 
-void Interrupt_Inspect_inspect_json_output(const Channel &requester,
+bool Interrupt_Inspect_inspect_json_output(const Channel &requester,
                                            const Module *m,
                                            const StateToInspect &state);
 
