@@ -23,6 +23,8 @@ void Interrupt_Inspect_handle_request(const Channel &requester, Module *m,
 bool Interrupt_Inspect_deserialize_request(InspectStateRequest &request,
                                            uint8_t *encoded_request,
                                            uint8_t &error_code) {
+    // format: interrupt nr | nr of inspects | state x | state y | ...
+
     if (encoded_request[0] != interruptInspect) {
         error_code = INSPECT_ERROR_CODE_REQUEST_HAS_INVALID_INTERRUPT_NR;
         return false;
