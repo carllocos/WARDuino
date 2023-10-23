@@ -46,7 +46,8 @@ class InstrumentationManager {
     bool do_remote_call(Channel &channel, Module *m, uint32_t local_fidx,
                         uint32_t func_to_call);
 
-    bool run_action(Module &module, uint32_t local_fidx, Action &action);
+    bool run_action(const Channel &output, Module &module, uint32_t local_fidx,
+                    Action &action);
 
     bool do_value_substitution(Module *module, uint32_t func_called,
                                Action *action);
@@ -56,6 +57,10 @@ class InstrumentationManager {
 
     InstrumentationWasmAddr *start_wasm_addr_intercept(
         Module &module, const uint32_t addr, const InstrumentMoment moment);
+
+    bool do_before_wasm_addr_actions(const Channel &output, Module &module,
+                                     TimeStamp &currentTime, uint32_t addr,
+                                     uint8_t &opcode);
 
    public:
     InstrumentationManager();
@@ -69,11 +74,13 @@ class InstrumentationManager {
 
     bool isAddActionAllowed(uint32_t funID);
 
-    bool apply_primitive_call_instrumentation(Module *module,
+    bool apply_primitive_call_instrumentation(const Channel &ouput,
+                                              Module *module,
                                               TimeStamp *currentTime);
 
-    bool apply_wasm_addr_instrumentation(Module *module,
-                                         TimeStamp *currentTime);
+    bool apply_wasm_addr_instrumentation(const Channel &output, Module *module,
+                                         TimeStamp *currentTime,
+                                         uint8_t &opcode);
 
     void registerAroundFunctionChannel(Channel *channel);
 

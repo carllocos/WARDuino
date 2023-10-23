@@ -168,7 +168,7 @@ bool InstrumentationManager::do_value_substitution(Module *module,
 }
 
 bool InstrumentationManager::apply_primitive_call_instrumentation(
-    Module *module, TimeStamp *currentTime) {
+    const Channel &output, Module *module, TimeStamp *currentTime) {
     uint8_t *pc_of_call = findStartOfLEB128(module->pc_ptr - 1);
     uint32_t primitive_called = read_LEB_32(&pc_of_call);
 
@@ -207,21 +207,30 @@ bool InstrumentationManager::apply_primitive_call_instrumentation(
     }
 
     bool around_successful =
-        this->run_action(*module, primitive_called, *actionToRun);
+        this->run_action(output, *module, primitive_called, *actionToRun);
     instr->action = Actions_remove_completed_action(instr->action, actionToRun);
 
     // After call instrumentation(s)
     return around_successful;
 }
 
-bool InstrumentationManager::run_action(Module &module, uint32_t local_fidx,
-                                        Action &action) {
+bool InstrumentationManager::run_action(const Channel &output, Module &module,
+                                        uint32_t local_fidx, Action &action) {
     switch (action.kind) {
         case RemoteCall:
             return this->do_remote_call(*this->fun_call_channel, &module,
                                         local_fidx, action.value.target_fidx);
         case ValueSubstitution:
             return this->do_value_substitution(&module, local_fidx, &action);
+        case StateInspect: {
+            const Module *m = &module;
+            if (!Interrupt_Inspect_inspect_json_output(output, m,
+                                                       *action.value.state)) {
+                VM_Exception_write("Unexisting State to inspect\n");
+                return false;
+            }
+            return true;
+        }
         default:
             VM_Exception_write("Unsupported around action\n");
             return false;
@@ -229,9 +238,31 @@ bool InstrumentationManager::run_action(Module &module, uint32_t local_fidx,
 }
 
 bool InstrumentationManager::apply_wasm_addr_instrumentation(
-    Module *module, TimeStamp *currentTime) {
-    FATAL("TODO\n");
-    return false;
+    const Channel &output, Module *module, TimeStamp *currentTime,
+    uint8_t &opcode) {
+    uint32_t addr = toVirtualAddress(module->pc_ptr - 1, module);
+    return this->do_before_wasm_addr_actions(output, *module, *currentTime,
+                                             addr, opcode);
+}
+
+bool InstrumentationManager::do_before_wasm_addr_actions(const Channel &output,
+                                                         Module &module,
+                                                         TimeStamp &currentTime,
+                                                         uint32_t addr,
+                                                         uint8_t &opcode) {
+    if (!has_ActionOnWasmAddr(addr, InstrumentBefore)) {
+        VM_Exception_write(
+            "No action registered on instrumented addr %" PRIu32 "\n", addr);
+        return false;
+    }
+    InstrumentationWasmAddr *instr = this->instr_wasm_addr_before[addr];
+    bool success = this->run_action(output, module, 0, *instr->action);
+    instr->action =
+        Actions_remove_completed_action(instr->action, instr->action);
+    if (success) {
+        opcode = instr->original_opcode;
+    }
+    return success;
 }
 
 InstrumentationPrimitiveFunc *
@@ -241,7 +272,8 @@ InstrumentationManager::start_primitive_call_interception(
         return this->instr_primitive_funcs[target_func];
     }
 
-    // The first time for which an instrumentation occurs for the primitive func
+    // The first time for which an instrumentation occurs for the primitive
+    // func
     InstrumentationPrimitiveFunc *instr = this->new_Primitive_Instrumentation();
     if (instr != nullptr) {
         instr->original_func = (Primitive)m.functions[target_func].func_ptr;
@@ -262,7 +294,8 @@ InstrumentationWasmAddr *InstrumentationManager::start_wasm_addr_intercept(
         }
     }
 
-    // The first time for which an instrumentation occurs for the wasm address
+    // The first time for which an instrumentation occurs for the wasm
+    // address
     InstrumentationWasmAddr *instr = this->new_WasmAddress_Instrumentation();
     if (instr != nullptr) {
         instr->address = addr;
@@ -280,5 +313,6 @@ InstrumentationWasmAddr *InstrumentationManager::start_wasm_addr_intercept(
 
 bool Instrumentation_interceptPrimitiveCall(Module *m) {
     return m->warduino->debugger->instrument
-        .apply_primitive_call_instrumentation(m, &m->warduino->timeStamp);
+        .apply_primitive_call_instrumentation(*m->warduino->debugger->channel,
+                                              m, &m->warduino->timeStamp);
 }
