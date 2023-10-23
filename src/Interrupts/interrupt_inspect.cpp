@@ -35,8 +35,10 @@ bool Interrupt_Inspect_deserialize_request(InspectStateRequest &request,
         return false;
     }
 
-    for (auto i = 0; i < request.numberOfInspects; ++i) {
-        switch (request.requestedState[i]) {
+    request.requestedState = (ExecutionState *)malloc(
+        request.numberOfInspects * sizeof(enum ExecutionState));
+    for (auto i = 0; i < request.numberOfInspects; i++) {
+        switch (data[i]) {
             case pcState:
             case breakpointsState:
             case callstackState:
@@ -47,7 +49,8 @@ bool Interrupt_Inspect_deserialize_request(InspectStateRequest &request,
             case stackState:
             case callbacksState:
             case eventsState:
-                return true;
+                request.requestedState[i] = (enum ExecutionState)data[i];
+                break;
             default:
                 error_code = INSPECT_ERROR_CODE_REQUEST_HAS_INVALID_STATE_KIND;
                 return false;
@@ -255,12 +258,12 @@ bool Interrupt_Inspect_copy_state_to_inspect(
         return false;
     }
     dest.numberOfInspects = state_to_cpy.numberOfInspects;
-    dest.requestedState =
-        (ExecutionState *)malloc(state_to_cpy.numberOfInspects);
+    dest.requestedState = (ExecutionState *)malloc(
+        state_to_cpy.numberOfInspects * sizeof(enum ExecutionState));
     if (dest.requestedState == nullptr) {
         return false;
     }
     memcpy(dest.requestedState, state_to_cpy.requestedState,
-           state_to_cpy.numberOfInspects);
+           state_to_cpy.numberOfInspects * sizeof(enum ExecutionState));
     return true;
 }
