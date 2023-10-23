@@ -29,7 +29,9 @@ bool Interrupt_Inspect_deserialize_request(InspectStateRequest &request,
     }
     uint8_t *data = encoded_request + 1;
     request.numberOfInspects = read_B16(&data);
-    request.requestedState = (ExecutionState *)data;
+    if (request.numberOfInspects == 0) {
+        return false;
+    }
 
     for (auto i = 0; i < request.numberOfInspects; ++i) {
         switch (request.requestedState[i]) {
