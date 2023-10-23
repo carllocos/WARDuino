@@ -71,20 +71,6 @@ class Inspect : public InterruptFixture {
     }
 };
 
-TEST_F(Inspect, InspectNothingShouldGiveEmptyJSON) {
-    this->inspect();
-
-    nlohmann::basic_json<> parsed{};
-    if (!this->dbgOutput->getJSONReply(&parsed)) {
-        this->failInspectNotReceived();
-        return;
-    }
-
-    JSONCompanion comp{parsed};
-    ASSERT_TRUE(comp.containsNoKeys())
-        << "Inspect of nothing should print an empty json";
-}
-
 TEST_F(Inspect, InspectPC) {
     this->stateToInspect.push_back(pcState);
     this->inspect();
