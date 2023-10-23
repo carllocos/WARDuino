@@ -1567,6 +1567,20 @@ bool interpret(Module *m, bool waiting) {
         m->pc_ptr += 1;
         ts->nr_of_instructions += 1;
 
+        switch (opcode) {
+            case INSTRUMENTATION_INTERCEPT_OPCODE:
+                success =
+                    m->warduino->debugger->instrument
+                        .apply_wasm_addr_instrumentation(
+                            *m->warduino->debugger->channel, m, ts, opcode);
+                if (!success) {
+                    continue;
+                }
+                break;
+            default:
+                break;
+        }
+
         dbg_dump_stack(m);
         dbg_trace(" PC: %p OPCODE: <%s> in %s\n", block_ptr,
                   opcode_repr(opcode),
@@ -1747,10 +1761,6 @@ bool interpret(Module *m, bool waiting) {
                 // callback operations
             case 0xe0 ... 0xe3:
                 success &= i_instr_callback(m, opcode);
-                continue;
-            case INSTRUMENTATION_INTERCEPT_OPCODE:
-                m->warduino->debugger->instrument
-                    .apply_wasm_addr_instrumentation(m, ts);
                 continue;
             default:
                 VM_Exception_write("unrecognized opcode 0x%x", opcode);
