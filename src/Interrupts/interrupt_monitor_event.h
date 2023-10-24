@@ -20,3 +20,12 @@ void Interrupt_Monitor_Event_handle_request(const Channel &requester, Module &m,
 bool Interrupt_Monitor_Event_deserialize_request(MonitorEventRequest &dest,
                                                  uint8_t *encoded_request,
                                                  uint8_t &error_code);
+
+void Interrupt_MonitorEvent_send_response(const Channel &output,
+                                          const MonitorEventResponse &response);
+
+bool Interrupt_MonitorEvent_serialize_response(
+    const MonitorEventResponse &response, char *dest, uint32_t dest_size);
+
+bool Interrupt_MonitorEvent_serialize_json_response(
+    const MonitorEventResponse &response, char *dest, uint32_t dest_size);
