@@ -3,10 +3,10 @@
 #include "../Utils/sockets.h"
 #include "../WARDuino/structs.h"
 
-enum MonitoringEventMoment { MonitorOnEventHandling = 0x01 };
+enum MonitorEventMoment { MonitorOnEventHandling = 0x01 };
 
 typedef struct MonitoringEventRequest {
-    MonitoringEventMoment moment{};
+    MonitorEventMoment moment{};
 } MonitorEventRequest;
 
 void Interrupt_Monitor_Event_handle_request(const Channel &requester, Module &m,
