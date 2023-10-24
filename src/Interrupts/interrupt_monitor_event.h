@@ -3,6 +3,9 @@
 #include "../Utils/sockets.h"
 #include "../WARDuino/structs.h"
 
+#define MONITOR_EVENT_ERROR_CODE_INVALID_INTERRUPT_NR 1;
+#define MONITOR_EVENT_ERROR_CODE_INVALID_MONITOR_MOMENT 2;
+
 enum MonitorEventMoment { MonitorOnEventHandling = 0x01 };
 
 typedef struct MonitorEventRequest {
