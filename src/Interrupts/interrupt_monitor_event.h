@@ -9,6 +9,11 @@ typedef struct MonitorEventRequest {
     MonitorEventMoment moment{};
 } MonitorEventRequest;
 
+typedef struct MonitorEventResponse {
+    uint8_t type{};
+    uint8_t error_code{};
+} MonitorEventResponse;
+
 void Interrupt_Monitor_Event_handle_request(const Channel &requester, Module &m,
                                             uint8_t *encoded_request);
 
