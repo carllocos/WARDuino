@@ -5,7 +5,7 @@
 
 enum MonitorEventMoment { MonitorOnEventHandling = 0x01 };
 
-typedef struct MonitoringEventRequest {
+typedef struct MonitorEventRequest {
     MonitorEventMoment moment{};
 } MonitorEventRequest;
 
