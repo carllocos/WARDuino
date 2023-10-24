@@ -12,6 +12,7 @@
 #include "../Interrupts/interrupt_around_function.h"
 #include "../Interrupts/interrupt_inspect.h"
 #include "../Interrupts/interrupt_monitor_addr.h"
+#include "../Interrupts/interrupt_monitor_event.h"
 #include "../Interrupts/interrupt_remote_call.h"
 #include "../Interrupts/interrupts.h"
 #include "../Memory/mem.h"
@@ -301,6 +302,9 @@ bool Debugger::checkDebugMessages(Module *m, RunningState *program_state) {
             this->handleMonitorAddr(m, interruptData);
             free(interruptData);
             break;
+        case interruptMonitorEvent:
+            this->handleMonitorEvent(m, interruptData);
+            free(interruptData);
         case interruptMonitorProxies: {
             printf("receiving functions list to proxy\n");
             this->handleMonitorProxies(m, interruptData + 1);
@@ -1208,4 +1212,8 @@ void Debugger::handleFuncCall(Module *m, uint8_t *data) {
 void Debugger::handleMonitorAddr(Module *m, uint8_t *data) {
     Interrupt_MonitorAddr_handle_request(*this->channel, *m, this->instrument,
                                          data);
+}
+
+void Debugger::handleMonitorEvent(Module *m, uint8_t *data) {
+    Interrupt_Monitor_Event_handle_request(*this->channel, *m, data);
 }
