@@ -240,9 +240,12 @@ bool InstrumentationManager::run_action(const Channel &output, Module &module,
 bool InstrumentationManager::apply_wasm_addr_instrumentation(
     const Channel &output, Module *module, TimeStamp *currentTime,
     uint8_t &opcode) {
-    uint32_t addr = toVirtualAddress(module->pc_ptr - 1, module);
-    return this->do_before_wasm_addr_actions(output, *module, *currentTime,
-                                             addr, opcode);
+    module->pc_ptr -= 1;  // set pc to start of instruction
+    uint32_t addr = toVirtualAddress(module->pc_ptr, module);
+    bool success = this->do_before_wasm_addr_actions(
+        output, *module, *currentTime, addr, opcode);
+    module->pc_ptr += 1;  // restore pc
+    return success;
 }
 
 bool InstrumentationManager::do_before_wasm_addr_actions(const Channel &output,
