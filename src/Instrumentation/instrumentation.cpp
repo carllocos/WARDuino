@@ -249,6 +249,25 @@ bool InstrumentationManager::run_action(
     }
 }
 
+void InstrumentationManager::apply_instrumentation_after_instr(
+    const Channel &output, Module *module) {
+    uint32_t addr = this->addr_yet_to_finish;
+    this->waitingForInstrToComplete = false;
+    this->addr_yet_to_finish = 0;
+
+    if (!has_ActionOnWasmAddr(addr, InstrumentAfter)) {
+        return;
+    }
+    InstrumentationWasmAddr *instr = this->instr_wasm_addr_after[addr];
+    auto printSubMsg = [&output, addr](std::function<void()> actionOutput) {
+        Interrupt_MonitorAddr_send_JSON_subscribe_message(
+            output, InstrumentAfter, addr, actionOutput);
+    };
+    this->run_action(output, *module, 0, *instr->action, printSubMsg);
+    instr->action =
+        Actions_remove_completed_action(instr->action, instr->action);
+}
+
 bool InstrumentationManager::apply_wasm_addr_instrumentation(
     const Channel &output, Module *module, TimeStamp *currentTime,
     uint8_t &opcode) {
@@ -257,6 +276,11 @@ bool InstrumentationManager::apply_wasm_addr_instrumentation(
     bool success = this->do_before_wasm_addr_actions(
         output, *module, *currentTime, addr, opcode);
     module->pc_ptr += 1;  // restore pc
+
+    if (this->has_ActionOnWasmAddr(addr, InstrumentAfter)) {
+        this->waitingForInstrToComplete = true;
+        this->addr_yet_to_finish = addr;
+    }
     return success;
 }
 

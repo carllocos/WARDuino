@@ -16,6 +16,8 @@ class InstrumentationManager {
    private:
     Channel *fun_call_channel{};
 
+    uint32_t addr_yet_to_finish{};
+
     std::unordered_map<uint32_t, InstrumentationPrimitiveFunc *>
         instr_primitive_funcs{};
 
@@ -51,6 +53,8 @@ class InstrumentationManager {
                                      uint8_t &opcode);
 
    public:
+    bool waitingForInstrToComplete = false;
+
     InstrumentationManager();
 
     bool addAroundFunctionAction(Module &m, uint32_t func_idx,
@@ -69,6 +73,9 @@ class InstrumentationManager {
     bool apply_wasm_addr_instrumentation(const Channel &output, Module *module,
                                          TimeStamp *currentTime,
                                          uint8_t &opcode);
+
+    void apply_instrumentation_after_instr(const Channel &output,
+                                           Module *module);
 
     void registerAroundFunctionChannel(Channel *channel);
 

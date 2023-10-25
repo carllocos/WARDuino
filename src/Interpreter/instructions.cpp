@@ -1562,6 +1562,11 @@ bool interpret(Module *m, bool waiting) {
         }
         m->warduino->debugger->skipBreakpoint = nullptr;
 
+        if (m->warduino->debugger->instrument.waitingForInstrToComplete) {
+            m->warduino->debugger->instrument.apply_instrumentation_after_instr(
+                *m->warduino->debugger->channel, m);
+        }
+
         opcode = *m->pc_ptr;
         block_ptr = m->pc_ptr;
         m->pc_ptr += 1;
