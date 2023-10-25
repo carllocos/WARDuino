@@ -2,7 +2,10 @@
 #include <unistd.h>
 
 #include <cstdint>
+#include <functional>
 
+#include "../Instrumentation/instrumentation_structs.h"
+#include "../Utils/sockets.h"
 #include "./interrupts.h"
 
 #define INTERRUPT_RESPONSE_TYPE_SUCCESS 01
@@ -27,3 +30,7 @@
 ssize_t Interrupt_serialize_JSON_response(const InterruptTypes interrupt_nr,
                                           const uint8_t response_type,
                                           const uint8_t error_code, char *dest);
+
+void Interrupt_send_JSON_subscribe_message(
+    const Channel &output, InterruptTypes interrupt_nr,
+    std::function<void()> outputMessageBody);

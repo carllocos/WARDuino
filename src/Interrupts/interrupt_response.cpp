@@ -25,3 +25,12 @@ ssize_t Interrupt_serialize_JSON_response(const InterruptTypes interrupt_nr,
     offset += sprintf(dest + offset, "}\n");
     return offset;
 }
+
+void Interrupt_send_JSON_subscribe_message(
+    const Channel &output, InterruptTypes interrupt_nr,
+    std::function<void()> outputMessageBody) {
+    output.write(R"({"interrupt":"%02X","kind":"%02X","sub":)", interrupt_nr,
+                 INTERRUPT_RESPONSE_TYPE_SUBSCRIPTION);
+    outputMessageBody();
+    output.write("}\n");
+}
