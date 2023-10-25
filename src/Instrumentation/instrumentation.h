@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <functional>
 #include <unordered_map>
 
 #include "../Instrumentation/schedule.h"
@@ -31,8 +32,10 @@ class InstrumentationManager {
     bool do_remote_call(Channel &channel, Module *m, uint32_t local_fidx,
                         uint32_t func_to_call);
 
-    bool run_action(const Channel &output, Module &module, uint32_t local_fidx,
-                    Action &action);
+    bool run_action(
+        const Channel &output, Module &module, uint32_t local_fidx,
+        Action &action,
+        std::function<void(std::function<void()>)> sendSubscriptionMsg);
 
     bool do_value_substitution(Module *module, uint32_t func_called,
                                Action *action);

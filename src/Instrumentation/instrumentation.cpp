@@ -1,5 +1,6 @@
 #include "instrumentation.h"
 
+#include "../Interrupts/interrupt_monitor_addr.h"
 #include "../Interrupts/interrupt_remote_call.h"
 #include "../Interrupts/interrupt_response.h"
 #include "../Utils/macros.h"
@@ -206,16 +207,18 @@ bool InstrumentationManager::apply_primitive_call_instrumentation(
         }
     }
 
-    bool around_successful =
-        this->run_action(output, *module, primitive_called, *actionToRun);
+    auto printSubMsg = [](std::function<void()> actionOutput) {};
+    bool around_successful = this->run_action(output, *module, primitive_called,
+                                              *actionToRun, printSubMsg);
     instr->action = Actions_remove_completed_action(instr->action, actionToRun);
 
     // After call instrumentation(s)
     return around_successful;
 }
 
-bool InstrumentationManager::run_action(const Channel &output, Module &module,
-                                        uint32_t local_fidx, Action &action) {
+bool InstrumentationManager::run_action(
+    const Channel &output, Module &module, uint32_t local_fidx, Action &action,
+    std::function<void(std::function<void()>)> sendSubscriptionMsg) {
     switch (action.kind) {
         case RemoteCall:
             return this->do_remote_call(*this->fun_call_channel, &module,
@@ -224,8 +227,17 @@ bool InstrumentationManager::run_action(const Channel &output, Module &module,
             return this->do_value_substitution(&module, local_fidx, &action);
         case StateInspect: {
             const Module *m = &module;
-            if (!Interrupt_Inspect_inspect_json_output(output, m,
-                                                       *action.value.state)) {
+            bool success = true;
+            std::function<void()> printState = [&output, m, action,
+                                                &success]() {
+                bool includeHeader = false;
+                bool includeNewline = false;
+                success = Interrupt_Inspect_inspect_json_output(
+                    output, m, *action.value.state, includeHeader,
+                    includeNewline);
+            };
+            sendSubscriptionMsg(printState);
+            if (!success) {
                 VM_Exception_write("Unexisting State to inspect\n");
                 return false;
             }
@@ -259,7 +271,13 @@ bool InstrumentationManager::do_before_wasm_addr_actions(const Channel &output,
         return false;
     }
     InstrumentationWasmAddr *instr = this->instr_wasm_addr_before[addr];
-    bool success = this->run_action(output, module, 0, *instr->action);
+
+    auto printSubMsg = [&output, addr](std::function<void()> actionOutput) {
+        Interrupt_MonitorAddr_send_JSON_subscribe_message(
+            output, InstrumentBefore, addr, actionOutput);
+    };
+    bool success =
+        this->run_action(output, module, 0, *instr->action, printSubMsg);
     instr->action =
         Actions_remove_completed_action(instr->action, instr->action);
     if (success) {
