@@ -61,7 +61,9 @@ bool Interrupt_Inspect_deserialize_request(InspectStateRequest &request,
 
 bool Interrupt_Inspect_inspect_json_output(const Channel &requester,
                                            const Module *m,
-                                           const StateToInspect &state) {
+                                           const StateToInspect &state,
+                                           bool includeHeader,
+                                           bool includeNewline) {
     debug("asked for inspect\n");
     uint16_t idx = 0;
     auto toVA = [m](uint8_t *addr) {
@@ -69,7 +71,9 @@ bool Interrupt_Inspect_inspect_json_output(const Channel &requester,
     };
     bool addComma = false;
 
-    requester.write("DUMP!\n");
+    if (includeHeader) {
+        requester.write("DUMP!\n");
+    }
     requester.write("{");
 
     while (idx < state.numberOfInspects) {
@@ -193,7 +197,10 @@ bool Interrupt_Inspect_inspect_json_output(const Channel &requester,
             }
         }
     }
-    requester.write("}\n");
+    requester.write("}");
+    if (includeNewline) {
+        requester.write("\n");
+    }
     return true;
 }
 uint8_t *findOpcode(Module *m, Block *block) {

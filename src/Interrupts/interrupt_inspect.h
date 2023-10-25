@@ -34,7 +34,9 @@ bool Interrupt_Inspect_deserialize_request(InspectStateRequest &request,
 
 bool Interrupt_Inspect_inspect_json_output(const Channel &requester,
                                            const Module *m,
-                                           const StateToInspect &state);
+                                           const StateToInspect &state,
+                                           bool includeHeader = true,
+                                           bool includeNewline = true);
 
 bool Interrupt_Inspect_copy_state_to_inspect(
     StateToInspect &dest, const StateToInspect &state_to_cpy);
