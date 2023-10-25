@@ -7,24 +7,9 @@
 #include "../Utils/sockets.h"
 #include "../WARDuino/structs.h"
 #include "./action.h"
+#include "./instrumentation_structs.h"
+
 #define INSTRUMENTATION_INTERCEPT_OPCODE 0xff
-
-enum InstrumentMoment {
-    InstrumentBefore = 0x01,
-    InstrumentAfter = 0x02,
-};
-
-typedef struct InstrumentationPrimitiveFunc {
-    uint32_t func_idx;  // func for which the around action is registered
-    Primitive original_func{};  // original function that is restored
-    Action *action{};           // action to perform instead of original_func
-} InstrumentationPrimitiveFunc;
-
-typedef struct {
-    uint32_t address{};         // wasm address that needs to be intercepted
-    uint8_t original_opcode{};  // original opcode
-    Action *action{};           // actions to perform on address
-} InstrumentationWasmAddr;
 
 class InstrumentationManager {
    private:
