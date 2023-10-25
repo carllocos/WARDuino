@@ -1,6 +1,8 @@
 #pragma once
 #include <stddef.h>
 
+#include <functional>
+
 #include "../Instrumentation/action.h"
 #include "../Instrumentation/instrumentation.h"
 #include "../WARDuino/structs.h"
@@ -35,3 +37,7 @@ ssize_t Interrupt_MonitorAddr_serialize_response(
 
 void Interrupt_MonitorAddr_send_response(const Channel &channel,
                                          const MonitorAddrResponse &response);
+
+void Interrupt_MonitorAddr_send_JSON_subscribe_message(
+    const Channel &output, InstrumentMoment moment, uint32_t addr,
+    std::function<void()> actionOutput);

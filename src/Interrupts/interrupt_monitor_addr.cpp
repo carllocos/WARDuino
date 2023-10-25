@@ -94,3 +94,15 @@ bool registerMonitorAddrAction(InstrumentationManager &manager, Module &m,
     }
     return true;
 }
+
+void Interrupt_MonitorAddr_send_JSON_subscribe_message(
+    const Channel &output, InstrumentMoment moment, uint32_t addr,
+    std::function<void()> actionOutput) {
+    auto subscriptionMsgBody = [&output, moment, actionOutput, addr]() {
+        output.write(R"({"moment":"%02X","addr":"%02X","val":)", moment, addr);
+        actionOutput();
+        output.write("}");
+    };
+    Interrupt_send_JSON_subscribe_message(output, interruptMonitorAddr,
+                                          subscriptionMsgBody);
+}
