@@ -53,7 +53,7 @@ class InstrumentationManager {
                                      uint8_t &opcode);
 
    public:
-    bool waitingForInstrToComplete = false;
+    bool awakeOnNextInstruction = false;
 
     InstrumentationManager();
 

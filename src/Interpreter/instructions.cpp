@@ -1562,7 +1562,7 @@ bool interpret(Module *m, bool waiting) {
         }
         m->warduino->debugger->skipBreakpoint = nullptr;
 
-        if (m->warduino->debugger->instrument.waitingForInstrToComplete) {
+        if (m->warduino->debugger->instrument.awakeOnNextInstruction) {
             m->warduino->debugger->instrument.apply_instrumentation_after_instr(
                 *m->warduino->debugger->channel, m);
         }
