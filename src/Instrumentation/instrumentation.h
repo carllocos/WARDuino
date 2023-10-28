@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <functional>
+#include <stack>
 #include <unordered_map>
 
 #include "../Instrumentation/schedule.h"
@@ -12,11 +13,16 @@
 
 #define INSTRUMENTATION_INTERCEPT_OPCODE 0xff
 
+typedef struct MonitoredFrame {
+    uint32_t addr{0};
+    int frame_idx{-1};
+} MonitoredFrame;
+
 class InstrumentationManager {
    private:
     Channel *fun_call_channel{};
 
-    uint32_t addr_yet_to_finish{};
+    std::stack<MonitoredFrame> frames_to_monitor{};
 
     std::unordered_map<uint32_t, InstrumentationPrimitiveFunc *>
         instr_primitive_funcs{};

@@ -251,21 +251,35 @@ bool InstrumentationManager::run_action(
 
 void InstrumentationManager::apply_instrumentation_after_instr(
     const Channel &output, Module *module) {
-    uint32_t addr = this->addr_yet_to_finish;
-    this->waitingForInstrToComplete = false;
-    this->addr_yet_to_finish = 0;
+    // Only called when tool client wants to do something after some wasm addr.
+    // Inefficiently called after each instruction execution. Benchmark needed
+    // to determine whether an alternative approach is required
 
-    if (!has_ActionOnWasmAddr(addr, InstrumentAfter)) {
-        return;
+    while (!this->frames_to_monitor.empty()) {
+        MonitoredFrame frame = this->frames_to_monitor.top();
+        if (frame.frame_idx < module->csp) {
+            break;
+        }
+
+        this->frames_to_monitor.pop();
+
+        uint32_t addr = frame.addr;
+        if (!has_ActionOnWasmAddr(addr, InstrumentAfter)) {
+            continue;
+        }
+        InstrumentationWasmAddr *instr = this->instr_wasm_addr_after[addr];
+        auto printSubMsg = [&output, addr](std::function<void()> actionOutput) {
+            Interrupt_MonitorAddr_send_JSON_subscribe_message(
+                output, InstrumentAfter, addr, actionOutput);
+        };
+        this->run_action(output, *module, 0, *instr->action, printSubMsg);
+        instr->action =
+            Actions_remove_completed_action(instr->action, instr->action);
     }
-    InstrumentationWasmAddr *instr = this->instr_wasm_addr_after[addr];
-    auto printSubMsg = [&output, addr](std::function<void()> actionOutput) {
-        Interrupt_MonitorAddr_send_JSON_subscribe_message(
-            output, InstrumentAfter, addr, actionOutput);
-    };
-    this->run_action(output, *module, 0, *instr->action, printSubMsg);
-    instr->action =
-        Actions_remove_completed_action(instr->action, instr->action);
+
+    if (this->frames_to_monitor.empty()) {
+        this->awakeOnNextInstruction = false;
+    }
 }
 
 bool InstrumentationManager::apply_wasm_addr_instrumentation(
@@ -273,13 +287,28 @@ bool InstrumentationManager::apply_wasm_addr_instrumentation(
     uint8_t &opcode) {
     module->pc_ptr -= 1;  // set pc to start of instruction
     uint32_t addr = toVirtualAddress(module->pc_ptr, module);
-    bool success = this->do_before_wasm_addr_actions(
-        output, *module, *currentTime, addr, opcode);
+    bool success = true;
+    bool upcodeRestored = false;
+
+    if (this->has_ActionOnWasmAddr(addr, InstrumentBefore)) {
+        success = this->do_before_wasm_addr_actions(output, *module,
+                                                    *currentTime, addr, opcode);
+        upcodeRestored = true;
+    }
     module->pc_ptr += 1;  // restore pc
 
     if (this->has_ActionOnWasmAddr(addr, InstrumentAfter)) {
-        this->waitingForInstrToComplete = true;
-        this->addr_yet_to_finish = addr;
+        // save frame and addr for after addr actions
+        MonitoredFrame frame{};
+        frame.addr = addr;
+        frame.frame_idx = module->csp;
+        this->frames_to_monitor.push(frame);
+        this->awakeOnNextInstruction = true;
+        if (!upcodeRestored) {
+            // When there is no before the opcode needs to be set
+            auto instr = this->instr_wasm_addr_after[addr];
+            opcode = instr->original_opcode;
+        }
     }
     return success;
 }
