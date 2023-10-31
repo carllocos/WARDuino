@@ -21,7 +21,7 @@ set(SOURCE_FILES
         ../../src/Interrupts/interrupt_monitor_event.cpp
         ../../src/Interrupts/interrupt_response.cpp
         ../../src/Instrumentation/timestamp.cpp
-        ../../src/Instrumentation/action.cpp
+        ../../src/Instrumentation/hook.cpp
 )
 
 

@@ -1,0 +1,51 @@
+#pragma once
+#include "../Interrupts/interrupt_inspect.h"
+#include "../WARDuino/structs.h"
+#include "./schedule.h"
+#include "./timestamp.h"
+
+#define HOOK_ERROR_CODE_SUBSTITUTE_VALUE_IS_MALFORMED 31;
+#define HOOK_ERROR_CODE_UNEXISTING_HOOK_KIND 32;
+#define HOOK_ERROR_CODE_UNEXISTING_SCHEDULE_KIND 33;
+#define HOOK_ERROR_CODE_SUBSTITUTE_STATE_INSPECT_IS_MALFORMED 34;
+#define HOOK_ERROR_CODE_INSUFFICIENT_MEMORY 34;
+
+enum HookKind {
+    RemoteCall = 0x01,
+    ValueSubstitution = 0x02,
+    StateInspect = 0x03,
+};
+
+struct Hook {
+    HookKind kind;
+    union {
+        uint32_t target_fidx;
+        StackValue *result{};
+        StateToInspect *state;
+    } value;
+    Schedule schedule{};
+    Hook *nextHook{};
+};
+
+/*
+ * sorts all the hooks based on the order they will be executed.
+ * function assumes that `hooks` are already sorted
+ */
+Hook *Hooks_add_and_sort(Hook *hooks, Hook *hook_to_add);
+
+Hook *Hooks_nextScheduledHook(Hook *sorted_hooks, const TimeStamp &currentTime);
+
+bool Hooks_isHookWaitingForEvent(Hook *sorted_hooks,
+                                 const TimeStamp &currentTime);
+
+Hook *Hooks_copyHook(const Hook &hook);
+
+Hook *Hooks_remove_completed_hook(Hook *first_hook, Hook *hook_completed);
+
+void Hooks_free_hook(Hook *hook);
+
+bool Hooks_deserialize_hook(Hook &dest, uint8_t **encoded_hook,
+                            uint8_t &error_code);
+
+bool Hooks_deserialize_schedule(Schedule &dest, uint8_t **encoded_schedule,
+                                uint8_t &error_code);
