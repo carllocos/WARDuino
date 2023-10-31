@@ -3,19 +3,19 @@
 
 #include <functional>
 
-#include "../Instrumentation/action.h"
+#include "../Instrumentation/hook.h"
 #include "../Instrumentation/instrumentation.h"
 #include "../WARDuino/structs.h"
 
 #define MONITOR_ADDR_ERROR_CODE_REQUEST_HAS_WRONG_INTERRUPT_NR 1
 #define MONITOR_ADDR_ERROR_CODE_REQUEST_HAS_UN_EXISTING_MOMENT 2
 #define MONITOR_ADDR_ERROR_CODE_REQUEST_HAS_UNEXISTING_ADDR 3;
-#define MONITOR_ADDR_ERROR_CODE_COULD_NOT_ADD_ACTION 4;
+#define MONITOR_ADDR_ERROR_CODE_COULD_NOT_ADD_HOOK 4;
 
 typedef struct {
     uint32_t addr{};
     InstrumentMoment moment{};
-    Action *action{};
+    Hook *hook{};
 } MonitorAddrRequest;
 
 typedef struct {
@@ -40,4 +40,4 @@ void Interrupt_MonitorAddr_send_response(const Channel &channel,
 
 void Interrupt_MonitorAddr_send_JSON_subscribe_message(
     const Channel &output, InstrumentMoment moment, uint32_t addr,
-    std::function<void()> actionOutput);
+    std::function<void()> hookOutput);

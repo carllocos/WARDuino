@@ -6,9 +6,9 @@
 /*
  * Declaration private functions
  */
-bool registerMonitorAddrAction(InstrumentationManager &manager, Module &m,
-                               const MonitorAddrRequest &request,
-                               uint8_t &error_code);
+bool registerMonitorAddrHook(InstrumentationManager &manager, Module &m,
+                             const MonitorAddrRequest &request,
+                             uint8_t &error_code);
 
 /*
  * Public functions
@@ -18,16 +18,16 @@ void Interrupt_MonitorAddr_handle_request(const Channel &channel,
                                           Module &module,
                                           InstrumentationManager &manager,
                                           uint8_t *encoded_request) {
-    Action action{};
+    Hook hook{};
     MonitorAddrRequest request;
-    request.action = &action;
+    request.hook = &hook;
 
     MonitorAddrResponse response;
     uint8_t error{};
 
     if (Interrupt_MonitorAddr_deserialize_request(request, encoded_request,
                                                   error) &&
-        registerMonitorAddrAction(manager, module, request, error)) {
+        registerMonitorAddrHook(manager, module, request, error)) {
         response.type = INTERRUPT_RESPONSE_TYPE_SUCCESS;
     } else {
         response.type = INTERRUPT_RESPONSE_TYPE_ERROR;
@@ -41,7 +41,7 @@ bool Interrupt_MonitorAddr_deserialize_request(MonitorAddrRequest &dest,
                                                uint8_t *encoded_request,
                                                uint8_t &error_code) {
     // format: InterruptNr (1 byte)| addr (LEB32) | InstrumentMoment (1 byte) |
-    // action
+    // hook
 
     uint8_t *data = encoded_request;
     if (*data++ != interruptMonitorAddr) {
@@ -59,7 +59,7 @@ bool Interrupt_MonitorAddr_deserialize_request(MonitorAddrRequest &dest,
             return false;
     }
 
-    return Actions_deserialize_action(*dest.action, &data, error_code);
+    return Hooks_deserialize_hook(*dest.hook, &data, error_code);
 }
 
 ssize_t Interrupt_MonitorAddr_serialize_response(
@@ -80,16 +80,16 @@ void Interrupt_MonitorAddr_send_response(const Channel &channel,
  * Private functions
  */
 
-bool registerMonitorAddrAction(InstrumentationManager &manager, Module &m,
-                               const MonitorAddrRequest &request,
-                               uint8_t &error_code) {
+bool registerMonitorAddrHook(InstrumentationManager &manager, Module &m,
+                             const MonitorAddrRequest &request,
+                             uint8_t &error_code) {
     if (!isToPhysicalAddrPossible(request.addr, &m)) {
         error_code = MONITOR_ADDR_ERROR_CODE_REQUEST_HAS_UNEXISTING_ADDR;
         return false;
     }
-    if (!manager.addActionOnWasmAddress(m, request.addr, *request.action,
+    if (!manager.addHookOnOnWasmAddress(m, request.addr, *request.hook,
                                         request.moment)) {
-        error_code = MONITOR_ADDR_ERROR_CODE_COULD_NOT_ADD_ACTION;
+        error_code = MONITOR_ADDR_ERROR_CODE_COULD_NOT_ADD_HOOK;
         return false;
     }
     return true;
@@ -97,10 +97,10 @@ bool registerMonitorAddrAction(InstrumentationManager &manager, Module &m,
 
 void Interrupt_MonitorAddr_send_JSON_subscribe_message(
     const Channel &output, InstrumentMoment moment, uint32_t addr,
-    std::function<void()> actionOutput) {
-    auto subscriptionMsgBody = [&output, moment, actionOutput, addr]() {
+    std::function<void()> hookOutput) {
+    auto subscriptionMsgBody = [&output, moment, hookOutput, addr]() {
         output.write(R"({"moment":"%02X","addr":"%02X","val":)", moment, addr);
-        actionOutput();
+        hookOutput();
         output.write("}");
     };
     Interrupt_send_JSON_subscribe_message(output, interruptMonitorAddr,

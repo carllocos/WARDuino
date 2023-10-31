@@ -8,7 +8,7 @@
 #include "../Instrumentation/timestamp.h"
 #include "../Utils/sockets.h"
 #include "../WARDuino/structs.h"
-#include "./action.h"
+#include "./hook.h"
 #include "./instrumentation_structs.h"
 
 #define INSTRUMENTATION_INTERCEPT_OPCODE 0xff
@@ -40,13 +40,12 @@ class InstrumentationManager {
     bool do_remote_call(Channel &channel, Module *m, uint32_t local_fidx,
                         uint32_t func_to_call);
 
-    bool run_action(
-        const Channel &output, Module &module, uint32_t local_fidx,
-        Action &action,
+    bool run_hook(
+        const Channel &output, Module &module, uint32_t local_fidx, Hook &hook,
         std::function<void(std::function<void()>)> sendSubscriptionMsg);
 
     bool do_value_substitution(Module *module, uint32_t func_called,
-                               Action *action);
+                               Hook *hook);
 
     InstrumentationPrimitiveFunc *start_primitive_call_interception(
         Module &m, uint32_t target_func);
@@ -54,25 +53,25 @@ class InstrumentationManager {
     InstrumentationWasmAddr *start_wasm_addr_intercept(
         Module &module, const uint32_t addr, const InstrumentMoment moment);
 
-    bool do_before_wasm_addr_actions(const Channel &output, Module &module,
-                                     TimeStamp &currentTime, uint32_t addr,
-                                     uint8_t &opcode);
+    bool do_before_wasm_addr_hooks(const Channel &hookOutput, Module &module,
+                                   TimeStamp &currentTime, uint32_t addr,
+                                   uint8_t &opcode);
 
    public:
     bool awakeOnNextInstruction = false;
 
     InstrumentationManager();
 
-    bool addAroundFunctionAction(Module &m, uint32_t func_idx,
-                                 const Action &around);
+    bool addAroundFunctionHook(Module &m, uint32_t func_idx,
+                               const Hook &around);
 
     bool has_AroundFunction(uint32_t funID);
 
-    bool has_ActionOnWasmAddr(uint32_t addr, InstrumentMoment moment);
+    bool has_HookOnWasmAddr(uint32_t addr, InstrumentMoment moment);
 
-    bool isAddActionAllowed(uint32_t funID);
+    bool isAddHookAllowed(uint32_t funID);
 
-    bool apply_primitive_call_instrumentation(const Channel &ouput,
+    bool apply_primitive_call_instrumentation(const Channel &hookOutput,
                                               Module *module,
                                               TimeStamp *currentTime);
 
@@ -80,12 +79,12 @@ class InstrumentationManager {
                                          TimeStamp *currentTime,
                                          uint8_t &opcode);
 
-    void apply_instrumentation_after_instr(const Channel &output,
+    void apply_instrumentation_after_instr(const Channel &hookOutput,
                                            Module *module);
 
     void registerAroundFunctionChannel(Channel *channel);
 
-    bool addActionOnWasmAddress(Module &module, uint32_t addr, Action &action,
+    bool addHookOnOnWasmAddress(Module &module, uint32_t addr, Hook &hook,
                                 const InstrumentMoment moment);
 };
 
