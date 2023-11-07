@@ -1,7 +1,5 @@
 #pragma once
 
-#include <netinet/in.h>
-
 #include <cstdio>
 void setFileDescriptorOptions(int socket_fd);
 
