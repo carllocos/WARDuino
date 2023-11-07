@@ -18,7 +18,7 @@ ssize_t Interrupt_serialize_JSON_response(const InterruptTypes interrupt_nr,
         default:
             printf(
                 "Interrupt_serialize_json_response: response type is "
-                "unknown %02\n",
+                "unknown %02X\n",
                 response_type);
             return -1;
     }
