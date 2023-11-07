@@ -57,4 +57,5 @@ bool Interrupt_MonitorEvent_serialize_response(
 bool Interrupt_MonitorEvent_serialize_json_response(
     const MonitorEventResponse &response, char *dest, uint32_t dest_size) {
     FATAL("TODO");
+    return false;
 }
