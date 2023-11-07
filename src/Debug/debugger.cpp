@@ -305,6 +305,7 @@ bool Debugger::checkDebugMessages(Module *m, RunningState *program_state) {
         case interruptMonitorEvent:
             this->handleMonitorEvent(m, interruptData);
             free(interruptData);
+            break;
         case interruptMonitorProxies: {
             printf("receiving functions list to proxy\n");
             this->handleMonitorProxies(m, interruptData + 1);
