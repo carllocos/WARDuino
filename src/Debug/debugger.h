@@ -10,27 +10,11 @@
 #include <unordered_map>
 #include <vector>
 
+#include "../Debug/runningstate.h"
 #include "../Edward/proxy.h"
 #include "../Edward/proxy_supervisor.h"
 #include "../Instrumentation/instrumentation.h"
 #include "../Utils/sockets.h"
-
-struct Module;
-struct Block;
-struct StackValue;
-
-enum RunningState {
-    WARDUINOinit,
-    WARDUINOrun,
-    WARDUINOpause,
-    WARDUINOstep,
-    PROXYrun,  // Running state used when executing a proxy call. During
-               // this state the call is set up and executed by the main
-               // loop. After execution, the state is restored to
-               // PROXYhalt
-    PROXYhalt  // Do not run the program (program runs on computer, which
-               // sends messages for primitives, do forward interrupts)
-};
 
 class Debugger {
    private:
