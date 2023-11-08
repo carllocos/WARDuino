@@ -331,7 +331,6 @@ bool InstrumentationManager::do_before_wasm_addr_hooks(
     };
     bool success = true;
     Hook *hooks = instr->hook;
-    //    Hook *remainingHooks = instr->hook;
     while (hooks != nullptr && success) {
         success = this->run_hook(output, module, 0, *hooks, printSubMsg,
                                  runningState);
@@ -341,7 +340,6 @@ bool InstrumentationManager::do_before_wasm_addr_hooks(
         }
         hooks = hooks->nextHook;
     }
-    //    instr->hook = remainingHooks;
     if (success) {
         opcode = instr->original_opcode;
     }
