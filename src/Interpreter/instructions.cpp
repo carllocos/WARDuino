@@ -1564,7 +1564,7 @@ bool interpret(Module *m, bool waiting) {
 
         if (m->warduino->debugger->instrument.awakeOnNextInstruction) {
             m->warduino->debugger->instrument.apply_instrumentation_after_instr(
-                *m->warduino->debugger->channel, m);
+                *m->warduino->debugger->channel, m, m->warduino->program_state);
         }
 
         opcode = *m->pc_ptr;
@@ -1574,11 +1574,11 @@ bool interpret(Module *m, bool waiting) {
 
         switch (opcode) {
             case INSTRUMENTATION_INTERCEPT_OPCODE:
-                success =
-                    m->warduino->debugger->instrument
-                        .apply_wasm_addr_instrumentation(
-                            *m->warduino->debugger->channel, m, ts, opcode);
-                if (!success) {
+                success = m->warduino->debugger->instrument
+                              .apply_wasm_addr_instrumentation(
+                                  *m->warduino->debugger->channel, m, ts,
+                                  opcode, m->warduino->program_state);
+                if (!success || m->warduino->program_state == WARDUINOpause) {
                     continue;
                 }
                 break;

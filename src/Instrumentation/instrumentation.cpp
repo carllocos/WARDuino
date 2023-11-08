@@ -167,7 +167,8 @@ bool InstrumentationManager::do_value_substitution(Module *module,
 }
 
 bool InstrumentationManager::apply_primitive_call_instrumentation(
-    const Channel &output, Module *module, TimeStamp *currentTime) {
+    const Channel &output, Module *module, TimeStamp *currentTime,
+    RunningState &runningState) {
     uint8_t *pc_of_call = findStartOfLEB128(module->pc_ptr - 1);
     uint32_t primitive_called = read_LEB_32(&pc_of_call);
 
@@ -205,8 +206,9 @@ bool InstrumentationManager::apply_primitive_call_instrumentation(
     }
 
     auto printSubMsg = [](std::function<void()> hookOutput) {};
-    bool around_successful = this->run_hook(output, *module, primitive_called,
-                                            *hookToRun, printSubMsg);
+    bool around_successful =
+        this->run_hook(output, *module, primitive_called, *hookToRun,
+                       printSubMsg, runningState);
     instr->hook = Hooks_remove_completed_hook(instr->hook, hookToRun);
 
     // After call instrumentation(s)
@@ -215,7 +217,8 @@ bool InstrumentationManager::apply_primitive_call_instrumentation(
 
 bool InstrumentationManager::run_hook(
     const Channel &output, Module &module, uint32_t local_fidx, Hook &hook,
-    std::function<void(std::function<void()>)> sendSubscriptionMsg) {
+    std::function<void(std::function<void()>)> sendSubscriptionMsg,
+    RunningState &runningState) {
     switch (hook.kind) {
         case RemoteCall:
             return this->do_remote_call(*this->fun_call_channel, &module,
@@ -239,6 +242,9 @@ bool InstrumentationManager::run_hook(
             }
             return true;
         }
+        case ChangeRunningState:
+            module.warduino->program_state = hook.value.runState;
+            return true;
         default:
             VM_Exception_write("Unsupported around hook\n");
             return false;
@@ -246,7 +252,7 @@ bool InstrumentationManager::run_hook(
 }
 
 void InstrumentationManager::apply_instrumentation_after_instr(
-    const Channel &output, Module *module) {
+    const Channel &output, Module *module, RunningState &runningState) {
     // Only called when tool client wants to do something after some wasm addr.
     // Inefficiently called after each instruction execution. Benchmark needed
     // to determine whether an alternative approach is required
@@ -268,7 +274,8 @@ void InstrumentationManager::apply_instrumentation_after_instr(
             Interrupt_MonitorAddr_send_JSON_subscribe_message(
                 output, InstrumentAfter, addr, hookOutput);
         };
-        this->run_hook(output, *module, 0, *instr->hook, printSubMsg);
+        this->run_hook(output, *module, 0, *instr->hook, printSubMsg,
+                       runningState);
         instr->hook = Hooks_remove_completed_hook(instr->hook, instr->hook);
     }
 
@@ -279,7 +286,7 @@ void InstrumentationManager::apply_instrumentation_after_instr(
 
 bool InstrumentationManager::apply_wasm_addr_instrumentation(
     const Channel &output, Module *module, TimeStamp *currentTime,
-    uint8_t &opcode) {
+    uint8_t &opcode, RunningState &runningState) {
     module->pc_ptr -= 1;  // set pc to start of instruction
     uint32_t addr = toVirtualAddress(module->pc_ptr, module);
     bool success = true;
@@ -287,7 +294,7 @@ bool InstrumentationManager::apply_wasm_addr_instrumentation(
 
     if (this->has_HookOnWasmAddr(addr, InstrumentBefore)) {
         success = this->do_before_wasm_addr_hooks(output, *module, *currentTime,
-                                                  addr, opcode);
+                                                  addr, opcode, runningState);
         upcodeRestored = true;
     }
     module->pc_ptr += 1;  // restore pc
@@ -308,11 +315,9 @@ bool InstrumentationManager::apply_wasm_addr_instrumentation(
     return success;
 }
 
-bool InstrumentationManager::do_before_wasm_addr_hooks(const Channel &output,
-                                                       Module &module,
-                                                       TimeStamp &currentTime,
-                                                       uint32_t addr,
-                                                       uint8_t &opcode) {
+bool InstrumentationManager::do_before_wasm_addr_hooks(
+    const Channel &output, Module &module, TimeStamp &currentTime,
+    uint32_t addr, uint8_t &opcode, RunningState &runningState) {
     if (!has_HookOnWasmAddr(addr, InstrumentBefore)) {
         VM_Exception_write(
             "No hook registered on instrumented addr %" PRIu32 "\n", addr);
@@ -381,5 +386,6 @@ InstrumentationWasmAddr *InstrumentationManager::start_wasm_addr_intercept(
 bool Instrumentation_interceptPrimitiveCall(Module *m) {
     return m->warduino->debugger->instrument
         .apply_primitive_call_instrumentation(*m->warduino->debugger->channel,
-                                              m, &m->warduino->timeStamp);
+                                              m, &m->warduino->timeStamp,
+                                              m->warduino->program_state);
 }

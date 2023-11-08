@@ -42,7 +42,8 @@ class InstrumentationManager {
 
     bool run_hook(
         const Channel &output, Module &module, uint32_t local_fidx, Hook &hook,
-        std::function<void(std::function<void()>)> sendSubscriptionMsg);
+        std::function<void(std::function<void()>)> sendSubscriptionMsg,
+        RunningState &runningState);
 
     bool do_value_substitution(Module *module, uint32_t func_called,
                                Hook *hook);
@@ -55,7 +56,7 @@ class InstrumentationManager {
 
     bool do_before_wasm_addr_hooks(const Channel &hookOutput, Module &module,
                                    TimeStamp &currentTime, uint32_t addr,
-                                   uint8_t &opcode);
+                                   uint8_t &opcode, RunningState &runningState);
 
    public:
     bool awakeOnNextInstruction = false;
@@ -73,14 +74,17 @@ class InstrumentationManager {
 
     bool apply_primitive_call_instrumentation(const Channel &hookOutput,
                                               Module *module,
-                                              TimeStamp *currentTime);
+                                              TimeStamp *currentTime,
+                                              RunningState &runningState);
 
     bool apply_wasm_addr_instrumentation(const Channel &output, Module *module,
                                          TimeStamp *currentTime,
-                                         uint8_t &opcode);
+                                         uint8_t &opcode,
+                                         RunningState &runningState);
 
     void apply_instrumentation_after_instr(const Channel &hookOutput,
-                                           Module *module);
+                                           Module *module,
+                                           RunningState &runningState);
 
     void registerAroundFunctionChannel(Channel *channel);
 
