@@ -329,8 +329,19 @@ bool InstrumentationManager::do_before_wasm_addr_hooks(
         Interrupt_MonitorAddr_send_JSON_subscribe_message(
             output, InstrumentBefore, addr, hookOutput);
     };
-    bool success = this->run_hook(output, module, 0, *instr->hook, printSubMsg);
-    instr->hook = Hooks_remove_completed_hook(instr->hook, instr->hook);
+    bool success = true;
+    Hook *hooks = instr->hook;
+    //    Hook *remainingHooks = instr->hook;
+    while (hooks != nullptr && success) {
+        success = this->run_hook(output, module, 0, *hooks, printSubMsg,
+                                 runningState);
+        instr->hook = Hooks_remove_completed_hook(instr->hook, hooks);
+        if (!success) {
+            break;
+        }
+        hooks = hooks->nextHook;
+    }
+    //    instr->hook = remainingHooks;
     if (success) {
         opcode = instr->original_opcode;
     }
