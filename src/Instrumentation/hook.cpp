@@ -163,6 +163,9 @@ Hook *Hooks_copyHook(const Hook &hook) {
                 }
                 Interrupt_Inspect_free_state_to_inspect(hook.value.state);
                 break;
+            case ChangeRunningState:
+                cpy->value.runState = hook.value.runState;
+                break;
             default:
                 return nullptr;
         }
@@ -255,6 +258,15 @@ bool Hooks_deserialize_hook_rest(Hook &dest, uint8_t **encoded_hook,
                 return false;
             }
             break;
+        case ChangeRunningState: {
+            uint8_t newRunState = **encoded_hook;
+            if (newRunState != WARDUINOrun && newRunState != WARDUINOpause) {
+                error_code = HOOK_ERROR_CODE_UNSUPPORTED_RUNNING_STATE;
+                return false;
+            }
+            dest.value.runState = (RunningState)newRunState;
+            break;
+        }
         default:
             printf("HookKind %02X is not supported\n", kind);
             error_code = HOOK_ERROR_CODE_UNEXISTING_HOOK_KIND;

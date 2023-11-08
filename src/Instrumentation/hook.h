@@ -1,4 +1,5 @@
 #pragma once
+#include "../Debug/runningstate.h"
 #include "../Interrupts/interrupt_inspect.h"
 #include "../WARDuino/structs.h"
 #include "./schedule.h"
@@ -8,12 +9,14 @@
 #define HOOK_ERROR_CODE_UNEXISTING_HOOK_KIND 32;
 #define HOOK_ERROR_CODE_UNEXISTING_SCHEDULE_KIND 33;
 #define HOOK_ERROR_CODE_SUBSTITUTE_STATE_INSPECT_IS_MALFORMED 34;
-#define HOOK_ERROR_CODE_INSUFFICIENT_MEMORY 34;
+#define HOOK_ERROR_CODE_INSUFFICIENT_MEMORY 35;
+#define HOOK_ERROR_CODE_UNSUPPORTED_RUNNING_STATE 36;
 
 enum HookKind {
     RemoteCall = 0x01,
     ValueSubstitution = 0x02,
     StateInspect = 0x03,
+    ChangeRunningState = 0x04,
 };
 
 struct Hook {
@@ -22,6 +25,7 @@ struct Hook {
         uint32_t target_fidx;
         StackValue *result{};
         StateToInspect *state;
+        RunningState runState;
     } value;
     Schedule schedule{};
     Hook *nextHook{};
