@@ -274,9 +274,14 @@ void InstrumentationManager::apply_instrumentation_after_instr(
             Interrupt_MonitorAddr_send_JSON_subscribe_message(
                 output, InstrumentAfter, addr, hookOutput);
         };
-        this->run_hook(output, *module, 0, *instr->hook, printSubMsg,
-                       runningState);
-        instr->hook = Hooks_remove_completed_hook(instr->hook, instr->hook);
+
+        Hook *hooks = instr->hook;
+        while (hooks != nullptr) {
+            this->run_hook(output, *module, 0, *hooks, printSubMsg,
+                           runningState);
+            instr->hook = Hooks_remove_completed_hook(instr->hook, hooks);
+            hooks = hooks->nextHook;
+        }
     }
 
     if (this->frames_to_monitor.empty()) {
