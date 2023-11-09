@@ -24,6 +24,7 @@
 #include "../Memory/mem.h"
 #include "../Utils/macros.h"
 #include "../Utils/util.h"
+#include "../WARDuino/vm_exception.h"
 #include "driver/gpio.h"
 #include "primitives.h"
 
@@ -242,7 +243,16 @@ void install_primitives() {
 //------------------------------------------------------
 // resolving the primitives
 //------------------------------------------------------
-bool resolve_primitive(char *symbol, Primitive *val) {
+bool Primitive_Not_Supported(Module *m) {
+    uint8_t *pc_of_call = findStartOfLEB128(m->pc_ptr - 1);
+    uint32_t primitive_called = read_LEB_32(&pc_of_call);
+    VM_Exception_write("Primitive %" PRIu32 " not supported\n",
+                       primitive_called);
+    printf("Primitive %" PRIu32 " not supported\n", primitive_called);
+    return false;
+}
+
+bool resolve_primitive(char *symbol, Primitive *val, bool strict) {
     debug("Resolve primitives (%d) for %s  \n", ALL_PRIMITIVES, symbol);
 
     for (auto &primitive : primitives) {
@@ -253,8 +263,13 @@ bool resolve_primitive(char *symbol, Primitive *val) {
             return true;
         }
     }
-    FATAL("Could not find primitive %s \n", symbol);
-    return false;
+    if (strict) {
+        FATAL("Could not find primitive %s \n", symbol);
+        return false;
+    } else {
+        *val = &Primitive_Not_Supported;
+        return true;
+    }
 }
 
 Memory external_mem = {0, 0, 0, nullptr};
