@@ -1571,7 +1571,6 @@ bool interpret(Module *m, bool waiting) {
         opcode = *m->pc_ptr;
         block_ptr = m->pc_ptr;
         m->pc_ptr += 1;
-        ts->nr_of_instructions += 1;
 
         switch (opcode) {
             case INSTRUMENTATION_INTERCEPT_OPCODE:
@@ -1586,6 +1585,8 @@ bool interpret(Module *m, bool waiting) {
             default:
                 break;
         }
+
+        ts->nr_of_instructions += 1;
 
         dbg_dump_stack(m);
         dbg_trace(" PC: %p OPCODE: <%s> in %s\n", block_ptr,
