@@ -11,9 +11,11 @@
 #define MONITOR_ADDR_ERROR_CODE_REQUEST_HAS_UN_EXISTING_MOMENT 2
 #define MONITOR_ADDR_ERROR_CODE_REQUEST_HAS_UNEXISTING_ADDR 3;
 #define MONITOR_ADDR_ERROR_CODE_COULD_NOT_ADD_HOOK 4;
+#define MONITOR_ADDR_ERROR_CODE_COULD_NOT_REMOVE_HOOK 5;
 
 typedef struct {
     uint32_t addr{};
+    bool add{};  // true add hook, if false remove hooks
     InstrumentMoment moment{};
     Hook *hook{};
 } MonitorAddrRequest;

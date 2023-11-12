@@ -40,8 +40,8 @@ void Interrupt_MonitorAddr_handle_request(const Channel &channel,
 bool Interrupt_MonitorAddr_deserialize_request(MonitorAddrRequest &dest,
                                                uint8_t *encoded_request,
                                                uint8_t &error_code) {
-    // format: InterruptNr (1 byte)| addr (LEB32) | InstrumentMoment (1 byte) |
-    // hook
+    // format: InterruptNr (1 byte)| addr (LEB32) | add or remove (1 byte) |
+    // InstrumentMoment (1 byte) | hook
 
     uint8_t *data = encoded_request;
     if (*data++ != interruptMonitorAddr) {
@@ -59,7 +59,13 @@ bool Interrupt_MonitorAddr_deserialize_request(MonitorAddrRequest &dest,
             return false;
     }
 
-    return Hooks_deserialize_hook(*dest.hook, &data, error_code);
+    dest.add = *data++;
+    if (dest.add) {
+        return Hooks_deserialize_hook(*dest.hook, &data, error_code);
+    }
+    // removing hooks so nothing to deserialize
+    dest.hook = nullptr;
+    return true;
 }
 
 ssize_t Interrupt_MonitorAddr_serialize_response(
@@ -87,10 +93,18 @@ bool registerMonitorAddrHook(InstrumentationManager &manager, Module &m,
         error_code = MONITOR_ADDR_ERROR_CODE_REQUEST_HAS_UNEXISTING_ADDR;
         return false;
     }
-    if (!manager.addHookOnOnWasmAddress(m, request.addr, *request.hook,
-                                        request.moment)) {
-        error_code = MONITOR_ADDR_ERROR_CODE_COULD_NOT_ADD_HOOK;
-        return false;
+    if (request.add) {
+        if (!manager.addHookOnOnWasmAddress(m, request.addr, *request.hook,
+                                            request.moment)) {
+            error_code = MONITOR_ADDR_ERROR_CODE_COULD_NOT_ADD_HOOK;
+            return false;
+        }
+    } else {
+        if (!manager.removeHooksOnWasmAddress(m, request.addr,
+                                              request.moment)) {
+            error_code = MONITOR_ADDR_ERROR_CODE_COULD_NOT_REMOVE_HOOK;
+            return false;
+        }
     }
     return true;
 }

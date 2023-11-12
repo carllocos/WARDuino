@@ -72,6 +72,44 @@ bool InstrumentationManager::addAroundFunctionHook(Module &m, uint32_t func_idx,
     }
 }
 
+bool InstrumentationManager::removeHooksOnWasmAddress(
+    Module &module, uint32_t addr, const InstrumentMoment moment) {
+    if (!isToPhysicalAddrPossible(addr, &module)) {
+        // address is not in module
+        return false;
+    }
+    if (!this->has_HookOnWasmAddr(addr, moment)) {
+        return false;
+    }
+
+    InstrumentationWasmAddr *instr;
+    std::unordered_map<uint32_t, InstrumentationWasmAddr *> *mapForErase;
+    bool restoreOpcode;
+    if (moment == InstrumentBefore) {
+        instr = instr_wasm_addr_before[addr];
+        mapForErase = &this->instr_wasm_addr_before;
+        restoreOpcode = !this->has_HookOnWasmAddr(addr, InstrumentAfter);
+    } else {
+        instr = instr_wasm_addr_after[addr];
+        mapForErase = &this->instr_wasm_addr_after;
+        restoreOpcode = !this->has_HookOnWasmAddr(addr, InstrumentBefore);
+    }
+
+    while (instr->hook != nullptr) {
+        Hook *hookToFree = instr->hook;
+        instr->hook = instr->hook->nextHook;
+        Hooks_free_hook(hookToFree);
+    }
+
+    if (restoreOpcode) {
+        module.bytes[addr] = instr->original_opcode;
+    }
+
+    mapForErase->erase(addr);
+    delete instr;
+    return true;
+}
+
 bool InstrumentationManager::addHookOnOnWasmAddress(
     Module &module, uint32_t addr, Hook &hook, const InstrumentMoment moment) {
     if (!isToPhysicalAddrPossible(addr, &module)) {
