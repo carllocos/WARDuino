@@ -146,6 +146,8 @@ class Debugger {
 
     void notifyBreakpoint(Module *m, uint8_t *pc_ptr);
 
+    void notifyStepCompleted();
+
     // Out-of-place debugging: EDWARD
 
     void snapshot(Module *m);

@@ -148,6 +148,8 @@ void Debugger::notifyBreakpoint(Module *m, uint8_t *pc_ptr) {
     this->channel->write("AT %" PRIu32 "!\n", bp);
 }
 
+void Debugger::notifyStepCompleted() { this->channel->write("STEP!\n"); }
+
 /**
  * Validate if there are interrupts and execute them
  *
@@ -411,7 +413,6 @@ void Debugger::handleInterruptRUN(Module *m, RunningState *program_state) {
 }
 
 void Debugger::handleSTEP(Module *m, RunningState *program_state) {
-    this->channel->write("STEP!\n");
     *program_state = WARDUINOstep;
     this->skipBreakpoint = m->pc_ptr;
 }

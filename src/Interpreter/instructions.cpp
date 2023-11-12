@@ -1521,6 +1521,7 @@ bool interpret(Module *m, bool waiting) {
 
     while ((!program_done && success) || waiting) {
         if (m->warduino->program_state == WARDUINOstep) {
+            m->warduino->debugger->notifyStepCompleted();
             m->warduino->debugger->pauseRuntime(m);
         }
 
