@@ -20,6 +20,8 @@ typedef struct MonitoredFrame {
 
 class InstrumentationManager {
    private:
+    TimeStamp lastObservedTime{};
+
     Channel *fun_call_channel{};
 
     std::stack<MonitoredFrame> frames_to_monitor{};

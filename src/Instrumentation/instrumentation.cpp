@@ -10,6 +10,9 @@ InstrumentationManager::InstrumentationManager() {}
 
 void InstrumentationManager::registerAroundFunctionChannel(Channel *channel) {
     this->fun_call_channel = channel;
+    this->lastObservedTime.nr_of_events = 0;
+    this->lastObservedTime.nr_of_instructions =
+        30;  // not set to 0 so the first instr can also be hooked upon
 }
 
 InstrumentationPrimitiveFunc *
@@ -335,24 +338,38 @@ bool InstrumentationManager::apply_wasm_addr_instrumentation(
     bool success = true;
     bool upcodeRestored = false;
 
-    if (this->has_HookOnWasmAddr(addr, InstrumentBefore)) {
-        success = this->do_before_wasm_addr_hooks(output, *module, *currentTime,
-                                                  addr, opcode, runningState);
-        upcodeRestored = true;
-    }
-    module->pc_ptr += 1;  // restore pc
+    if (TimeStamp_is_t1_equal_t2(this->lastObservedTime, *currentTime)) {
+        // Reentering an addr for which the hooks were just run
+        // do not run the hooks but advance computation
+        auto instr = this->has_HookOnWasmAddr(addr, InstrumentBefore)
+                         ? this->instr_wasm_addr_before[addr]
+                         : this->instr_wasm_addr_after[addr];
+        opcode = instr->original_opcode;
+        module->pc_ptr += 1;
+    } else {
+        this->lastObservedTime = *currentTime;
+        if (this->has_HookOnWasmAddr(addr, InstrumentBefore)) {
+            success = this->do_before_wasm_addr_hooks(
+                output, *module, *currentTime, addr, opcode, runningState);
+            upcodeRestored = true;
+        }
 
-    if (this->has_HookOnWasmAddr(addr, InstrumentAfter)) {
-        // save frame and addr for after addr hooks
-        MonitoredFrame frame{};
-        frame.addr = addr;
-        frame.frame_idx = module->csp;
-        this->frames_to_monitor.push(frame);
-        this->awakeOnNextInstruction = true;
-        if (!upcodeRestored) {
-            // When there is no before the opcode needs to be set
-            auto instr = this->instr_wasm_addr_after[addr];
-            opcode = instr->original_opcode;
+        if (runningState != WARDUINOpause) {
+            module->pc_ptr += 1;
+        }
+
+        if (this->has_HookOnWasmAddr(addr, InstrumentAfter)) {
+            // save frame and addr for after addr hooks
+            MonitoredFrame frame{};
+            frame.addr = addr;
+            frame.frame_idx = module->csp;
+            this->frames_to_monitor.push(frame);
+            this->awakeOnNextInstruction = true;
+            if (!upcodeRestored) {
+                // When there is no before the opcode needs to be set
+                auto instr = this->instr_wasm_addr_after[addr];
+                opcode = instr->original_opcode;
+            }
         }
     }
     return success;
