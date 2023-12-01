@@ -76,7 +76,7 @@ Module *load(WARDuino &wac, const char *file_name, Options opt) {
 
     FILE *file = fopen(file_name, "rb");
     if (!file) {
-        fprintf(stderr, "cannot open file");
+        fprintf(stderr, "cannot open file %s\n", file_name);
         exit(1);
     }
 
