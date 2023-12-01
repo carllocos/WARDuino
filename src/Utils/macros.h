@@ -2,7 +2,7 @@
 
 #include <cstdio>
 
-#include "../WARDuino.h"
+#include "../Structs/struct_module.h"
 
 #ifndef DEBUG
 #define DEBUG 0

@@ -46,3 +46,5 @@ typedef struct Module {
 
     char *exception = nullptr;  // exception is set when the program fails
 } Module;
+
+uint8_t *Module_findOpcode(Module *m, Block *block);

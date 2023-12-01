@@ -6,6 +6,7 @@ class CallstackBuilder {
     void pushBlock(Block* b, int sp);
 
     Module* m{};
+    std::vector<StackValue*> callstackToFree{};
 
    public:
     CallstackBuilder(Module* wasm_module);

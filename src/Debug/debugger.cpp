@@ -28,6 +28,10 @@ void Debugger::setChannel(Channel *duplex) {
     this->channel = duplex;
 }
 
+void Debugger::setSerialisationFormat(SerializationFormat format) {
+    Serialization_factory(this->serializer, format);
+}
+
 void Debugger::addDebugMessage(size_t len, const uint8_t *buff) {
     this->parseDebugBuffer(len, buff);
     uint8_t *data{};
@@ -335,6 +339,7 @@ bool Debugger::checkDebugMessages(Module *m, RunningState *program_state) {
 
 // Private methods
 void Debugger::printValue(StackValue *v, uint32_t idx, bool end = false) const {
+    // TODO remove
     char buff[256];
 
     switch (v->value_type) {
@@ -361,23 +366,6 @@ void Debugger::printValue(StackValue *v, uint32_t idx, bool end = false) const {
     this->channel->write(R"({"idx":%d,%s}%s)", idx, buff, end ? "" : ",");
 }
 
-uint8_t *Debugger::findOpcode(Module *m, Block *block) {
-    auto find =
-        std::find_if(std::begin(m->block_lookup), std::end(m->block_lookup),
-                     [&](const std::pair<uint8_t *, Block *> &pair) {
-                         return pair.second == block;
-                     });
-    uint8_t *opcode = nullptr;
-    if (find != std::end(m->block_lookup)) {
-        opcode = find->first;
-    } else {
-        // FIXME FATAL?
-        debug("find_opcode: not found\n");
-        exit(33);
-    }
-    return opcode;
-}
-
 void Debugger::handleInvoke(Module *m, uint8_t *interruptData) {
     uint32_t fidx = read_LEB_32(&interruptData);
 
@@ -395,6 +383,7 @@ void Debugger::handleInvoke(Module *m, uint8_t *interruptData) {
 
     WARDuino::instance()->invoke(m, fidx, func.param_count, args);
     instance->program_state = current;
+    // TODO replace with serialisation?
     this->dumpStack(m);
 }
 
@@ -442,6 +431,7 @@ void Debugger::handleInterruptBP(Module *m, uint8_t *interruptData) {
 }
 
 void Debugger::dump(Module *m, bool full) const {
+    // TODO replace with Serialisation
     auto toVA = [m](uint8_t *addr) { return toVirtualAddress(addr, m); };
     this->channel->write("{");
 
@@ -455,6 +445,7 @@ void Debugger::dump(Module *m, bool full) const {
     this->dumpCallstack(m);
 
     if (full) {
+        // TODO ask about importance
         this->channel->write(R"(, "locals": )");
         this->dumpLocals(m);
         this->channel->write(", ");
@@ -466,6 +457,7 @@ void Debugger::dump(Module *m, bool full) const {
 }
 
 void Debugger::dumpStack(Module *m) const {
+    // TODO remove or replace with serialisation
     this->channel->write("{\"stack\": [");
     int32_t i = m->sp;
     while (0 <= i) {
@@ -476,6 +468,7 @@ void Debugger::dumpStack(Module *m) const {
 }
 
 void Debugger::dumpBreakpoints(Module *m) const {
+    // TODO remove or replace with serialisation
     this->channel->write("\"breakpoints\":[");
     {
         size_t i = 0;
@@ -488,6 +481,7 @@ void Debugger::dumpBreakpoints(Module *m) const {
 }
 
 void Debugger::dumpFunctions(Module *m) const {
+    // TODO remove or replace with serialization
     this->channel->write("\"functions\":[");
 
     for (size_t i = m->import_count; i < m->function_count; i++) {
@@ -503,6 +497,7 @@ void Debugger::dumpFunctions(Module *m) const {
  * {"type":%u,"fidx":"0x%x","sp":%d,"fp":%d,"ra":"%p"}%s
  */
 void Debugger::dumpCallstack(Module *m) const {
+    // TODO remove or replace with serialization
     auto toVA = [m](uint8_t *addr) { return toVirtualAddress(addr, m); };
     this->channel->write("\"callstack\":[");
     for (int i = 0; i <= m->csp; i++) {
@@ -527,6 +522,8 @@ void Debugger::dumpCallstack(Module *m) const {
 }
 
 void Debugger::dumpLocals(Module *m) const {
+    // TODO figure our whether can be serialized via strategy
+    // TODO maybe remove or replace
     //    fflush(stdout);
     int firstFunFramePtr = m->csp;
     while (m->callstack[firstFunFramePtr].block->block_type != 0) {
@@ -573,6 +570,7 @@ void Debugger::dumpLocals(Module *m) const {
 }
 
 void Debugger::dumpEvents(long start, long size) const {
+    // TODO remove or replace with serialisation
     bool previous = CallbackHandler::resolving_event;
     CallbackHandler::resolving_event = true;
     if (size > EVENTS_SIZE) {
@@ -597,6 +595,7 @@ void Debugger::dumpEvents(long start, long size) const {
 }
 
 void Debugger::dumpCallbackmapping() const {
+    // TODO remove or replace with serialization
     this->channel->write("%s\n", CallbackHandler::dump_callbacks().c_str());
 }
 
@@ -718,132 +717,57 @@ void Debugger::snapshot(Module *m) {
 void Debugger::inspect(Module *m, uint16_t sizeStateArray, uint8_t *state) {
     debug("asked for inspect\n");
     uint16_t idx = 0;
-    auto toVA = [m](uint8_t *addr) { return toVirtualAddress(addr, m); };
-    bool addComma = false;
+    const Channel &chnl = *this->channel;
 
     this->channel->write("DUMP!\n");
-    this->channel->write("{");
-
+    this->serializer.startMultipleStructsSerialization(chnl);
     while (idx < sizeStateArray) {
         switch (state[idx++]) {
-            case pcState: {  // PC
-                this->channel->write("\"pc\":%" PRIu32 "", toVA(m->pc_ptr));
-                addComma = true;
-
+            case pcState:
+                this->serializer.serializePC(chnl, m->pc_ptr, m);
                 break;
-            }
-            case breakpointsState: {
-                this->channel->write("%s\"breakpoints\":[",
-                                     addComma ? "," : "");
-                addComma = true;
-                size_t i = 0;
-                for (auto bp : this->breakpoints) {
-                    this->channel->write(
-                        "%" PRIu32 "%s", toVA(bp),
-                        (++i < this->breakpoints.size()) ? "," : "");
-                }
-                this->channel->write("]");
+            case breakpointsState:
+                this->serializer.serializeBreakpoints(chnl, this->breakpoints,
+                                                      m);
                 break;
-            }
-            case callstackState: {
-                this->channel->write("%s\"callstack\":[", addComma ? "," : "");
-                addComma = true;
-                for (int j = 0; j <= m->csp; j++) {
-                    Frame *f = &m->callstack[j];
-                    uint8_t bt = f->block->block_type;
-                    uint32_t block_key = (bt == 0 || bt == 0xff || bt == 0xfe)
-                                             ? 0
-                                             : toVA(findOpcode(m, f->block));
-                    uint32_t fidx = bt == 0 ? f->block->fidx : 0;
-                    int ra = f->ra_ptr == nullptr ? -1 : toVA(f->ra_ptr);
-                    this->channel->write(
-                        R"({"type":%u,"fidx":"0x%x","sp":%d,"fp":%d,"idx":%d,)",
-                        bt, fidx, f->sp, f->fp, j);
-                    this->channel->write(
-                        "\"block_key\":%" PRIu32 ",\"ra\":%d}%s", block_key, ra,
-                        (j < m->csp) ? "," : "");
-                }
-                this->channel->write("]");
+            case callstackState:
+                this->serializer.serializeCallstack(chnl, m->callstack, 0,
+                                                    m->csp, m);
                 break;
-            }
-            case stackState: {
-                this->channel->write("%s\"stack\":[", addComma ? "," : "");
-                addComma = true;
-                for (int j = 0; j <= m->sp; j++) {
-                    auto v = &m->stack[j];
-                    printValue(v, j, j == m->sp);
-                }
-                this->channel->write("]");
+            case stackState:
+                this->serializer.serializeStack(chnl, m->stack, 0, m->sp);
                 break;
-            }
-            case globalsState: {
-                this->channel->write("%s\"globals\":[", addComma ? "," : "");
-                addComma = true;
-                for (uint32_t j = 0; j < m->global_count; j++) {
-                    auto v = m->globals + j;
-                    printValue(v, j, j == (m->global_count - 1));
-                }
-                this->channel->write("]");  // closing globals
+            case globalsState:
+                this->serializer.serializeGlobals(chnl, m->globals, 0,
+                                                  m->global_count);
                 break;
-            }
             case tableState: {
-                this->channel->write(
-                    R"(%s"table":{"max":%d, "init":%d, "elements":[)",
-                    addComma ? "," : "", m->table.maximum, m->table.initial);
-                addComma = true;
-                for (uint32_t j = 0; j < m->table.size; j++) {
-                    this->channel->write("%" PRIu32 "%s", m->table.entries[j],
-                                         (j + 1) == m->table.size ? "" : ",");
-                }
-                this->channel->write("]}");  // closing table
+                const Table &tbl = m->table;
+                this->serializer.serializeTable(chnl, tbl);
                 break;
             }
-            case branchingTableState: {
-                this->channel->write(
-                    R"(%s"br_table":{"size":"0x%x","labels":[)",
-                    addComma ? "," : "", BR_TABLE_SIZE);
-                for (uint32_t j = 0; j < BR_TABLE_SIZE; j++) {
-                    this->channel->write("%" PRIu32 "%s", m->br_table[j],
-                                         (j + 1) == BR_TABLE_SIZE ? "" : ",");
-                }
-                this->channel->write("]}");
+            case branchingTableState:
+                this->serializer.serializeBranchingTable(chnl, m->br_table);
                 break;
-            }
-            case memoryState: {
-                uint32_t total_elems = m->memory.pages * (uint32_t)PAGE_SIZE;
-                this->channel->write(
-                    R"(%s"memory":{"pages":%d,"max":%d,"init":%d,"bytes":[)",
-                    addComma ? "," : "", m->memory.pages, m->memory.maximum,
-                    m->memory.initial);
-                addComma = true;
-                for (uint32_t j = 0; j < total_elems; j++) {
-                    this->channel->write("%" PRIu8 "%s", m->memory.bytes[j],
-                                         (j + 1) == total_elems ? "" : ",");
-                }
-                this->channel->write("]}");  // closing memory
+            case memoryState:
+                this->serializer.serializeMemory(chnl, m->memory);
                 break;
-            }
-            case callbacksState: {
-                bool noOuterBraces = false;
-                this->channel->write(
-                    "%s%s", addComma ? "," : "",
-                    CallbackHandler::dump_callbacksV2(noOuterBraces).c_str());
-                addComma = true;
+            case callbacksState:
+                this->serializer.serializeCallbackMappingsVers2(
+                    chnl, CallbackHandler::callbacks_begin(),
+                    CallbackHandler::callbacks_end());
                 break;
-            }
-            case eventsState: {
-                this->channel->write("%s", addComma ? "," : "");
-                this->dumpEvents(0, CallbackHandler::event_count());
-                addComma = true;
+            case eventsState:
+                this->serializer.serializeEvents(chnl,
+                                                 CallbackHandler::event_begin(),
+                                                 CallbackHandler::event_end());
                 break;
-            }
-            default: {
+            default:
                 debug("dumpExecutionState: Received unknown state request\n");
                 break;
-            }
         }
     }
-    this->channel->write("}\n");
+    this->serializer.endMultipleStructsSerialization(chnl);
 }
 
 void Debugger::freeState(Module *m, uint8_t *interruptData) {

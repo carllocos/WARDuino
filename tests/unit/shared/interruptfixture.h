@@ -1,3 +1,5 @@
+#pragma once
+
 #include "../../src/WARDuino.h"
 #include "callstackbuilder.h"
 #include "dbgoutput.h"

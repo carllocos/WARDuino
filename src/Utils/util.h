@@ -133,4 +133,26 @@ uint8_t *toPhysicalAddress(uint32_t virtualAddr, Module *m);
  * @return boolean
  */
 bool isToPhysicalAddrPossible(uint32_t virtualAddr, Module *m);
+
+/*
+ * Function that encodes an uint32_t value to LEB32
+ * @param value a 32-bit unsigned integer value to LEB32 encode
+ * @param *dest_buffer buffer where to write the encoding to.
+ * @return the number of bytes written to the buffer. If `dest_buffer` is a
+ * `null_ptr`, the function returns the number of bytes that would have been
+ * written.
+ */
+size_t writeLEB32(uint32_t value, uint8_t *dest_buffer);
+
+/*
+ * Function that computes the number of bytes needed to encode an uint32_t value
+ * to LEB32
+ * @param value a 32-bit unsigned integer value to LEB32 encode
+ * @return the number of bytes written to the buffer.
+ */
+size_t size_for_LEB32(uint32_t value);
+
+size_t size_for_int(int i);
+
+size_t write_int(int i, uint8_t *buffer);
 #endif

@@ -1,4 +1,3 @@
-#pragma once
 #include "dbgoutput.h"
 
 bool DBGOutput::openTmpFile() {
@@ -20,6 +19,7 @@ void DBGOutput::closeTmpFile() {
 }
 
 DBGOutput::DBGOutput(Debugger* t_debugger) : debugger{t_debugger} {}
+DBGOutput::DBGOutput() : debugger{nullptr} {}
 
 DBGOutput::~DBGOutput() {
     this->closeTmpFile();
@@ -31,9 +31,14 @@ DBGOutput::~DBGOutput() {
 
 bool DBGOutput::open() {
     if (!this->openTmpFile()) return false;
-    debugger->channel = new Sink(file);
+
+    this->channel = new Sink(file);
+    if (this->debugger != nullptr) {
+        debugger->channel = this->channel;
+    }
     return true;
 }
+Channel& DBGOutput::getChannel() { return *this->channel; }
 
 std::string* DBGOutput::getLine() {
     if (stream) {

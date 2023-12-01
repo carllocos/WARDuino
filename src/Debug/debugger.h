@@ -12,6 +12,8 @@
 
 #include "../Edward/proxy.h"
 #include "../Edward/proxy_supervisor.h"
+#include "../Serialization/serialization_factory.h"
+#include "../Structs/state_kind.h"
 #include "../Utils/sockets.h"
 
 struct Module;
@@ -29,19 +31,6 @@ enum RunningState {
                // PROXYhalt
     PROXYhalt  // Do not run the program (program runs on computer, which
                // sends messages for primitives, do forward interrupts)
-};
-
-enum ExecutionState {
-    pcState = 0x01,
-    breakpointsState = 0x02,
-    callstackState = 0x03,
-    globalsState = 0x04,
-    tableState = 0x05,
-    memoryState = 0x06,
-    branchingTableState = 0x07,
-    stackState = 0x08,
-    callbacksState = 0x09,
-    eventsState = 0x0A
 };
 
 enum InterruptTypes {
@@ -163,8 +152,6 @@ class Debugger {
 
     void freeState(Module *m, uint8_t *interruptData);
 
-    static uint8_t *findOpcode(Module *m, Block *block);
-
     bool saveState(Module *m, uint8_t *interruptData);
 
     static uintptr_t readPointer(uint8_t **data);
@@ -185,12 +172,16 @@ class Debugger {
     uint8_t *skipBreakpoint =
         nullptr;  // Breakpoint to skip in the next interpretation step
 
+    SerializationStrategy serializer{};
+
     // Constructor
     explicit Debugger(Channel *duplex);
 
     ~Debugger();
 
     void setChannel(Channel *duplex);
+
+    void setSerialisationFormat(SerializationFormat format);
 
     // Public methods
 

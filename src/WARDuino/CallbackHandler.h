@@ -19,6 +19,7 @@ class Event {
     std::string serialized() const;
 };
 
+
 class CallbackHandler {
    private:
     static std::unordered_map<std::string, std::vector<Callback> *> *callbacks;
@@ -27,6 +28,10 @@ class CallbackHandler {
     CallbackHandler() = default;  // Disallow creation
 
    public:
+
+    typedef std::unordered_map<std::string, std::vector<Callback> *>::const_iterator callbackIterator;
+    typedef std::unordered_map<std::string, std::vector<Callback> *>::const_iterator eventIterator;
+
     static size_t pushed_cursor;
 
     static size_t event_count();
@@ -47,6 +52,9 @@ class CallbackHandler {
     static bool resolve_event(bool force = false);
 
     static bool manual_event_resolution;  // do not resolve event automatically
+
+    static callbackIterator callbacks_begin();
+    static callbackIterator callbacks_end();
 };
 
 class Callback {

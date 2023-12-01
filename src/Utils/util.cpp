@@ -335,3 +335,29 @@ uint8_t *toPhysicalAddress(uint32_t virtualAddr, Module *m) {
 bool isToPhysicalAddrPossible(uint32_t virtualAddr, Module *m) {
     return virtualAddr < m->byte_count;
 }
+
+size_t writeLEB32(uint32_t value, uint8_t *dest_buffer) {
+    size_t bytesWritten = 0;
+    do {
+        uint8_t byte = value & 0x7F;  // get 7 least significant bits
+        value >>= 7;
+        if (value != 0) {
+            byte |= 0x80;  // high bit for more bytes
+        }
+        if (dest_buffer != nullptr) dest_buffer[bytesWritten++] = byte;
+    } while (value != 0);
+
+    return bytesWritten;
+}
+
+size_t size_for_LEB32(uint32_t value) { return writeLEB32(value, nullptr); }
+
+size_t size_for_int(int i) {
+    FATAL("TODO implement\n");
+    return 0;
+}
+
+size_t write_int(int i, uint8_t *buffer) {
+    FATAL("TODO implement\n");
+    return 0;
+}

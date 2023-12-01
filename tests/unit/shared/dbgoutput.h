@@ -5,6 +5,7 @@
 
 class DBGOutput {
    private:
+    Channel* channel;
     Debugger* debugger{};
 
     char filename[250] = {"/tmp/warduinounittestXXXXXX"};
@@ -19,9 +20,12 @@ class DBGOutput {
    protected:
    public:
     DBGOutput(Debugger* t_debugger);
+    DBGOutput();
+
     ~DBGOutput();
 
     bool open();
+    Channel& getChannel();
     std::string* getLine();
     bool getJSONReply(nlohmann::basic_json<>* dest);
     void appendReadLines(std::string* s);

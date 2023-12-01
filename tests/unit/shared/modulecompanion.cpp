@@ -1,5 +1,7 @@
 #include "modulecompanion.h"
 
+#include "../../../src/Utils/util.h"
+
 #define UNDEF (uint32_t)(-1)
 
 ModuleCompanion::ModuleCompanion(Module *wasm_module) : m{wasm_module} {}
@@ -16,6 +18,14 @@ Block *ModuleCompanion::getMainFunction() {
         return &this->m->functions[fidx];
 }
 
+int ModuleCompanion::getMainFunctionID() {
+    Block *fun = this->getMainFunction();
+    if (fun == nullptr) {
+        return -1;
+    }
+    return fun->fidx;
+}
+
 Block *ModuleCompanion::firstBlock(uint8_t type) {
     auto find =
         std::find_if(std::begin(m->block_lookup), std::end(m->block_lookup),
@@ -27,4 +37,8 @@ Block *ModuleCompanion::firstBlock(uint8_t type) {
         block = find->second;
     }
     return block;
+}
+
+uint32_t ModuleCompanion::getVirtualAddressPC() {
+    return toVirtualAddress(this->m->pc_ptr, this->m);
 }

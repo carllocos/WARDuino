@@ -48,6 +48,7 @@ class Inspect : public InterruptFixture {
         InterruptFixture::SetUp();
         Block* func = this->moduleCompanion->getMainFunction();
         this->callstackBuilder->pushFunctionCall(func->fidx);
+        this->debugger->setSerialisationFormat(JSON_Serialization);
     }
 
     void TearDown() override {

@@ -5,6 +5,7 @@
 #include "../Debug/debugger.h"
 #include "../Interpreter/instructions.h"
 #include "../Utils/macros.h"
+#include "../WARDuino.h"
 
 void push_guard(Module *m) {
     if (m == nullptr) {
@@ -150,7 +151,16 @@ std::deque<Event>::const_iterator CallbackHandler::event_end() {
 
 void CallbackHandler::clear_callbacks() { CallbackHandler::callbacks->clear(); }
 
+CallbackHandler::callbackIterator CallbackHandler::callbacks_begin() {
+    return CallbackHandler::callbacks->begin();
+}
+
+CallbackHandler::callbackIterator CallbackHandler::callbacks_end() {
+    return CallbackHandler::callbacks->end();
+}
+
 std::string CallbackHandler::dump_callbacks() {
+    // TODO remove or replace serialisation
     std::string repr = R"({"callbacks": [)";
     auto iterator = CallbackHandler::callbacks->begin();
     while (iterator != CallbackHandler::callbacks->end()) {
@@ -168,6 +178,7 @@ std::string CallbackHandler::dump_callbacks() {
 }
 
 std::string CallbackHandler::dump_callbacksV2(bool includeOuterCurlyBraces) {
+    // TODO remove or replace serialiation
     // prints json as {"ballbackid": "interrupt_10", "tableIndexes": [ 0, 2]}
     std::string repr =
         includeOuterCurlyBraces ? R"({"callbacks": [)" : R"("callbacks": [)";

@@ -13,6 +13,7 @@
 
 #include "../../src/Debug/debugger.h"
 #include "../../src/Utils/macros.h"
+#include "../../src/WARDuino.h"
 #include "warduino/config.h"
 
 // Constants

@@ -12,7 +12,24 @@ set(SOURCE_FILES
         ../../src/Utils/util_arduino.cpp
         ../../src/WARDuino/CallbackHandler.cpp
         ../../src/WARDuino/WARDuino.cpp
-        )
+        ../../src/Structs/struct_module.cpp
+        ../../src/Serialization/serialization_factory.cpp
+        ../../src/Serialization/serialization_factory.cpp
+        ../../src/Serialization/json/json_strategy.cpp
+        ../../src/Serialization/json/json_multiple_objects.cpp
+        ../../src/Serialization/json/json_br_table.cpp
+        ../../src/Serialization/json/json_breakpoints.cpp
+        ../../src/Serialization/json/json_callback_mapping.cpp
+        ../../src/Serialization/json/json_callstack.cpp
+        ../../src/Serialization/json/json_event.cpp
+        ../../src/Serialization/json/json_frame.cpp
+        ../../src/Serialization/json/json_functions.cpp
+        ../../src/Serialization/json/json_globals.cpp
+        ../../src/Serialization/json/json_memory.cpp
+        ../../src/Serialization/json/json_pc.cpp
+        ../../src/Serialization/json/json_stack.cpp
+        ../../src/Serialization/json/json_stackvalue.cpp
+        ../../src/Serialization/json/json_table.cpp)
 
 idf_component_register(SRCS "main.cpp" ${SOURCE_FILES} INCLUDE_DIRS ../../lib/json/single_include/ REQUIRES driver)
 

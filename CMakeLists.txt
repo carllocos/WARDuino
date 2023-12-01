@@ -50,7 +50,24 @@ if (BUILD_EMULATOR)
             src/Debug/debugger.cpp
             src/Edward/proxy.cpp
             src/Edward/proxy_supervisor.cpp
-            src/Edward/RFC.cpp)
+            src/Edward/RFC.cpp
+            src/Structs/struct_module.cpp
+            src/Serialization/serialization_factory.cpp
+            src/Serialization/json/json_multiple_objects.cpp
+            src/Serialization/json/json_br_table.cpp
+            src/Serialization/json/json_breakpoints.cpp
+            src/Serialization/json/json_callback_mapping.cpp
+            src/Serialization/json/json_callstack.cpp
+            src/Serialization/json/json_event.cpp
+            src/Serialization/json/json_frame.cpp
+            src/Serialization/json/json_functions.cpp
+            src/Serialization/json/json_globals.cpp
+            src/Serialization/json/json_memory.cpp
+            src/Serialization/json/json_pc.cpp
+            src/Serialization/json/json_stack.cpp
+            src/Serialization/json/json_stackvalue.cpp
+            src/Serialization/json/json_strategy.cpp
+            src/Serialization/json/json_table.cpp)
 
     add_definitions(-DINFO=0)
     add_definitions(-DDEBUG=0)
@@ -101,7 +118,24 @@ if (BUILD_UNITTEST)
             src/Debug/debugger.cpp
             src/Edward/proxy.cpp
             src/Edward/proxy_supervisor.cpp
-            src/Edward/RFC.cpp)
+            src/Edward/RFC.cpp
+            src/Structs/struct_module.cpp
+            src/Serialization/serialization_factory.cpp
+            src/Serialization/json/json_multiple_objects.cpp
+            src/Serialization/json/json_br_table.cpp
+            src/Serialization/json/json_breakpoints.cpp
+            src/Serialization/json/json_callback_mapping.cpp
+            src/Serialization/json/json_callstack.cpp
+            src/Serialization/json/json_event.cpp
+            src/Serialization/json/json_frame.cpp
+            src/Serialization/json/json_functions.cpp
+            src/Serialization/json/json_globals.cpp
+            src/Serialization/json/json_memory.cpp
+            src/Serialization/json/json_pc.cpp
+            src/Serialization/json/json_stack.cpp
+            src/Serialization/json/json_stackvalue.cpp
+            src/Serialization/json/json_strategy.cpp
+            src/Serialization/json/json_table.cpp)
 
     target_include_directories(warduino_lib PRIVATE ${EXTERNAL_LIB_HEADERS} "${PROJECT_BINARY_DIR}/include")
     target_include_directories(warduino_lib PUBLIC src/)
@@ -140,3 +174,83 @@ if (BUILD_UNITTEST)
         add_test(${TEST_NAME} ${TEST_NAME})
     endforeach ()
 endif (BUILD_UNITTEST)
+
+if (BUILD_UNITTEST_DEBUG)
+    enable_testing()
+
+    message(VERBOSE "Building for unit tests ")
+
+    set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # for tooling support
+    set(EXTERNAL_LIB_HEADERS lib/json/single_include)
+
+    set(SOURCE_FILES
+            src/WARDuino/WARDuino.cpp
+            src/WARDuino/CallbackHandler.cpp
+            src/Primitives/emulated.cpp
+            src/Interpreter/instructions.cpp
+            src/Memory/mem.cpp
+            src/Utils/util.cpp
+            src/Utils/util_arduino.cpp
+            src/Utils/macros.cpp
+            src/Utils/sockets.cpp
+            src/Debug/debugger.cpp
+            src/Edward/proxy.cpp
+            src/Edward/proxy_supervisor.cpp
+            src/Edward/RFC.cpp
+            src/Structs/struct_module.cpp
+            src/Serialization/serialization_factory.cpp
+            src/Serialization/json/json_multiple_objects.cpp
+            src/Serialization/json/json_br_table.cpp
+            src/Serialization/json/json_breakpoints.cpp
+            src/Serialization/json/json_callback_mapping.cpp
+            src/Serialization/json/json_callstack.cpp
+            src/Serialization/json/json_event.cpp
+            src/Serialization/json/json_frame.cpp
+            src/Serialization/json/json_functions.cpp
+            src/Serialization/json/json_globals.cpp
+            src/Serialization/json/json_memory.cpp
+            src/Serialization/json/json_pc.cpp
+            src/Serialization/json/json_stack.cpp
+            src/Serialization/json/json_stackvalue.cpp
+            src/Serialization/json/json_strategy.cpp
+            src/Serialization/json/json_table.cpp)
+
+    # Use C++11
+    set(CMAKE_CXX_STANDARD 11)
+
+    # Set default compile flags for GCC
+    if (CMAKE_COMPILER_IS_GNUCXX)
+        add_compile_options(-g -v -Wall -Wextra -Wunused)
+    endif (CMAKE_COMPILER_IS_GNUCXX)
+
+
+    include(FetchContent)
+    FetchContent_Declare(
+            googletest
+            GIT_REPOSITORY https://github.com/google/googletest.git
+            GIT_TAG release-1.12.1
+    )
+
+    # For Windows: Prevent overriding the parent project's compiler/linker settings
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+
+    set(PATH_TO_UNIT_TEST ${PROJECT_SOURCE_DIR}/tests/unit)
+
+    aux_source_directory(${PATH_TO_UNIT_TEST}/shared/ SHARED_SRC)
+
+    message(DEBUG "Shared source code for unit tests path: " ${SHARED_SRC})
+
+    file(GLOB TEST_SRC_FILES ${PATH_TO_UNIT_TEST}/*.cpp)
+
+    message(DEBUG "Unit test source codes: " ${TEST_SRC_FILES})
+
+    foreach (TEST_FILE ${TEST_SRC_FILES})
+        get_filename_component(TEST_NAME ${TEST_FILE} NAME_WE)
+        message(DEBUG "Add executable for " ${TEST_FILE})
+        add_executable(${TEST_NAME}_debug ${TEST_FILE} ${SOURCE_FILES} ${SHARED_SRC})
+        target_link_libraries(${TEST_NAME}_debug gtest_main)
+        target_include_directories(${TEST_NAME}_debug PRIVATE ${EXTERNAL_LIB_HEADERS} "${PROJECT_BINARY_DIR}/include")
+        add_test(${TEST_NAME}_debug ${TEST_NAME}_debug)
+    endforeach ()
+endif (BUILD_UNITTEST_DEBUG)
