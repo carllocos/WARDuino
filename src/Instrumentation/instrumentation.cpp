@@ -1,6 +1,6 @@
 #include "instrumentation.h"
 
-#include "../Interrupts/interrupt_monitor_addr.h"
+#include "../Interrupts/interrupt_hook_on_addr.h"
 #include "../Interrupts/interrupt_remote_call.h"
 #include "../Interrupts/interrupt_response.h"
 #include "../Utils/macros.h"
@@ -312,7 +312,7 @@ void InstrumentationManager::apply_instrumentation_after_instr(
         }
         InstrumentationWasmAddr *instr = this->instr_wasm_addr_after[addr];
         auto printSubMsg = [&output, addr](std::function<void()> hookOutput) {
-            Interrupt_MonitorAddr_send_JSON_subscribe_message(
+            Interrupt_HookOnAddr_send_JSON_subscribe_message(
                 output, InstrumentAfter, addr, hookOutput);
         };
 
@@ -386,7 +386,7 @@ bool InstrumentationManager::do_before_wasm_addr_hooks(
     InstrumentationWasmAddr *instr = this->instr_wasm_addr_before[addr];
 
     auto printSubMsg = [&output, addr](std::function<void()> hookOutput) {
-        Interrupt_MonitorAddr_send_JSON_subscribe_message(
+        Interrupt_HookOnAddr_send_JSON_subscribe_message(
             output, InstrumentBefore, addr, hookOutput);
     };
     bool success = true;

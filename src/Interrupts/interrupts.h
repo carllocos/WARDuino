@@ -26,7 +26,7 @@ enum InterruptTypes {
 
     // Instrumentation
     interruptAroundFunction = 0x50,
-    interruptMonitorAddr = 0x51,
+    interruptHookOnAddress = 0x51,
     interruptMonitorEvent = 0x52,
 
     // Pull Debugging
