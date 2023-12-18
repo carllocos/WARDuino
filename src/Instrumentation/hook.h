@@ -2,8 +2,8 @@
 #include "../Debug/runningstate.h"
 #include "../Interrupts/interrupt_inspect.h"
 #include "../WARDuino/structs.h"
+#include "./logical_clock.h"
 #include "./schedule.h"
-#include "./timestamp.h"
 
 #define HOOK_ERROR_CODE_SUBSTITUTE_VALUE_IS_MALFORMED 31;
 #define HOOK_ERROR_CODE_UNEXISTING_HOOK_KIND 32;
@@ -37,10 +37,11 @@ struct Hook {
  */
 Hook *Hooks_add_and_sort(Hook *hooks, Hook *hook_to_add);
 
-Hook *Hooks_nextScheduledHook(Hook *sorted_hooks, const TimeStamp &currentTime);
+Hook *Hooks_nextScheduledHook(Hook *sorted_hooks,
+                              const LogicalClock &currentTime);
 
 bool Hooks_isHookWaitingForEvent(Hook *sorted_hooks,
-                                 const TimeStamp &currentTime);
+                                 const LogicalClock &currentTime);
 
 Hook *Hooks_copyHook(const Hook &hook);
 

@@ -4,8 +4,8 @@
 #include <stack>
 #include <unordered_map>
 
+#include "../Instrumentation/logical_clock.h"
 #include "../Instrumentation/schedule.h"
-#include "../Instrumentation/timestamp.h"
 #include "../Utils/sockets.h"
 #include "../WARDuino/structs.h"
 #include "./hook.h"
@@ -20,7 +20,7 @@ typedef struct MonitoredFrame {
 
 class InstrumentationManager {
    private:
-    TimeStamp lastObservedTime{};
+    LogicalClock lastObservedTime{};
 
     Channel *fun_call_channel{};
 
@@ -57,7 +57,7 @@ class InstrumentationManager {
         Module &module, const uint32_t addr, const InstrumentMoment moment);
 
     bool do_before_wasm_addr_hooks(const Channel &hookOutput, Module &module,
-                                   TimeStamp &currentTime, uint32_t addr,
+                                   LogicalClock &currentTime, uint32_t addr,
                                    uint8_t &opcode, RunningState &runningState);
 
    public:
@@ -76,11 +76,11 @@ class InstrumentationManager {
 
     bool apply_primitive_call_instrumentation(const Channel &hookOutput,
                                               Module *module,
-                                              TimeStamp *currentTime,
+                                              LogicalClock *currentTime,
                                               RunningState &runningState);
 
     bool apply_wasm_addr_instrumentation(const Channel &output, Module *module,
-                                         TimeStamp *currentTime,
+                                         LogicalClock *currentTime,
                                          uint8_t &opcode,
                                          RunningState &runningState);
 

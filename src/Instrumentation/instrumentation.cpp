@@ -208,7 +208,7 @@ bool InstrumentationManager::do_value_substitution(Module *module,
 }
 
 bool InstrumentationManager::apply_primitive_call_instrumentation(
-    const Channel &output, Module *module, TimeStamp *currentTime,
+    const Channel &output, Module *module, LogicalClock *currentTime,
     RunningState &runningState) {
     uint8_t *pc_of_call = findStartOfLEB128(module->pc_ptr - 1);
     uint32_t primitive_called = read_LEB_32(&pc_of_call);
@@ -331,14 +331,14 @@ void InstrumentationManager::apply_instrumentation_after_instr(
 }
 
 bool InstrumentationManager::apply_wasm_addr_instrumentation(
-    const Channel &output, Module *module, TimeStamp *currentTime,
+    const Channel &output, Module *module, LogicalClock *currentTime,
     uint8_t &opcode, RunningState &runningState) {
     module->pc_ptr -= 1;  // set pc to start of instruction
     uint32_t addr = toVirtualAddress(module->pc_ptr, module);
     bool success = true;
     bool upcodeRestored = false;
 
-    if (TimeStamp_is_t1_equal_t2(this->lastObservedTime, *currentTime)) {
+    if (LogicalClock_is_t1_equal_t2(this->lastObservedTime, *currentTime)) {
         // Reentering an addr for which the hooks were just run
         // do not run the hooks but advance computation
         auto instr = this->has_HookOnWasmAddr(addr, InstrumentBefore)
@@ -376,7 +376,7 @@ bool InstrumentationManager::apply_wasm_addr_instrumentation(
 }
 
 bool InstrumentationManager::do_before_wasm_addr_hooks(
-    const Channel &output, Module &module, TimeStamp &currentTime,
+    const Channel &output, Module &module, LogicalClock &currentTime,
     uint32_t addr, uint8_t &opcode, RunningState &runningState) {
     if (!has_HookOnWasmAddr(addr, InstrumentBefore)) {
         VM_Exception_write(
@@ -455,6 +455,6 @@ InstrumentationWasmAddr *InstrumentationManager::start_wasm_addr_intercept(
 bool Instrumentation_interceptPrimitiveCall(Module *m) {
     return m->warduino->debugger->instrument
         .apply_primitive_call_instrumentation(*m->warduino->debugger->channel,
-                                              m, &m->warduino->timeStamp,
+                                              m, &m->warduino->logicalClock,
                                               m->warduino->program_state);
 }

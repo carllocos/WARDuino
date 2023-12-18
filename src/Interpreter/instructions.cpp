@@ -1517,7 +1517,7 @@ bool interpret(Module *m, bool waiting) {
 
     // set to true when finishes successfully
     bool program_done = false;
-    TimeStamp *ts = &WARDuino::instance()->timeStamp;
+    LogicalClock *lc = &WARDuino::instance()->logicalClock;
 
     while ((!program_done && success) || waiting) {
         if (m->warduino->program_state == WARDUINOstep) {
@@ -1535,7 +1535,7 @@ bool interpret(Module *m, bool waiting) {
         // Resolve 1 callback event if queue is not empty and VM not paused, and
         // no event currently resolving
         if (CallbackHandler::resolve_event()) {
-            ts->nr_of_events += 1;
+            lc->nr_of_events += 1;
         }
 
         // Sleep interpret loop if 'paused' or 'waiting drone'
@@ -1576,7 +1576,7 @@ bool interpret(Module *m, bool waiting) {
             case INSTRUMENTATION_INTERCEPT_OPCODE:
                 success = m->warduino->debugger->instrument
                               .apply_wasm_addr_instrumentation(
-                                  *m->warduino->debugger->channel, m, ts,
+                                  *m->warduino->debugger->channel, m, lc,
                                   opcode, m->warduino->program_state);
                 if (!success || m->warduino->program_state == WARDUINOpause) {
                     continue;
@@ -1586,7 +1586,7 @@ bool interpret(Module *m, bool waiting) {
                 break;
         }
 
-        ts->nr_of_instructions += 1;
+        lc->nr_of_instructions += 1;
 
         dbg_dump_stack(m);
         dbg_trace(" PC: %p OPCODE: <%s> in %s\n", block_ptr,

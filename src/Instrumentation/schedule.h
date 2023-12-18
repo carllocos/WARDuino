@@ -1,17 +1,18 @@
 #pragma once
-#include "./timestamp.h"
+#include "./logical_clock.h"
 
 enum ScheduleKind {
-    ScheduleOnce = 0x01,             // action run once and as soon as possible
-    ScheduleAlways = 0x03,           // action runs everytime
-    ScheduleOnTimeStamp = 0x21,      // action executed on timestamp
-    ScheduleBeforeTimeStamp = 0x22,  // action executed before given timestamp
-    ScheduleAfterTimeStamp = 0x23    // action executed after given timestamp
+    ScheduleOnce = 0x01,            // hook run once and as soon as possible
+    ScheduleAlways = 0x03,          // hook runs everytime
+    ScheduleOnLogicalClock = 0x21,  // hook executed on logical-clock
+    ScheduleBeforeLogicalClock =
+        0x22,  // hook executed before given logical-clock
+    ScheduleAfterLogicalClock = 0x23  // hook executed after given logical-clock
 };
 
 typedef struct {
     ScheduleKind kind;
     union {
-        TimeStamp timeStamp{};
+        LogicalClock logicalClock{};
     } value;
 } Schedule;
