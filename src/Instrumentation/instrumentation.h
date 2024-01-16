@@ -40,7 +40,8 @@ class InstrumentationManager {
     InstrumentationWasmAddr *new_WasmAddress_Instrumentation();
 
     bool do_remote_call(Channel &channel, Module *m, uint32_t local_fidx,
-                        uint32_t func_to_call);
+                        uint32_t func_to_call, bool isProxyCall);
+
 
     bool run_hook(
         const Channel &output, Module &module, uint32_t local_fidx, Hook &hook,

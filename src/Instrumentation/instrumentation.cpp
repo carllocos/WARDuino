@@ -143,7 +143,8 @@ void Interrupt_RemoteCall_free_response(FunCallResponse &response) {
 
 bool InstrumentationManager::do_remote_call(Channel &channel, Module *module,
                                             uint32_t local_fidx,
-                                            uint32_t func_to_call) {
+                                            uint32_t func_to_call,
+                                            bool isProxyCall) {
     if (this->fun_call_channel == nullptr) {
         VM_Exception_write("No channel set to perform around function call\n");
         return false;
@@ -159,7 +160,7 @@ bool InstrumentationManager::do_remote_call(Channel &channel, Module *module,
 
     FunCallResponse response;
     Interrupt_RemoteCall_call(func_to_call, args, func_type->param_count,
-                              channel, &response);
+                              channel, &response, isProxyCall);
     if (response.type == INTERRUPT_RESPONSE_TYPE_ERROR) {
         printf("TODO copy error properly\n");
 
