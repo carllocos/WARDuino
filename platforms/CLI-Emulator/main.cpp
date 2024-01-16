@@ -410,8 +410,8 @@ int main(int argc, const char *argv[]) {
                 return 1;
             }
 
-            // Start supervising proxy device (new thread)
-            wac->debugger->startProxySupervisor(connection);
+            // connection can be used for func calls such as proxy calls or regular call
+            wac->debugger->instrument.registerAroundFunctionChannel(connection);
         }
 
         if (mock_port != nullptr) {
