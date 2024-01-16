@@ -379,6 +379,7 @@ bool sendRemoteCallRequest(Channel &channel, FunCallRequest &request,
     }
     return true;
 }
+
 bool waitForReply(Channel &channel, uint8_t &error_code, std::string &dest) {
     ChannelReader reader{channel};
     int number_bytes_read = reader.readLine(dest);
@@ -400,12 +401,13 @@ bool waitForReply(Channel &channel, uint8_t &error_code, std::string &dest) {
 
 void Interrupt_RemoteCall_call(const uint32_t func, StackValue *args,
                                const uint32_t args_size, Channel &channel,
-                               FunCallResponse *response) {
+                               FunCallResponse *response, bool isProxyCall) {
     // prepare request
     FunCallRequest request;
     request.fun = func;
     request.number_args = args_size;
     request.args = args;
+    request.isProxyCall = isProxyCall;
     uint8_t error_code;
     std::string encoded_response{};
     if (!sendRemoteCallRequest(channel, request, error_code) ||

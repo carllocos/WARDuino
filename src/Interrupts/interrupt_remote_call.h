@@ -32,6 +32,7 @@ typedef struct {
     uint32_t fun{};
     uint32_t number_args{};
     StackValue *args{};
+    bool isProxyCall{};
 } FunCallRequest;
 
 char *Interrupt_RemoteCall_serialize_request(FunCallRequest &request,
@@ -62,4 +63,4 @@ void Interrupt_RemoteCall_do_local_call(Module *m, const uint32_t fun,
 // Needed by the requester of the remote call
 void Interrupt_RemoteCall_call(const uint32_t func, StackValue *args,
                                const uint32_t args_size, Channel &channel,
-                               FunCallResponse *response);
+                               FunCallResponse *response, bool isProxyCall);
