@@ -482,7 +482,7 @@ size_t serializeStackValue(const StackValue &value,
 }
 
 size_t deserializeStackValue(StackValue *value,
-                             const ValueSerializationConfig &config,
+                             const ValueDeserializationConfig &config,
                              uint8_t *buffer, uint8_t value_type) {
     uint8_t *data = buffer;
     if (config.includeType) {
@@ -537,7 +537,7 @@ size_t size_for_stackvalues(StackValue *val, uint32_t nr_vals,
 }
 
 StackValue *deserializeStackValues(uint8_t *encoded_data,
-                                   const ValueSerializationConfig &config,
+                                   const ValueDeserializationConfig &config,
                                    Type *type) {
     uint32_t nr_args = read_LEB_32(&encoded_data);
     StackValue *values = new StackValue[nr_args];

@@ -70,6 +70,8 @@ typedef struct {
     bool includeType;
 } ValueSerializationConfig;
 
+typedef ValueSerializationConfig ValueDeserializationConfig;
+
 size_t serializeStackValueSize(const StackValue *value,
                                const ValueSerializationConfig &config);
 
