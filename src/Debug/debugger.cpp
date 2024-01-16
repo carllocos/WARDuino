@@ -289,11 +289,8 @@ bool Debugger::checkDebugMessages(Module *m, RunningState *program_state) {
             }
             break;
         case interruptProxyCall:
-            this->handleProxyCall(m, program_state, interruptData + 1);
-            free(interruptData);
-            break;
         case interruptFunCall:
-            this->handleFuncCall(m, interruptData + 1);
+            this->handleFuncCall(m, interruptData);
             free(interruptData);
             break;
         case interruptAroundFunction:
