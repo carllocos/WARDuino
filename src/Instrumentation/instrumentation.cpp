@@ -266,9 +266,11 @@ bool InstrumentationManager::run_hook(
     std::function<void(std::function<void()>)> sendSubscriptionMsg,
     RunningState &runningState) {
     switch (hook.kind) {
+        case ProxyCall:
         case RemoteCall:
             return this->do_remote_call(*this->fun_call_channel, &module,
-                                        local_fidx, hook.value.target_fidx);
+                                        local_fidx, hook.value.target_fidx,
+                                        hook.kind == ProxyCall);
         case ValueSubstitution:
             return this->do_value_substitution(&module, local_fidx, &hook);
         case StateInspect: {
