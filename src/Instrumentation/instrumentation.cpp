@@ -47,6 +47,10 @@ bool InstrumentationManager::isAddHookAllowed(uint32_t funID) {
     // Dissallows hooks that have been scheduled for always if one is
     // alread in place
 
+    printf(
+        "TODO: addHookAroundFunction yet to decide what to do in case of "
+        "multiple hooks");
+
     // TODO: decide whether even if you have always adding this is allowed
     // because it just replaces it or becomes another hook. if the hook kind
     // is always tou replace the old one with the new one if the hook is
@@ -231,8 +235,8 @@ bool InstrumentationManager::runHooksOnInterceptedFuncCall(
     InstrumentationPrimitiveFunc *instr = iterator->second;
     Hook *hookToRun = Hooks_nextScheduledHook(instr->hook, *currentTime);
     if (hookToRun == nullptr) {
-        // We did not find an hook to execute now, but maybe we have to wait
-        // for an event to occur
+        // We did not find a hook to run, but we may have to wait for an event
+        // to occur
         if (Hooks_isHookWaitingForEvent(instr->hook, *currentTime)) {
             printf(
                 "TODO: restore the PC to the position before the call "
