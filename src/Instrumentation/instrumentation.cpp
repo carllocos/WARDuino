@@ -207,7 +207,7 @@ bool InstrumentationManager::do_value_substitution(Module *module,
     return true;
 }
 
-bool InstrumentationManager::apply_primitive_call_instrumentation(
+bool InstrumentationManager::runHooksOnInterceptedFuncCall(
     const Channel &output, Module *module, LogicalClock *currentTime,
     RunningState &runningState) {
     uint8_t *pc_of_call = findStartOfLEB128(module->pc_ptr - 1);
@@ -453,8 +453,7 @@ InstrumentationWasmAddr *InstrumentationManager::start_wasm_addr_intercept(
 }
 
 bool Instrumentation_interceptPrimitiveCall(Module *m) {
-    return m->warduino->debugger->instrument
-        .apply_primitive_call_instrumentation(*m->warduino->debugger->channel,
-                                              m, &m->warduino->logicalClock,
-                                              m->warduino->program_state);
+    return m->warduino->debugger->instrument.runHooksOnInterceptedFuncCall(
+        *m->warduino->debugger->channel, m, &m->warduino->logicalClock,
+        m->warduino->program_state);
 }

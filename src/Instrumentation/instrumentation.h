@@ -74,7 +74,7 @@ class InstrumentationManager {
 
     bool isAddHookAllowed(uint32_t funID);
 
-    bool apply_primitive_call_instrumentation(const Channel &hookOutput,
+    bool runHooksOnInterceptedFuncCall(const Channel &output,
                                               Module *module,
                                               LogicalClock *currentTime,
                                               RunningState &runningState);
