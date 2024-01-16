@@ -15,6 +15,7 @@
 #define REMOTE_CALL_ERROR_CODE_INVALID_NUMBER_OF_ARGUMENTS 22
 
 #define REMOTE_CALL_ERROR_CODE_MALFORMED_RESPONSE 30
+#define REMOTE_CALL_ERROR_CODE_MALFORMED_REQUEST_INTERRUPT_NR 31
 
 typedef struct {
     bool success;
@@ -59,6 +60,10 @@ void Interrupt_RemoteCall_handle_request(const Channel &requester, Module *m,
 void Interrupt_RemoteCall_do_local_call(Module *m, const uint32_t fun,
                                         StackValue *args, uint32_t nr_args,
                                         CallResult &result);
+
+void Interrupt_RemoteCall_do_proxy_call(Module *m, const uint32_t func,
+                                        StackValue *args,
+                                        CallResult &callResult);
 
 // Needed by the requester of the remote call
 void Interrupt_RemoteCall_call(const uint32_t func, StackValue *args,

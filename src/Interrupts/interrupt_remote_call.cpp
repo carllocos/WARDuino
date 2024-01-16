@@ -66,203 +66,6 @@ class ChannelReader {
     int readLine(std::string &line) { return this->readUntilChar(line, '\n'); }
 };
 
-void sendResponse(const Channel &channel, const FunCallResponse &response) {
-    size_t serialize_size;
-    char *encoding =
-        Interrupt_RemoteCall_serialize_response(response, serialize_size);
-    if (encoding != nullptr) {
-        channel.write("%s\n", encoding);
-        free(encoding);
-    }
-}
-
-void Interrupt_RemoteCall_do_local_call(Module *m, const uint32_t fun,
-                                        StackValue *args, uint32_t nr_args,
-                                        CallResult &result) {
-    WARDuino *instance = WARDuino::instance();
-    RunningState current = instance->program_state;
-    instance->program_state = WARDUINOrun;
-    result.success = WARDuino::instance()->invoke(m, fun, nr_args, args);
-    if (result.success) {
-        printf("TODO: Find a good way to determine if call returns result\n");
-        if (m->sp >= 0) {
-            *result.value = m->stack[m->sp];
-        } else {
-            result.value = nullptr;
-        }
-    } else {
-        result.exception_msg = strdup(VM_Exception_get_exception());
-        result.value = nullptr;
-    }
-    instance->program_state = current;
-}
-
-void Interrupt_RemoteCall_handle_request(const Channel &requester, Module *m,
-                                         uint8_t *data) {
-    FunCallRequest request{};
-    FunCallResponse response{};
-    StackValue resultValue{};
-    CallResult result{};
-    uint8_t error{};
-
-    result.value = &resultValue;  // trick to avoid malloc
-    response.result = &result;
-
-    if (Interrupt_RemoteCall_deserialize_request(m, request, data, error)) {
-        Interrupt_RemoteCall_do_local_call(m, request.fun, request.args,
-                                           request.number_args, result);
-        response.type = INTERRUPT_RESPONSE_TYPE_SUCCESS;
-    } else {
-        response.type = INTERRUPT_RESPONSE_TYPE_ERROR;
-        response.error_code = error;
-    }
-
-    sendResponse(requester, response);
-}
-
-char *Interrupt_RemoteCall_serialize_request(FunCallRequest &request,
-                                             size_t &serialized_size) {
-    // format: interrupt | LEB32 funcid | Stack | newline | null termination
-
-    const ValueSerializationConfig config{
-        .includeIndex = false,
-        .includeType = false,
-    };
-
-    // serialisation
-    size_t total_size =
-        1 + size_for_LEB(request.fun) +
-        size_for_stackvalues(request.args, request.number_args, config) + 2;
-    uint8_t *buffer = (uint8_t *)malloc(total_size);
-
-    // add interruptnr
-    buffer[0] = interruptFunCall;
-    size_t offset = 1;
-
-    // add LEB128 Func ID
-    offset += write_LEB(request.fun, buffer + offset);
-
-    // serialize args
-    offset += serializeStackValues(request.args, request.number_args, config,
-                                   buffer + offset);
-
-    buffer[offset++] = '\n';
-    buffer[offset++] = '\0';
-    char *hex = uint8_to_hex(buffer, offset);
-    free(buffer);
-
-    serialized_size = hex == nullptr ? 0 : offset * 2;
-    return hex;
-}
-
-bool Interrupt_RemoteCall_deserialize_request(const Module *m,
-                                              FunCallRequest &request,
-                                              uint8_t *encoded_request,
-                                              uint8_t &error_code) {
-    // format: LEB32 funcid | LEB32 nr args | StackValues | newline
-    request.fun = read_LEB_32(&encoded_request);
-    if (request.fun > m->function_count) {
-        error_code = REMOTE_CALL_ERROR_CODE_INVALID_FUNCTION;
-        return false;
-    }
-
-    Type *type = m->functions[request.fun].type;
-    if (type->param_count == 0) {
-        request.number_args = 0;
-        request.args = nullptr;
-        return true;
-    }
-
-    uint8_t *data = encoded_request;
-    request.number_args = read_LEB_32(&data);
-    if (request.number_args != type->param_count) {
-        error_code = REMOTE_CALL_ERROR_CODE_INVALID_NUMBER_OF_ARGUMENTS;
-        return false;
-    }
-
-    ValueSerializationConfig config{.includeIndex = false,
-                                    .includeType = false};
-    request.args = deserializeStackValues(encoded_request, config, type);
-    if (request.args == nullptr) {
-        error_code = REMOTE_CALL_ERROR_CODE_MALFORMED_FUNCTION_ARGS;
-        return false;
-    }
-
-    return true;
-}
-
-uint8_t *serialize_success_response(const FunCallResponse &response,
-                                    size_t &size_encoding) {
-    // format header: interrupt (1byte) | message_type (1byte) | success (1byte)
-    // format body 1: has_value (1 byte) | StackValue (optional) OR format body
-    // 2: has_excp_msg (1 byte) | excp_msg (optional) end: newline
-
-    ValueSerializationConfig config{};
-    config.includeType = true;
-    config.includeIndex = false;
-
-    size_encoding = 6;  // 1 for interruptnr, 1 for message_type, 1 for success,
-                        // 1 for has_value or has_expc_msg, 1 for newline, 1 for
-                        // null termination
-    if (response.result->success && response.result->value != nullptr) {
-        size_encoding +=
-            serializeStackValueSize(response.result->value, config);
-    } else if (!response.result->success &&
-               response.result->exception_msg != nullptr) {
-        size_encoding += strlen(response.result->exception_msg);
-    }
-
-    uint8_t *encoded_response = (uint8_t *)malloc(size_encoding);
-    encoded_response[0] = interruptFunCall;
-    encoded_response[1] = response.type;
-    encoded_response[2] = response.result->success;
-    encoded_response[3] = response.result->success
-                              ? response.result->value != nullptr
-                              : response.result->exception_msg != nullptr;
-    encoded_response[size_encoding - 2] = '\n';
-    encoded_response[size_encoding - 1] = '\0';
-
-    if (response.result->value != nullptr) {
-        serializeStackValue(*response.result->value, config,
-                            encoded_response + 4);
-    } else if (response.result->exception_msg != nullptr) {
-        size_t str_len = size_encoding - 3;
-        memcpy(encoded_response + 3, response.result->exception_msg, str_len);
-    }
-    return encoded_response;
-}
-
-uint8_t *serialize_error_response(const FunCallResponse &response,
-                                  size_t &size_response) {
-    // format: interrupt nr (1byte) | message_type (1byte) | error_code (1byte)
-    // | newline | null termination
-    size_response = 5;
-    uint8_t *encoded_response = (uint8_t *)malloc(size_response);
-    encoded_response[0] = interruptFunCall;
-    encoded_response[1] = INTERRUPT_RESPONSE_TYPE_ERROR;
-    encoded_response[2] = response.error_code;
-    encoded_response[3] = '\n';
-    encoded_response[4] = '\0';
-    return encoded_response;
-}
-
-char *Interrupt_RemoteCall_serialize_response(const FunCallResponse &response,
-                                              size_t &size_response) {
-    size_t size_encoding{};
-    uint8_t *encoding =
-        response.type == INTERRUPT_RESPONSE_TYPE_SUCCESS
-            ? serialize_success_response(response, size_encoding)
-            : serialize_error_response(response, size_encoding);
-
-    char *hexa_encoding = nullptr;
-    if (encoding != nullptr) {
-        hexa_encoding = uint8_to_hex(encoding, size_encoding);
-        size_response = size_encoding * 2;  // size in hexa
-        free(encoding);
-    }
-    return hexa_encoding;
-}
-
 uint8_t char_to_uint8(char c) {
     switch (c) {
         case '0' ... '9':
@@ -309,6 +112,46 @@ uint8_t *hex_to_uint8_t(char *hexString) {
         buff[i] = v;
     }
     return buff;
+}
+
+/*
+ * Suppose VM A and VM B
+ *
+ * The following functions are used by VM A to send a remote
+ * call or proxy call request to VM B
+ */
+
+char *Interrupt_RemoteCall_serialize_request(FunCallRequest &request,
+                                             size_t &serialized_size) {
+    // format: interrupt | LEB32 funcid | Stack | newline | null termination
+
+    const ValueSerializationConfig config{
+        .includeIndex = false,
+        .includeType = false,
+    };
+
+    // serialisation
+    size_t total_size =
+        1 + size_for_LEB(request.fun) +
+        size_for_stackvalues(request.args, request.number_args, config) + 2;
+    uint8_t *buffer = (uint8_t *)malloc(total_size);
+
+    // add interruptnr
+    buffer[0] = request.isProxyCall ? interruptProxyCall : interruptFunCall;
+    size_t offset = 1;
+
+    // add LEB128 Func ID
+    offset += write_LEB(request.fun, buffer + offset);
+
+    // serialize args
+    offset += serializeStackValues(request.args, request.number_args, config,
+                                   buffer + offset);
+
+    char *hex = uint8_to_hex(buffer, offset);
+    free(buffer);
+
+    serialized_size = hex == nullptr ? 0 : offset * 2;
+    return hex;
 }
 
 bool Interrupt_RemoteCall_deserialize_response(FunCallResponse *response,
@@ -423,4 +266,226 @@ void Interrupt_RemoteCall_call(const uint32_t func, StackValue *args,
         response->type = INTERRUPT_RESPONSE_TYPE_ERROR;
         response->error_code = REMOTE_CALL_ERROR_CODE_MALFORMED_RESPONSE;
     }
+}
+
+/*
+ * Suppose VM A and VM B
+ * Suppose VM A does a remote call or proxy call to VM B
+ *
+ * The following functions are used by VM B to handle the request
+ */
+
+void sendResponse(const Channel &channel, const FunCallResponse &response) {
+    size_t serialize_size;
+    char *encoding =
+        Interrupt_RemoteCall_serialize_response(response, serialize_size);
+    if (encoding != nullptr) {
+        channel.write("%s\n", encoding);
+        free(encoding);
+    }
+}
+
+uint8_t *serialize_success_response(const FunCallResponse &response,
+                                    size_t &size_encoding) {
+    // format header: interrupt (1byte) | message_type (1byte) | success (1byte)
+    // format body 1: has_value (1 byte) | StackValue (optional) OR format body
+    // 2: has_excp_msg (1 byte) | excp_msg (optional)
+
+    ValueSerializationConfig config{};
+    config.includeType = true;
+    config.includeIndex = false;
+
+    size_encoding = 4;  // 1 for interruptnr, 1 for message_type, 1 for success,
+    // 1 for has_value or has_expc_msg
+    if (response.result->success && response.result->value != nullptr) {
+        size_encoding +=
+            serializeStackValueSize(response.result->value, config);
+    } else if (!response.result->success &&
+               response.result->exception_msg != nullptr) {
+        size_encoding += strlen(response.result->exception_msg);
+    }
+
+    uint8_t *encoded_response = (uint8_t *)malloc(size_encoding);
+    encoded_response[0] = interruptFunCall;
+    encoded_response[1] = response.type;
+    encoded_response[2] = response.result->success;
+    encoded_response[3] = response.result->success
+                              ? response.result->value != nullptr
+                              : response.result->exception_msg != nullptr;
+
+    if (response.result->value != nullptr) {
+        serializeStackValue(*response.result->value, config,
+                            encoded_response + 4);
+    } else if (response.result->exception_msg != nullptr) {
+        size_t str_len = size_encoding - 3;
+        memcpy(encoded_response + 3, response.result->exception_msg, str_len);
+    }
+    return encoded_response;
+}
+
+uint8_t *serialize_error_response(const FunCallResponse &response,
+                                  size_t &size_response) {
+    // format: header | body1 | (optional) body2
+    // header: interrupt nr (1byte) | message_type (1byte)
+    // body: error_code (1byte) | has_exception_msg (1byte)
+    // body2: exception_msg
+
+    size_response = 3;
+    uint8_t *encoded_response = (uint8_t *)malloc(size_response);
+    encoded_response[0] = interruptFunCall;
+    encoded_response[1] = INTERRUPT_RESPONSE_TYPE_ERROR;
+    encoded_response[2] = response.error_code;
+
+    printf(
+        "TODO: serialize error call response still misses has_exception and "
+        "optional exception msg");
+    return encoded_response;
+}
+
+char *Interrupt_RemoteCall_serialize_response(const FunCallResponse &response,
+                                              size_t &size_response) {
+    size_t size_encoding{};
+    uint8_t *encoding =
+        response.type == INTERRUPT_RESPONSE_TYPE_SUCCESS
+            ? serialize_success_response(response, size_encoding)
+            : serialize_error_response(response, size_encoding);
+
+    char *hexa_encoding = nullptr;
+    if (encoding != nullptr) {
+        hexa_encoding = uint8_to_hex(encoding, size_encoding);
+        size_response = size_encoding * 2;  // size in hexa
+        free(encoding);
+    }
+    return hexa_encoding;
+}
+
+bool Interrupt_RemoteCall_deserialize_request(const Module *m,
+                                              FunCallRequest &request,
+                                              uint8_t *encoded_request,
+                                              uint8_t &error_code) {
+    // format: interrupt nr | LEB32 funcid | LEB32 nr args | StackValues |
+    // newline
+    uint8_t interruptNr = *encoded_request++;
+    if (interruptNr != interruptFunCall && interruptNr != interruptProxyCall) {
+        error_code = REMOTE_CALL_ERROR_CODE_MALFORMED_REQUEST_INTERRUPT_NR;
+        return false;
+    }
+
+    request.isProxyCall = interruptNr == interruptProxyCall;
+
+    request.fun = read_LEB_32(&encoded_request);
+    if (request.fun > m->function_count) {
+        error_code = REMOTE_CALL_ERROR_CODE_INVALID_FUNCTION;
+        return false;
+    }
+
+    Type *type = m->functions[request.fun].type;
+    if (type->param_count == 0) {
+        request.number_args = 0;
+        request.args = nullptr;
+        return true;
+    }
+
+    uint8_t *data = encoded_request;
+    request.number_args = read_LEB_32(&data);
+    if (request.number_args != type->param_count) {
+        error_code = REMOTE_CALL_ERROR_CODE_INVALID_NUMBER_OF_ARGUMENTS;
+        return false;
+    }
+
+    ValueDeserializationConfig config{.includeIndex = false,
+                                      .includeType = false};
+    request.args = deserializeStackValues(encoded_request, config, type);
+    if (request.args == nullptr) {
+        error_code = REMOTE_CALL_ERROR_CODE_MALFORMED_FUNCTION_ARGS;
+        return false;
+    }
+
+    // TODO remove: This next check is temporary
+    if (request.isProxyCall && request.fun >= m->import_count) {
+        printf(
+            "TODO:  Proxy Call of non primitive functions is not yet "
+            "supported\n");
+        error_code = REMOTE_CALL_ERROR_CODE_INVALID_FUNCTION;
+        return false;
+    }
+
+    return true;
+}
+
+void Interrupt_RemoteCall_do_local_call(Module *m, const uint32_t fun,
+                                        StackValue *args, uint32_t nr_args,
+                                        CallResult &result) {
+    WARDuino *instance = WARDuino::instance();
+    RunningState current = instance->program_state;
+    instance->program_state = WARDUINOrun;
+    result.success = WARDuino::instance()->invoke(m, fun, nr_args, args);
+    if (result.success) {
+        Type *type = m->functions[fun].type;
+        if (type->result_count > 0) {
+            *result.value = m->stack[m->sp--];
+        } else {
+            // set value to null as there is no wasm value produced
+            result.value = nullptr;
+        }
+    } else {
+        result.exception_msg = strdup(VM_Exception_get_exception());
+    }
+    instance->program_state = current;
+}
+
+void Interrupt_RemoteCall_do_proxy_call(Module *m, const uint32_t func,
+                                        StackValue *args,
+                                        CallResult &callResult) {
+    // adding arguments to the stack
+    Type *type = m->functions[func].type;
+    for (auto i = 0; i < type->param_count; i++) {
+        m->stack[++m->sp] = args[i];
+    }
+
+    // proxy call to primitive functions can be immediately called
+    if (func < m->import_count) {
+        callResult.success = ((Primitive)m->functions[func].func_ptr)(m);
+        if (callResult.success) {
+            if (type->result_count > 0) {
+                *callResult.value = m->stack[m->sp--];
+            } else {
+                // set value to null as there is no wasm value produced
+                callResult.value = nullptr;
+            }
+        } else if (!callResult.success) {
+            callResult.exception_msg = strdup(VM_Exception_get_exception());
+        }
+    }
+
+    return;
+}
+
+void Interrupt_RemoteCall_handle_request(const Channel &requester, Module *m,
+                                         uint8_t *data) {
+    FunCallRequest request{};
+    FunCallResponse response{};
+    StackValue resultValue{};
+    CallResult result{};
+    uint8_t error_code{};
+
+    result.value = &resultValue;  // trick to avoid malloc
+    response.result = &result;
+
+    if (Interrupt_RemoteCall_deserialize_request(m, request, data,
+                                                 error_code)) {
+        if (request.isProxyCall) {
+            Interrupt_RemoteCall_do_proxy_call(m, request.fun, request.args,
+                                               result);
+        } else {
+            Interrupt_RemoteCall_do_local_call(m, request.fun, request.args,
+                                               request.number_args, result);
+        }
+        response.type = INTERRUPT_RESPONSE_TYPE_SUCCESS;
+    } else {
+        response.type = INTERRUPT_RESPONSE_TYPE_ERROR;
+        response.error_code = error_code;
+    }
+
+    sendResponse(requester, response);
 }
