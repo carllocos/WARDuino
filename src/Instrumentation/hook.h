@@ -17,6 +17,7 @@ enum HookKind {
     ValueSubstitution = 0x02,
     StateInspect = 0x03,
     ChangeRunningState = 0x04,
+    ProxyCall = 0x05,
 };
 
 struct Hook {

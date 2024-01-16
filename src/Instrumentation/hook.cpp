@@ -138,6 +138,7 @@ Hook *Hooks_copyHook(const Hook &hook) {
         cpy->kind = hook.kind;
         cpy->schedule = hook.schedule;
         switch (cpy->kind) {
+            case ProxyCall:
             case RemoteCall:
                 cpy->value.target_fidx = hook.value.target_fidx;
                 break;
@@ -224,6 +225,8 @@ bool Hooks_deserialize_hook_rest(Hook &dest, uint8_t **encoded_hook,
     HookKind kind = (HookKind) * *encoded_hook;
     *encoded_hook += 1;
     switch (kind) {
+        case ProxyCall:
+            break;
         case RemoteCall:
             dest.value.target_fidx = read_LEB_32(encoded_hook);
             break;
