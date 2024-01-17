@@ -410,7 +410,8 @@ int main(int argc, const char *argv[]) {
                 return 1;
             }
 
-            // connection can be used for func calls such as proxy calls or regular call
+            // connection can be used for func calls such as proxy calls or
+            // regular call
             wac->debugger->instrument.registerAroundFunctionChannel(connection);
         }
 
