@@ -11,8 +11,8 @@
 
 #include "../Interrupts/interrupt_around_function.h"
 #include "../Interrupts/interrupt_hook_on_addr.h"
+#include "../Interrupts/interrupt_hook_on_event.h"
 #include "../Interrupts/interrupt_inspect.h"
-#include "../Interrupts/interrupt_monitor_event.h"
 #include "../Interrupts/interrupt_remote_call.h"
 #include "../Interrupts/interrupts.h"
 #include "../Memory/mem.h"
