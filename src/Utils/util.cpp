@@ -552,9 +552,11 @@ StackValue *deserializeStackValues(uint8_t *encoded_data,
                                    Type *type) {
     uint32_t nr_args = read_LEB_32(&encoded_data);
     StackValue *values = new StackValue[nr_args];
+    size_t bytes_read = 0;
     for (auto i = 0; i < nr_args; ++i) {
         uint8_t value_type = type == nullptr ? 0 : type->params[i];
-        deserializeStackValue(&values[i], config, encoded_data, value_type);
+        bytes_read += deserializeStackValue(
+            &values[i], config, encoded_data + bytes_read, value_type);
     }
     return values;
 }
