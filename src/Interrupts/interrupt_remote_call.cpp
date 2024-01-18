@@ -63,6 +63,23 @@ class ChannelReader {
         return dest.length();
     }
 
+    int readNextHexaLine(std::string &line) {
+        int bytesRead{};
+        while ((bytesRead = this->readUntilChar(line, '\n')) != -1) {
+            bool foundHexaLine = true;
+            for (char c : line) {
+                if (!is_hexa_char(c)) {
+                    foundHexaLine = false;
+                    break;
+                }
+            }
+            if (foundHexaLine) {
+                break;
+            }
+        }
+        return bytesRead;
+    }
+
     int readLine(std::string &line) { return this->readUntilChar(line, '\n'); }
 };
 
@@ -215,16 +232,7 @@ bool sendRemoteCallRequest(Channel &channel, FunCallRequest &request,
 
 bool waitForReply(Channel &channel, uint8_t &error_code, std::string &dest) {
     ChannelReader reader{channel};
-    int number_bytes_read = reader.readLine(dest);
-    if (number_bytes_read != -1) {
-        // skip first line interrupt ack printed by
-        // https://github.com/TOPLLab/WARDuino/blob/63a62b69d73936060314658a215d38e035c94f13/src/Debug/debugger.cpp#L173
-        std::string ack = "Interrupt: ";
-        if (dest.compare(0, ack.length(), ack) == 0) {
-            number_bytes_read = reader.readLine(dest);
-        }
-    }
-
+    int number_bytes_read = reader.readNextHexaLine(dest);
     if (number_bytes_read == -1) {
         error_code = REMOTE_CALL_ERROR_CODE_READ_FROM_CLIENT;
         return false;
