@@ -79,23 +79,13 @@ uint8_t char_to_uint8(char c) {
     return 0;
 }
 
-bool valid_hex_char(char c) {
-    switch (c) {
-        case '0' ... '9':
-        case 'A' ... 'F':
-        case 'a' ... 'f':
-            return true;
-        default:
-            return false;
-    }
-}
 
 uint8_t *hex_to_uint8_t(char *hexString) {
     size_t hexStringLength = strlen(hexString);
 
     size_t number_hex_chars = 0;
     for (size_t i = 0; i < hexStringLength; i++) {
-        if (!valid_hex_char(hexString[i])) {
+        if (!is_hexa_char(hexString[i])) {
             break;
         }
         number_hex_chars++;

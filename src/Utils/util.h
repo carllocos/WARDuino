@@ -154,6 +154,8 @@ char *uint8_to_hex(const uint8_t *data, size_t size);
 
 unsigned short int sizeof_valuetype(uint32_t);
 
+bool is_hexa_char(char c);
+
 /**
  * Converts a physical address pointing to a Wasm instruction to a virtual
  * address. Throws FATAL if conversion is not possible

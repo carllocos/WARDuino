@@ -309,6 +309,17 @@ unsigned short int sizeof_valuetype(uint32_t vt) {
     }
 }
 
+bool is_hexa_char(char c) {
+    switch (c) {
+        case '0' ... '9':
+        case 'A' ... 'F':
+        case 'a' ... 'f':
+            return true;
+        default:
+            return false;
+    }
+}
+
 uint32_t toVirtualAddress(uint8_t *physicalAddr, Module *m) {
     if (physicalAddr - m->bytes < 0 ||
         physicalAddr > m->bytes + m->byte_count) {
