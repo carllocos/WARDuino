@@ -78,8 +78,10 @@ void CallbackHandler::push_event(std::string topic, const char *payload,
 }
 
 void CallbackHandler::push_event(Event *event) {
+    // WARNING: called within an ISR so do not use IO functions!
     if (events->size() < EVENTS_SIZE) {
         events->push_back(*event);
+        WARDuino::instance()->debugger->freshMessages = true;
     }
 }
 

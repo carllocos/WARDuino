@@ -36,6 +36,10 @@ void startDebuggerStd(void* pvParameter) {
                 wac->handleInterrupt(buff_len, buffer);
             }
         }
+
+	if(wac->program_state == WARDUINOpause && wac->debugger->freshMessages){
+	  wac->debugger->messageQueueConditionVariable.notify_one();
+	}
     }
 }
 
