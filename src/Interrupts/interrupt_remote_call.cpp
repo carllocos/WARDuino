@@ -285,9 +285,10 @@ void sendResponse(const Channel &channel, const FunCallResponse &response) {
 
 uint8_t *serialize_success_response(const FunCallResponse &response,
                                     size_t &size_encoding) {
-    // format header: interrupt (1byte) | message_type (1byte) | success (1byte)
-    // format body 1: has_value (1 byte) | StackValue (optional) OR format body
-    // 2: has_excp_msg (1 byte) | excp_msg (optional)
+    // format = header | body 1 or body 2
+    // header: interrupt (1byte) | message_type (1byte) | success (1byte)
+    // body 1: has_value (1 byte) | StackValue (optional)
+    // body 2: has_excp_msg (1 byte) | excp_msg (optional)
 
     ValueSerializationConfig config{};
     config.includeType = true;
