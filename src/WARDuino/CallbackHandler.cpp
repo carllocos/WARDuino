@@ -82,6 +82,7 @@ void CallbackHandler::push_event(Event *event) {
     if (events->size() < EVENTS_SIZE) {
         events->push_back(*event);
         WARDuino::instance()->debugger->freshMessages = true;
+        WARDuino::instance()->debugger->freshEventPushed = true;
     }
 }
 
