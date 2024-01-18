@@ -442,6 +442,8 @@ def_prim(subscribe_interrupt, threeToNoneU32) {
 
     if (tidx < 0 || m->table.size < tidx) {
         debug("subscribe_interrupt: out of range table index %i\n", tidx);
+        VM_Exception_write("subscribe_interrupt: out of range table index %i\n",
+                           tidx);
         return false;
     }
 

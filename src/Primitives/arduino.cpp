@@ -622,16 +622,22 @@ def_prim(subscribe_interrupt, threeToNoneU32) {
     int index = resolve_isr(pin);
     if (index < 0) {
         dbg_info("subscribe_interrupt: no ISR found for pin %i\n", pin);
+        VM_Exception_write("subscribe_interrupt: no ISR found for pin %i\n",
+                           pin);
         return false;
     }
 
     if (tidx < 0 || m->table.size < tidx) {
         dbg_info("subscribe_interrupt: out of range table index %i\n", tidx);
+        VM_Exception_write("subscribe_interrupt: out of range table index %i\n",
+                           tidx);
         return false;
     }
 
     if (tidx < 0 || m->table.size < tidx) {
         dbg_info("subscribe_interrupt: out of range table index %i\n", tidx);
+        VM_Exception_write("subscribe_interrupt: out of range table index %i\n",
+                           tidx);
         return false;
     }
 
