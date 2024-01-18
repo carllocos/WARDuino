@@ -94,6 +94,8 @@ class InstrumentationManager {
 
     bool removeHooksOnWasmAddress(Module &module, uint32_t addr,
                                   const InstrumentMoment moment);
+
+    void runHooksForOnNewEvent();
 };
 
 bool Instrumentation_interceptPrimitiveCall(Module *module);

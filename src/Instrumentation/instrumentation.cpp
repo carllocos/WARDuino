@@ -459,6 +459,10 @@ InstrumentationWasmAddr *InstrumentationManager::start_wasm_addr_intercept(
     return instr;
 }
 
+void InstrumentationManager::runHooksForOnNewEvent() {
+    printf("TODO: runHooksForOnNewEvent\n");
+}
+
 bool Instrumentation_interceptPrimitiveCall(Module *m) {
     return m->warduino->debugger->instrument.runHooksOnInterceptedFuncCall(
         *m->warduino->debugger->channel, m, &m->warduino->logicalClock,
