@@ -58,7 +58,21 @@ bool Interrupt_AroundFunction_deserialize_request(AroundFunctionRequest &dest,
     // format: Target func (LEB32) | Schedule | Hook
     uint8_t *data = encoded_data;
     dest.func_idx = read_LEB_32(&data);
-    return Hooks_deserialize_hook(dest.hook, &data, error_code);
+    bool success = Hooks_deserialize_hook(dest.hook, &data, error_code);
+    if (success) {
+        switch (dest.hook.kind) {
+            case RemoteCall:
+                break;
+            case ProxyCall:
+                dest.hook.value.target_fidx = dest.func_idx;
+                break;
+            default:
+                error_code = AROUND_FUNC_ERROR_CODE_UNSUPPORTED_HOOK;
+                success = false;
+                break;
+        }
+    }
+    return success;
 }
 
 /*

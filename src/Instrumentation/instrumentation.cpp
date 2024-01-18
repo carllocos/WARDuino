@@ -1,6 +1,6 @@
 #include "instrumentation.h"
 
-#include "../Interrupts/interrupt_monitor_addr.h"
+#include "../Interrupts/interrupt_hook_on_addr.h"
 #include "../Interrupts/interrupt_remote_call.h"
 #include "../Interrupts/interrupt_response.h"
 #include "../Utils/macros.h"
@@ -46,6 +46,10 @@ bool InstrumentationManager::isAddHookAllowed(uint32_t funID) {
     if (!this->has_AroundFunction(funID)) return true;
     // Dissallows hooks that have been scheduled for always if one is
     // alread in place
+
+    printf(
+        "TODO: addHookAroundFunction yet to decide what to do in case of "
+        "multiple hooks");
 
     // TODO: decide whether even if you have always adding this is allowed
     // because it just replaces it or becomes another hook. if the hook kind
@@ -143,7 +147,8 @@ void Interrupt_RemoteCall_free_response(FunCallResponse &response) {
 
 bool InstrumentationManager::do_remote_call(Channel &channel, Module *module,
                                             uint32_t local_fidx,
-                                            uint32_t func_to_call) {
+                                            uint32_t func_to_call,
+                                            bool isProxyCall) {
     if (this->fun_call_channel == nullptr) {
         VM_Exception_write("No channel set to perform around function call\n");
         return false;
@@ -159,7 +164,7 @@ bool InstrumentationManager::do_remote_call(Channel &channel, Module *module,
 
     FunCallResponse response;
     Interrupt_RemoteCall_call(func_to_call, args, func_type->param_count,
-                              channel, &response);
+                              channel, &response, isProxyCall);
     if (response.type == INTERRUPT_RESPONSE_TYPE_ERROR) {
         printf("TODO copy error properly\n");
 
@@ -207,8 +212,8 @@ bool InstrumentationManager::do_value_substitution(Module *module,
     return true;
 }
 
-bool InstrumentationManager::apply_primitive_call_instrumentation(
-    const Channel &output, Module *module, TimeStamp *currentTime,
+bool InstrumentationManager::runHooksOnInterceptedFuncCall(
+    const Channel &output, Module *module, LogicalClock *currentTime,
     RunningState &runningState) {
     uint8_t *pc_of_call = findStartOfLEB128(module->pc_ptr - 1);
     uint32_t primitive_called = read_LEB_32(&pc_of_call);
@@ -230,8 +235,8 @@ bool InstrumentationManager::apply_primitive_call_instrumentation(
     InstrumentationPrimitiveFunc *instr = iterator->second;
     Hook *hookToRun = Hooks_nextScheduledHook(instr->hook, *currentTime);
     if (hookToRun == nullptr) {
-        // We did not find an hook to execute now, but maybe we have to wait
-        // for an event to occur
+        // We did not find a hook to run, but we may have to wait for an event
+        // to occur
         if (Hooks_isHookWaitingForEvent(instr->hook, *currentTime)) {
             printf(
                 "TODO: restore the PC to the position before the call "
@@ -261,9 +266,11 @@ bool InstrumentationManager::run_hook(
     std::function<void(std::function<void()>)> sendSubscriptionMsg,
     RunningState &runningState) {
     switch (hook.kind) {
+        case ProxyCall:
         case RemoteCall:
             return this->do_remote_call(*this->fun_call_channel, &module,
-                                        local_fidx, hook.value.target_fidx);
+                                        local_fidx, hook.value.target_fidx,
+                                        hook.kind == ProxyCall);
         case ValueSubstitution:
             return this->do_value_substitution(&module, local_fidx, &hook);
         case StateInspect: {
@@ -312,7 +319,7 @@ void InstrumentationManager::apply_instrumentation_after_instr(
         }
         InstrumentationWasmAddr *instr = this->instr_wasm_addr_after[addr];
         auto printSubMsg = [&output, addr](std::function<void()> hookOutput) {
-            Interrupt_MonitorAddr_send_JSON_subscribe_message(
+            Interrupt_HookOnAddr_send_JSON_subscribe_message(
                 output, InstrumentAfter, addr, hookOutput);
         };
 
@@ -331,14 +338,14 @@ void InstrumentationManager::apply_instrumentation_after_instr(
 }
 
 bool InstrumentationManager::apply_wasm_addr_instrumentation(
-    const Channel &output, Module *module, TimeStamp *currentTime,
+    const Channel &output, Module *module, LogicalClock *currentTime,
     uint8_t &opcode, RunningState &runningState) {
     module->pc_ptr -= 1;  // set pc to start of instruction
     uint32_t addr = toVirtualAddress(module->pc_ptr, module);
     bool success = true;
     bool upcodeRestored = false;
 
-    if (TimeStamp_is_t1_equal_t2(this->lastObservedTime, *currentTime)) {
+    if (LogicalClock_is_t1_equal_t2(this->lastObservedTime, *currentTime)) {
         // Reentering an addr for which the hooks were just run
         // do not run the hooks but advance computation
         auto instr = this->has_HookOnWasmAddr(addr, InstrumentBefore)
@@ -376,7 +383,7 @@ bool InstrumentationManager::apply_wasm_addr_instrumentation(
 }
 
 bool InstrumentationManager::do_before_wasm_addr_hooks(
-    const Channel &output, Module &module, TimeStamp &currentTime,
+    const Channel &output, Module &module, LogicalClock &currentTime,
     uint32_t addr, uint8_t &opcode, RunningState &runningState) {
     if (!has_HookOnWasmAddr(addr, InstrumentBefore)) {
         VM_Exception_write(
@@ -386,7 +393,7 @@ bool InstrumentationManager::do_before_wasm_addr_hooks(
     InstrumentationWasmAddr *instr = this->instr_wasm_addr_before[addr];
 
     auto printSubMsg = [&output, addr](std::function<void()> hookOutput) {
-        Interrupt_MonitorAddr_send_JSON_subscribe_message(
+        Interrupt_HookOnAddr_send_JSON_subscribe_message(
             output, InstrumentBefore, addr, hookOutput);
     };
     bool success = true;
@@ -453,8 +460,7 @@ InstrumentationWasmAddr *InstrumentationManager::start_wasm_addr_intercept(
 }
 
 bool Instrumentation_interceptPrimitiveCall(Module *m) {
-    return m->warduino->debugger->instrument
-        .apply_primitive_call_instrumentation(*m->warduino->debugger->channel,
-                                              m, &m->warduino->timeStamp,
-                                              m->warduino->program_state);
+    return m->warduino->debugger->instrument.runHooksOnInterceptedFuncCall(
+        *m->warduino->debugger->channel, m, &m->warduino->logicalClock,
+        m->warduino->program_state);
 }

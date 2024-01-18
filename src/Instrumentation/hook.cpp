@@ -19,8 +19,8 @@ Hook *Hooks_add_and_sort(Hook *hooks, Hook *hook_to_add) {
     }
 
     // TODO sort hooks from more specific to more general
-    // sorting goes from timestamp, ev dep, cond, once, always
-    // timestamp < timestamp < .. < timestamp
+    // sorting goes from logical-clock, ev dep, cond, once, always
+    // logical-clock < logical-clock < .. < logical-clock
     // -> sub sort ts before(s) .... ts on ts .... ts after
     // event dependency < event dep. < ... < event dep. condition
     // Once < once < ... < once
@@ -66,9 +66,9 @@ Hook *Hooks_remove_completed_hook(Hook *first_hook, Hook *hook_completed) {
 }
 
 Hook *Hooks_nextScheduledHook(Hook *sorted_hooks,
-                              const TimeStamp &currentTime) {
-    // sorted hooks go from timestamp, ev dep, cond, once, always
-    // timestamp < timestamp < .. < timestamp
+                              const LogicalClock &currentTime) {
+    // sorted hooks go from logical-clock, ev dep, cond, once, always
+    // logical-clock < logical-clock < .. < logical-clock
     // -> sub sort ts before(s) .... ts on ts .... ts after
     // event dependency < event dep. < ... < event dep. condition
     // Once < once < ... < once
@@ -77,28 +77,28 @@ Hook *Hooks_nextScheduledHook(Hook *sorted_hooks,
     Hook *hook = sorted_hooks;
     while (hook != nullptr) {
         switch (hook->schedule.kind) {
-            case ScheduleBeforeTimeStamp:
+            case ScheduleBeforeLogicalClock:
                 // TODO: decide whether before makes sense
-                // ScheduleBeforeTimeStamp means that the hook should
-                // be scheduled to run before the current timestamp becomes
-                // equal to the timestamp assigned to the hook
-                if (TimeStamp_is_t1_smaller_t2(
-                        currentTime, hook->schedule.value.timeStamp)) {
+                // ScheduleBeforeLogicalClock means that the hook should
+                // be scheduled to run before the current logical-clock becomes
+                // equal to the logical-clock assigned to the hook
+                if (LogicalClock_is_t1_smaller_t2(
+                        currentTime, hook->schedule.value.logicalClock)) {
                     return hook;
                 }
                 break;
-            case ScheduleOnTimeStamp:
-                if (TimeStamp_is_t1_equal_t2(hook->schedule.value.timeStamp,
-                                             currentTime)) {
+            case ScheduleOnLogicalClock:
+                if (LogicalClock_is_t1_equal_t2(
+                        hook->schedule.value.logicalClock, currentTime)) {
                     return hook;
                 }
                 break;
-            case ScheduleAfterTimeStamp:
-                // ScheduleAfterTimeStamp means that the hook should
-                // be scheduled to run only after the current timestamp
-                // becomes greater than the timestamp assigned to the hook
-                if (TimeStamp_is_t1_greater_t2(
-                        currentTime, hook->schedule.value.timeStamp)) {
+            case ScheduleAfterLogicalClock:
+                // ScheduleAfterLogicalClock means that the hook should
+                // be scheduled to run only after the current logical-clock
+                // becomes greater than the logical-clock assigned to the hook
+                if (LogicalClock_is_t1_greater_t2(
+                        currentTime, hook->schedule.value.logicalClock)) {
                     return hook;
                 }
                 break;
@@ -113,17 +113,17 @@ Hook *Hooks_nextScheduledHook(Hook *sorted_hooks,
 }
 
 bool Hooks_isHookWaitingForEvent(Hook *sorted_hooks,
-                                 const TimeStamp &currentTime) {
+                                 const LogicalClock &currentTime) {
     Hook *hook = sorted_hooks;
     while (hook != nullptr) {
         // TODO decide: whether to move the code here to Sceduler.h
         switch (hook->schedule.kind) {
-            case ScheduleOnTimeStamp:
-            case ScheduleAfterTimeStamp:
-            case ScheduleBeforeTimeStamp:
-                return hook->schedule.value.timeStamp.nr_of_events >
+            case ScheduleOnLogicalClock:
+            case ScheduleAfterLogicalClock:
+            case ScheduleBeforeLogicalClock:
+                return hook->schedule.value.logicalClock.nr_of_events >
                            currentTime.nr_of_events &&
-                       hook->schedule.value.timeStamp.nr_of_instructions >=
+                       hook->schedule.value.logicalClock.nr_of_instructions >=
                            currentTime.nr_of_instructions;
             default:
                 hook = hook->nextHook;
@@ -138,6 +138,7 @@ Hook *Hooks_copyHook(const Hook &hook) {
         cpy->kind = hook.kind;
         cpy->schedule = hook.schedule;
         switch (cpy->kind) {
+            case ProxyCall:
             case RemoteCall:
                 cpy->value.target_fidx = hook.value.target_fidx;
                 break;
@@ -195,7 +196,7 @@ bool Hooks_deserialize_hook(Hook &dest, uint8_t **encoded_hook,
 bool Hooks_deserialize_schedule(Schedule &dest, uint8_t **encoded_schedule,
                                 uint8_t &error_code) {
     // format expected: SCHEDULE_KIND (1 BYTE)
-    // format timestamp: nr of instructions (LEB32) | nr of events (LEB32);
+    // format logical-clock: nr of instructions (LEB32) | nr of events (LEB32);
 
     ScheduleKind schedule = (ScheduleKind) * *encoded_schedule;
     *encoded_schedule += 1;
@@ -203,12 +204,13 @@ bool Hooks_deserialize_schedule(Schedule &dest, uint8_t **encoded_schedule,
         case ScheduleOnce:
         case ScheduleAlways:
             break;
-        case ScheduleOnTimeStamp:
-        case ScheduleBeforeTimeStamp:
-        case ScheduleAfterTimeStamp:
-            dest.value.timeStamp.nr_of_instructions =
+        case ScheduleOnLogicalClock:
+        case ScheduleBeforeLogicalClock:
+        case ScheduleAfterLogicalClock:
+            dest.value.logicalClock.nr_of_instructions =
                 read_LEB_32(encoded_schedule);
-            dest.value.timeStamp.nr_of_events = read_LEB_32(encoded_schedule);
+            dest.value.logicalClock.nr_of_events =
+                read_LEB_32(encoded_schedule);
             break;
         default:
             error_code = HOOK_ERROR_CODE_UNEXISTING_SCHEDULE_KIND;
@@ -223,6 +225,8 @@ bool Hooks_deserialize_hook_rest(Hook &dest, uint8_t **encoded_hook,
     HookKind kind = (HookKind) * *encoded_hook;
     *encoded_hook += 1;
     switch (kind) {
+        case ProxyCall:
+            break;
         case RemoteCall:
             dest.value.target_fidx = read_LEB_32(encoded_hook);
             break;

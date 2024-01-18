@@ -55,7 +55,7 @@ class WARDuino {
    public:
     Debugger *debugger;
     RunningState program_state = WARDUINOrun;
-    TimeStamp timeStamp{};
+    LogicalClock logicalClock{};
 
     static WARDuino *instance();
 

@@ -309,6 +309,17 @@ unsigned short int sizeof_valuetype(uint32_t vt) {
     }
 }
 
+bool is_hexa_char(char c) {
+    switch (c) {
+        case '0' ... '9':
+        case 'A' ... 'F':
+        case 'a' ... 'f':
+            return true;
+        default:
+            return false;
+    }
+}
+
 uint32_t toVirtualAddress(uint8_t *physicalAddr, Module *m) {
     if (physicalAddr - m->bytes < 0 ||
         physicalAddr > m->bytes + m->byte_count) {
@@ -406,7 +417,7 @@ float read_float(uint8_t **buffer) {
 
 size_t size_for_float(float v) { return sizeof(float); }
 
-char *uint8_to_hex(uint8_t *data, size_t size) {
+char *uint8_to_hex(const uint8_t *data, size_t size) {
     if (data == nullptr || size == 0) {
         return nullptr;
     }
@@ -482,7 +493,7 @@ size_t serializeStackValue(const StackValue &value,
 }
 
 size_t deserializeStackValue(StackValue *value,
-                             const ValueSerializationConfig &config,
+                             const ValueDeserializationConfig &config,
                              uint8_t *buffer, uint8_t value_type) {
     uint8_t *data = buffer;
     if (config.includeType) {
@@ -537,13 +548,15 @@ size_t size_for_stackvalues(StackValue *val, uint32_t nr_vals,
 }
 
 StackValue *deserializeStackValues(uint8_t *encoded_data,
-                                   const ValueSerializationConfig &config,
+                                   const ValueDeserializationConfig &config,
                                    Type *type) {
     uint32_t nr_args = read_LEB_32(&encoded_data);
     StackValue *values = new StackValue[nr_args];
+    size_t bytes_read = 0;
     for (auto i = 0; i < nr_args; ++i) {
         uint8_t value_type = type == nullptr ? 0 : type->params[i];
-        deserializeStackValue(&values[i], config, encoded_data, value_type);
+        bytes_read += deserializeStackValue(
+            &values[i], config, encoded_data + bytes_read, value_type);
     }
     return values;
 }

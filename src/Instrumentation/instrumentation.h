@@ -4,8 +4,8 @@
 #include <stack>
 #include <unordered_map>
 
+#include "../Instrumentation/logical_clock.h"
 #include "../Instrumentation/schedule.h"
-#include "../Instrumentation/timestamp.h"
 #include "../Utils/sockets.h"
 #include "../WARDuino/structs.h"
 #include "./hook.h"
@@ -20,7 +20,7 @@ typedef struct MonitoredFrame {
 
 class InstrumentationManager {
    private:
-    TimeStamp lastObservedTime{};
+    LogicalClock lastObservedTime{};
 
     Channel *fun_call_channel{};
 
@@ -40,7 +40,7 @@ class InstrumentationManager {
     InstrumentationWasmAddr *new_WasmAddress_Instrumentation();
 
     bool do_remote_call(Channel &channel, Module *m, uint32_t local_fidx,
-                        uint32_t func_to_call);
+                        uint32_t func_to_call, bool isProxyCall);
 
     bool run_hook(
         const Channel &output, Module &module, uint32_t local_fidx, Hook &hook,
@@ -57,7 +57,7 @@ class InstrumentationManager {
         Module &module, const uint32_t addr, const InstrumentMoment moment);
 
     bool do_before_wasm_addr_hooks(const Channel &hookOutput, Module &module,
-                                   TimeStamp &currentTime, uint32_t addr,
+                                   LogicalClock &currentTime, uint32_t addr,
                                    uint8_t &opcode, RunningState &runningState);
 
    public:
@@ -74,13 +74,12 @@ class InstrumentationManager {
 
     bool isAddHookAllowed(uint32_t funID);
 
-    bool apply_primitive_call_instrumentation(const Channel &hookOutput,
-                                              Module *module,
-                                              TimeStamp *currentTime,
-                                              RunningState &runningState);
+    bool runHooksOnInterceptedFuncCall(const Channel &output, Module *module,
+                                       LogicalClock *currentTime,
+                                       RunningState &runningState);
 
     bool apply_wasm_addr_instrumentation(const Channel &output, Module *module,
-                                         TimeStamp *currentTime,
+                                         LogicalClock *currentTime,
                                          uint8_t &opcode,
                                          RunningState &runningState);
 

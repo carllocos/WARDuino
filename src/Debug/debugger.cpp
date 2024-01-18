@@ -10,8 +10,8 @@
 #endif
 
 #include "../Interrupts/interrupt_around_function.h"
+#include "../Interrupts/interrupt_hook_on_addr.h"
 #include "../Interrupts/interrupt_inspect.h"
-#include "../Interrupts/interrupt_monitor_addr.h"
 #include "../Interrupts/interrupt_monitor_event.h"
 #include "../Interrupts/interrupt_remote_call.h"
 #include "../Interrupts/interrupts.h"
@@ -289,19 +289,16 @@ bool Debugger::checkDebugMessages(Module *m, RunningState *program_state) {
             }
             break;
         case interruptProxyCall:
-            this->handleProxyCall(m, program_state, interruptData + 1);
-            free(interruptData);
-            break;
         case interruptFunCall:
-            this->handleFuncCall(m, interruptData + 1);
+            this->handleFuncCall(m, interruptData);
             free(interruptData);
             break;
         case interruptAroundFunction:
             this->handleAroundFunction(m, interruptData + 1);
             free(interruptData);
             break;
-        case interruptMonitorAddr:
-            this->handleMonitorAddr(m, interruptData);
+        case interruptHookOnAddress:
+            this->handleHookOnAddress(m, interruptData);
             free(interruptData);
             break;
         case interruptMonitorEvent:
@@ -1211,9 +1208,9 @@ void Debugger::handleFuncCall(Module *m, uint8_t *data) {
     Interrupt_RemoteCall_handle_request(*this->channel, m, data);
 }
 
-void Debugger::handleMonitorAddr(Module *m, uint8_t *data) {
-    Interrupt_MonitorAddr_handle_request(*this->channel, *m, this->instrument,
-                                         data);
+void Debugger::handleHookOnAddress(Module *m, uint8_t *data) {
+    Interrupt_HookOnAddr_handle_request(*this->channel, *m, this->instrument,
+                                        data);
 }
 
 void Debugger::handleMonitorEvent(Module *m, uint8_t *data) {

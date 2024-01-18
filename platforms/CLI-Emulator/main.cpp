@@ -377,7 +377,8 @@ int main(int argc, const char *argv[]) {
             Channel *connection = nullptr;
             try {
                 int port = std::stoi(proxy);
-                connection = new WebSocket(port);
+                connection = new ClientSideSocket("127.0.0.1", port);
+                connection->open();
             } catch (std::invalid_argument const &ex) {
                 // argument is not a port
                 // treat as filename
@@ -409,8 +410,9 @@ int main(int argc, const char *argv[]) {
                 return 1;
             }
 
-            // Start supervising proxy device (new thread)
-            wac->debugger->startProxySupervisor(connection);
+            // connection can be used for func calls such as proxy calls or
+            // regular call
+            wac->debugger->instrument.registerAroundFunctionChannel(connection);
         }
 
         if (mock_port != nullptr) {

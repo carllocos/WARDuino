@@ -70,6 +70,8 @@ typedef struct {
     bool includeType;
 } ValueSerializationConfig;
 
+typedef ValueSerializationConfig ValueDeserializationConfig;
+
 size_t serializeStackValueSize(const StackValue *value,
                                const ValueSerializationConfig &config);
 
@@ -148,9 +150,11 @@ uint32_t read_L32(uint8_t **bytes);
 void chars_as_hexa(unsigned char *dest, unsigned char *source,
                    uint32_t len_source);
 
-char *uint8_to_hex(uint8_t *data, size_t size);
+char *uint8_to_hex(const uint8_t *data, size_t size);
 
 unsigned short int sizeof_valuetype(uint32_t);
+
+bool is_hexa_char(char c);
 
 /**
  * Converts a physical address pointing to a Wasm instruction to a virtual

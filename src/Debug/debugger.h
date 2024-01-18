@@ -183,7 +183,7 @@ class Debugger {
 
     void handleFuncCall(Module *m, uint8_t *data);
 
-    void handleMonitorAddr(Module *m, uint8_t *data);
+    void handleHookOnAddress(Module *m, uint8_t *data);
 
     void handleMonitorEvent(Module *m, uint8_t *data);
 };

@@ -42,7 +42,7 @@ compile: Arduino.ino
 ifndef FQBN
 	$(error FQBN is not set. Use a .config file)
 endif
-	arduino-cli compile --fqbn $(FQBN) Arduino.ino
+	arduino-cli compile --fqbn $(FQBN) Arduino.ino -e
 
 recompile: clean compile
 
