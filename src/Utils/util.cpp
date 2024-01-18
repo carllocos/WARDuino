@@ -406,7 +406,7 @@ float read_float(uint8_t **buffer) {
 
 size_t size_for_float(float v) { return sizeof(float); }
 
-char *uint8_to_hex(uint8_t *data, size_t size) {
+char *uint8_to_hex(const uint8_t *data, size_t size) {
     if (data == nullptr || size == 0) {
         return nullptr;
     }
