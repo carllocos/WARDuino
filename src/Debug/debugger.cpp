@@ -301,8 +301,8 @@ bool Debugger::checkDebugMessages(Module *m, RunningState *program_state) {
             this->handleHookOnAddress(m, interruptData);
             free(interruptData);
             break;
-        case interruptMonitorEvent:
-            this->handleMonitorEvent(m, interruptData);
+        case interruptHookOnEvent:
+            this->handleHookOnEvent(m, interruptData);
             free(interruptData);
             break;
         case interruptMonitorProxies: {
@@ -1213,6 +1213,6 @@ void Debugger::handleHookOnAddress(Module *m, uint8_t *data) {
                                         data);
 }
 
-void Debugger::handleMonitorEvent(Module *m, uint8_t *data) {
-    Interrupt_Monitor_Event_handle_request(*this->channel, *m, data);
+void Debugger::handleHookOnEvent(Module *m, uint8_t *data) {
+    Interrupt_OnEventHook_handle_request(*this->channel, *m, data);
 }

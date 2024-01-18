@@ -3,32 +3,32 @@
 #include "../Utils/sockets.h"
 #include "../WARDuino/structs.h"
 
-#define MONITOR_EVENT_ERROR_CODE_INVALID_INTERRUPT_NR 1;
-#define MONITOR_EVENT_ERROR_CODE_INVALID_MONITOR_MOMENT 2;
+#define ON_EVENT_HOOK_ERROR_CODE_INVALID_INTERRUPT_NR 1;
+#define ON_EVENT_HOOK_ERROR_CODE_INVALID_HOOK_MOMENT 2;
 
-enum MonitorEventMoment { MonitorOnEventHandling = 0x01 };
+enum HookEventMoment { HookOnEventHandling = 0x01 };
 
-typedef struct MonitorEventRequest {
-    MonitorEventMoment moment{};
-} MonitorEventRequest;
+typedef struct OnEventHookRequest {
+    HookEventMoment moment{};
+} OnEventHookRequest;
 
-typedef struct MonitorEventResponse {
+typedef struct OnEventHookResponse {
     uint8_t type{};
     uint8_t error_code{};
-} MonitorEventResponse;
+} OnEventHookResponse;
 
-void Interrupt_Monitor_Event_handle_request(const Channel &requester, Module &m,
-                                            uint8_t *encoded_request);
+void Interrupt_OnEventHook_handle_request(const Channel &requester, Module &m,
+                                          uint8_t *encoded_request);
 
-bool Interrupt_Monitor_Event_deserialize_request(MonitorEventRequest &dest,
-                                                 uint8_t *encoded_request,
-                                                 uint8_t &error_code);
+bool Interrupt_OnEventHook_deserialize_request(OnEventHookRequest &dest,
+                                               uint8_t *encoded_request,
+                                               uint8_t &error_code);
 
-void Interrupt_MonitorEvent_send_response(const Channel &output,
-                                          const MonitorEventResponse &response);
+void Interrupt_OnEventHook_send_response(const Channel &output,
+                                         const OnEventHookResponse &response);
 
-bool Interrupt_MonitorEvent_serialize_response(
-    const MonitorEventResponse &response, char *dest, uint32_t dest_size);
+bool Interrupt_OnEventHook_serialize_response(
+    const OnEventHookResponse &response, char *dest, uint32_t dest_size);
 
-bool Interrupt_MonitorEvent_serialize_json_response(
-    const MonitorEventResponse &response, char *dest, uint32_t dest_size);
+bool Interrupt_OnEventHook_serialize_json_response(
+    const OnEventHookResponse &response, char *dest, uint32_t dest_size);
