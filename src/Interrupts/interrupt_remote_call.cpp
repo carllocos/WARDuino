@@ -302,6 +302,9 @@ uint8_t *serialize_success_response(const FunCallResponse &response,
     } else if (!response.result->success &&
                response.result->exception_msg != nullptr) {
         size_encoding += strlen(response.result->exception_msg);
+        printf(
+            "TODO: handle the possibility where an exception message got "
+            "written");
     }
 
     uint8_t *encoded_response = (uint8_t *)malloc(size_encoding);
