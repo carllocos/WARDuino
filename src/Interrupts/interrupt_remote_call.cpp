@@ -96,7 +96,6 @@ uint8_t char_to_uint8(char c) {
     return 0;
 }
 
-
 uint8_t *hex_to_uint8_t(char *hexString) {
     size_t hexStringLength = strlen(hexString);
 
