@@ -65,14 +65,38 @@ class InstrumentationManager {
 
     InstrumentationManager();
 
+    void registerAroundFunctionChannel(Channel *channel);
+
+    /*
+     * Hook registration methods
+     */
+
     bool addAroundFunctionHook(Module &m, uint32_t func_idx,
                                const Hook &around);
 
+    bool addHookOnWasmAddress(Module &module, uint32_t addr, Hook &hook,
+                              const InstrumentMoment moment);
+
+    bool removeHooksOnWasmAddress(Module &module, uint32_t addr,
+                                  const InstrumentMoment moment);
+    /*
+     *  Predicate methods
+     */
     bool has_AroundFunction(uint32_t funID);
 
     bool has_HookOnWasmAddr(uint32_t addr, InstrumentMoment moment);
 
     bool isAddHookAllowed(uint32_t funID);
+
+    /*
+     * Running hooks methods
+     */
+
+    void runHooksForOnNewEvent();
+
+    void apply_instrumentation_after_instr(const Channel &hookOutput,
+                                           Module *module,
+                                           RunningState &runningState);
 
     bool runHooksOnInterceptedFuncCall(const Channel &output, Module *module,
                                        LogicalClock *currentTime,
@@ -82,20 +106,6 @@ class InstrumentationManager {
                                          LogicalClock *currentTime,
                                          uint8_t &opcode,
                                          RunningState &runningState);
-
-    void apply_instrumentation_after_instr(const Channel &hookOutput,
-                                           Module *module,
-                                           RunningState &runningState);
-
-    void registerAroundFunctionChannel(Channel *channel);
-
-    bool addHookOnWasmAddress(Module &module, uint32_t addr, Hook &hook,
-                              const InstrumentMoment moment);
-
-    bool removeHooksOnWasmAddress(Module &module, uint32_t addr,
-                                  const InstrumentMoment moment);
-
-    void runHooksForOnNewEvent();
 };
 
 bool Instrumentation_interceptPrimitiveCall(Module *module);
