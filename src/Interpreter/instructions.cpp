@@ -1569,7 +1569,7 @@ bool interpret(Module *m, bool waiting) {
         m->warduino->debugger->skipBreakpoint = nullptr;
 
         if (m->warduino->debugger->instrument.awakeOnNextInstruction) {
-            m->warduino->debugger->instrument.apply_instrumentation_after_instr(
+            m->warduino->debugger->instrument.runHooksAfterWasmAddr(
                 *m->warduino->debugger->channel, m, m->warduino->program_state);
         }
 
@@ -1579,10 +1579,9 @@ bool interpret(Module *m, bool waiting) {
 
         switch (opcode) {
             case INSTRUMENTATION_INTERCEPT_OPCODE:
-                success = m->warduino->debugger->instrument
-                              .apply_wasm_addr_instrumentation(
-                                  *m->warduino->debugger->channel, m, lc,
-                                  opcode, m->warduino->program_state);
+                success = m->warduino->debugger->instrument.runHooksOnWasmAddr(
+                    *m->warduino->debugger->channel, m, lc, opcode,
+                    m->warduino->program_state);
                 if (!success || m->warduino->program_state == WARDUINOpause) {
                     continue;
                 }

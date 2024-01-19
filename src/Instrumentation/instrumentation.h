@@ -94,18 +94,16 @@ class InstrumentationManager {
 
     void runHooksForOnNewEvent();
 
-    void apply_instrumentation_after_instr(const Channel &hookOutput,
-                                           Module *module,
-                                           RunningState &runningState);
+    void runHooksAfterWasmAddr(const Channel &output, Module *module,
+                               RunningState &runningState);
 
     bool runHooksOnInterceptedFuncCall(const Channel &output, Module *module,
                                        LogicalClock *currentTime,
                                        RunningState &runningState);
 
-    bool apply_wasm_addr_instrumentation(const Channel &output, Module *module,
-                                         LogicalClock *currentTime,
-                                         uint8_t &opcode,
-                                         RunningState &runningState);
+    bool runHooksOnWasmAddr(const Channel &output, Module *module,
+                            LogicalClock *currentTime, uint8_t &opcode,
+                            RunningState &runningState);
 };
 
 bool Instrumentation_interceptPrimitiveCall(Module *module);

@@ -299,8 +299,9 @@ bool InstrumentationManager::run_hook(
     }
 }
 
-void InstrumentationManager::apply_instrumentation_after_instr(
-    const Channel &output, Module *module, RunningState &runningState) {
+void InstrumentationManager::runHooksAfterWasmAddr(const Channel &output,
+                                                   Module *module,
+                                                   RunningState &runningState) {
     // Only called when tool client wants to do something after some wasm addr.
     // Inefficiently called after each instruction execution. Benchmark needed
     // to determine whether an alternative approach is required
@@ -337,9 +338,11 @@ void InstrumentationManager::apply_instrumentation_after_instr(
     }
 }
 
-bool InstrumentationManager::apply_wasm_addr_instrumentation(
-    const Channel &output, Module *module, LogicalClock *currentTime,
-    uint8_t &opcode, RunningState &runningState) {
+bool InstrumentationManager::runHooksOnWasmAddr(const Channel &output,
+                                                Module *module,
+                                                LogicalClock *currentTime,
+                                                uint8_t &opcode,
+                                                RunningState &runningState) {
     module->pc_ptr -= 1;  // set pc to start of instruction
     uint32_t addr = toVirtualAddress(module->pc_ptr, module);
     bool success = true;
