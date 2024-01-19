@@ -91,8 +91,8 @@ bool registerHookOnAddr(InstrumentationManager &manager, Module &m,
         return false;
     }
     if (request.add) {
-        if (!manager.addHookOnOnWasmAddress(m, request.addr, *request.hook,
-                                            request.moment)) {
+        if (!manager.addHookOnWasmAddress(m, request.addr, *request.hook,
+                                          request.moment)) {
             error_code = HOOK_ON_ADDR_ERROR_CODE_COULD_NOT_ADD_HOOK;
             return false;
         }

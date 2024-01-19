@@ -89,8 +89,8 @@ class InstrumentationManager {
 
     void registerAroundFunctionChannel(Channel *channel);
 
-    bool addHookOnOnWasmAddress(Module &module, uint32_t addr, Hook &hook,
-                                const InstrumentMoment moment);
+    bool addHookOnWasmAddress(Module &module, uint32_t addr, Hook &hook,
+                              const InstrumentMoment moment);
 
     bool removeHooksOnWasmAddress(Module &module, uint32_t addr,
                                   const InstrumentMoment moment);

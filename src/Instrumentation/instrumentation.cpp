@@ -117,7 +117,7 @@ bool InstrumentationManager::removeHooksOnWasmAddress(
     return true;
 }
 
-bool InstrumentationManager::addHookOnOnWasmAddress(
+bool InstrumentationManager::addHookOnWasmAddress(
     Module &module, uint32_t addr, Hook &hook, const InstrumentMoment moment) {
     if (!isToPhysicalAddrPossible(addr, &module)) {
         // address is not in module
