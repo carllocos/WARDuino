@@ -25,6 +25,7 @@ Hook *Hooks_add_and_sort(Hook *hooks, Hook *hook_to_add) {
     // event dependency < event dep. < ... < event dep. condition
     // Once < once < ... < once
     // always (only one allowed)
+    // BUT FOR NOW: just add hook at the end
     Hook *insert = hooks;
     while (insert->nextHook != nullptr) {
         insert = insert->nextHook;
