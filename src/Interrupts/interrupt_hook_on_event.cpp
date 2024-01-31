@@ -91,9 +91,9 @@ void Interrupt_HookOnEvent_send_Binary_subscribe_message(const Channel &output,
     // payload: size payload (LEB32) | payload (LEB32)
 
     // calculate total size buffer:
-    size_t encodingSize = 1 + 1 + size_for_LEB(ev.topic.size()) +
-                          ev.topic.size() + size_for_LEB(ev.payload.size()) +
-                          ev.payload.size();
+    size_t encodingSize =
+        1 + 1 + size_for_64BIT_LEB(ev.topic.size()) + ev.topic.size() +
+        size_for_64BIT_LEB(ev.payload.size()) + ev.payload.size();
     uint8_t *buffer = (uint8_t *)malloc(encodingSize);
     if (buffer == nullptr) {
         return;
@@ -106,12 +106,12 @@ void Interrupt_HookOnEvent_send_Binary_subscribe_message(const Channel &output,
     // TODO refactor the following event encoding
     // write Topic size and content
     size_t offset = 2;
-    offset += write_64BIT_TO_LEB(ev.topic.size(), buffer + offset);
+    offset += write_64BIT_LEB(ev.topic.size(), buffer + offset);
     std::memcpy(buffer + offset, ev.topic.c_str(), ev.topic.size());
     offset += ev.topic.size();
 
     // write payload size and content
-    offset += write_64BIT_TO_LEB(ev.payload.size(), buffer + offset);
+    offset += write_64BIT_LEB(ev.payload.size(), buffer + offset);
     std::memcpy(buffer + offset, ev.payload.c_str(), ev.payload.size());
 
     HexUInt8Encoding dest{};

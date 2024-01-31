@@ -143,7 +143,7 @@ char *Interrupt_RemoteCall_serialize_request(FunCallRequest &request,
 
     // serialisation
     size_t total_size =
-        1 + size_for_LEB(request.fun) +
+        1 + size_for_32BIT_LEB(request.fun) +
         size_for_stackvalues(request.args, request.number_args, config) + 2;
     uint8_t *buffer = (uint8_t *)malloc(total_size);
 
@@ -152,7 +152,7 @@ char *Interrupt_RemoteCall_serialize_request(FunCallRequest &request,
     size_t offset = 1;
 
     // add LEB128 Func ID
-    offset += write_32BIT_TO_LEB(request.fun, buffer + offset);
+    offset += write_32BIT_LEB(request.fun, buffer + offset);
 
     // serialize args
     offset += serializeStackValues(request.args, request.number_args, config,

@@ -350,7 +350,7 @@ bool isToPhysicalAddrPossible(uint32_t virtualAddr, Module *m) {
 }
 
 // Function to write a 32-bit integer in LEB32 format into a buffer
-size_t write_32BIT_TO_LEB(uint32_t value, uint8_t *buffer) {
+size_t write_32BIT_LEB(uint32_t value, uint8_t *buffer) {
     size_t bytesWritten = 0;
     do {
         uint8_t byte = value & 0x7F;  // Extract the least significant 7 bits
@@ -367,12 +367,12 @@ size_t write_32BIT_TO_LEB(uint32_t value, uint8_t *buffer) {
     return bytesWritten;
 }
 
-size_t size_for_LEB(uint32_t value) {
-    return write_32BIT_TO_LEB(value, nullptr);
+size_t size_for_32BIT_LEB(uint32_t value) {
+    return write_32BIT_LEB(value, nullptr);
 }
 // Function to encode a uint64_t value to LEB128 format
 
-size_t write_64BIT_TO_LEB(uint64_t value, uint8_t *buffer) {
+size_t write_64BIT_LEB(uint64_t value, uint8_t *buffer) {
     size_t bytesWritten = 0;
     do {
         uint8_t byte = value & 0x7F;  // Extract the least significant 7 bits
@@ -389,8 +389,8 @@ size_t write_64BIT_TO_LEB(uint64_t value, uint8_t *buffer) {
     return bytesWritten;
 }
 
-size_t size_for_LEB(uint64_t value) {
-    return write_64BIT_TO_LEB(value, nullptr);
+size_t size_for_64BIT_LEB(uint64_t value) {
+    return write_64BIT_LEB(value, nullptr);
 }
 
 uint8_t *findStartOfLEB128(uint8_t *ptr) {
@@ -461,10 +461,10 @@ size_t serializeStackValueSize(const StackValue *value,
     }
     switch (value->value_type) {
         case I32:
-            size += size_for_LEB(value->value.uint32);
+            size += size_for_32BIT_LEB(value->value.uint32);
             break;
         case I64:
-            size += size_for_LEB(value->value.uint64);
+            size += size_for_64BIT_LEB(value->value.uint64);
             break;
         case F32:
             size += size_for_float(value->value.f32);
@@ -488,10 +488,10 @@ size_t serializeStackValue(const StackValue &value,
     }
     switch (value.value_type) {
         case I32:
-            offset += write_32BIT_TO_LEB(value.value.uint32, buffer + offset);
+            offset += write_32BIT_LEB(value.value.uint32, buffer + offset);
             break;
         case I64:
-            offset += write_64BIT_TO_LEB(value.value.uint64, buffer + offset);
+            offset += write_64BIT_LEB(value.value.uint64, buffer + offset);
             break;
         case F32:
             offset += write_float(value.value.f32, buffer + offset);
@@ -543,7 +543,7 @@ size_t deserializeStackValue(StackValue *value,
 size_t serializeStackValues(const StackValue *vals, uint32_t nr_vals,
                             const ValueSerializationConfig &config,
                             uint8_t *buffer) {
-    size_t offset = write_32BIT_TO_LEB(nr_vals, buffer);
+    size_t offset = write_32BIT_LEB(nr_vals, buffer);
     for (auto i = 0; i < nr_vals; ++i) {
         offset += serializeStackValue(vals[i], config, buffer + offset);
     }
@@ -552,7 +552,7 @@ size_t serializeStackValues(const StackValue *vals, uint32_t nr_vals,
 
 size_t size_for_stackvalues(StackValue *val, uint32_t nr_vals,
                             const ValueSerializationConfig &config) {
-    size_t total_size = size_for_LEB(nr_vals);
+    size_t total_size = size_for_32BIT_LEB(nr_vals);
     for (auto i = 0; i < nr_vals; ++i) {
         total_size += serializeStackValueSize(&val[i], config);
     }
