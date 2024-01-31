@@ -14,6 +14,7 @@
 #include "../Interrupts/interrupt_hook_on_event.h"
 #include "../Interrupts/interrupt_inspect.h"
 #include "../Interrupts/interrupt_remote_call.h"
+#include "../Interrupts/interrupt_response.h"
 #include "../Interrupts/interrupts.h"
 #include "../Memory/mem.h"
 #include "../Utils//util.h"
@@ -162,6 +163,9 @@ bool Debugger::checkDebugMessages(Module *m, RunningState *program_state) {
     printf("received interrupt %x\n", *interruptData);
     fflush(stdout);
 
+    std::string s{};
+    getHumanReadableInterrupt(s, *interruptData);
+    printf("received %s\n", s.c_str());
     this->channel->write("Interrupt: %x\n", *interruptData);
 
     long start = 0, size = 0;
