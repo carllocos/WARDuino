@@ -15,6 +15,7 @@ enum HookEventMoment {
 
 typedef struct OnEventHookRequest {
     HookEventMoment moment{};
+    Hook *hook;
 } OnEventHookRequest;
 
 typedef struct OnEventHookResponse {
