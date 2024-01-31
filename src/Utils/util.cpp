@@ -422,27 +422,30 @@ float read_float(uint8_t **buffer) {
 
 size_t size_for_float(float v) { return sizeof(float); }
 
-char *uint8_to_hex(const uint8_t *data, size_t size) {
-    if (data == nullptr || size == 0) {
-        return nullptr;
+bool uint8_to_hex(const uint8_t *data, size_t size, HexUInt8Encoding *dest) {
+    if (data == nullptr || size == 0 || dest == nullptr) {
+        return false;
     }
 
     size_t hex_size = size * 2;
-    char *hex_buffer = (char *)malloc(hex_size + 1);  // +1 for null termination
-
-    if (hex_buffer == nullptr) {
-        return nullptr;
+    if (dest->encoding == nullptr) {
+        dest->encoding =
+            (char *)malloc(hex_size + 1);  // +1 for null termination
+        if (dest->encoding == nullptr) {
+            return false;
+        }
     }
 
     // Convert each byte to a hexadecimal representation
     for (size_t i = 0; i < size; i++) {
-        sprintf(hex_buffer + (i * 2), "%02X", data[i]);
+        sprintf(dest->encoding + (i * 2), "%02X", data[i]);
     }
 
     // Add a null terminator to the end of the hex buffer
-    hex_buffer[hex_size] = '\0';
+    dest->encoding[hex_size] = '\0';
+    dest->bytesWritten = hex_size;
 
-    return hex_buffer;
+    return dest;
 }
 
 size_t serializeStackValueSize(const StackValue *value,

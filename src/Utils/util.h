@@ -150,7 +150,12 @@ uint32_t read_L32(uint8_t **bytes);
 void chars_as_hexa(unsigned char *dest, unsigned char *source,
                    uint32_t len_source);
 
-char *uint8_to_hex(const uint8_t *data, size_t size);
+typedef struct {
+    ssize_t bytesWritten{-1};
+    char *encoding{};
+} HexUInt8Encoding;
+
+bool uint8_to_hex(const uint8_t *data, size_t size, HexUInt8Encoding *dest);
 
 unsigned short int sizeof_valuetype(uint32_t);
 
