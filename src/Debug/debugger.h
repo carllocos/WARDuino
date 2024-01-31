@@ -185,5 +185,5 @@ class Debugger {
 
     void handleHookOnAddress(Module *m, uint8_t *data);
 
-    void handleHookOnEvent(Module *m, uint8_t *data);
+    void handleHookOnEvent(uint8_t *data);
 };
