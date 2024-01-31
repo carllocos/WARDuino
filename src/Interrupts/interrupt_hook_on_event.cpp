@@ -2,6 +2,7 @@
 
 #include "../Interrupts/interrupt_response.h"
 #include "../Utils/macros.h"
+#include "../Utils/util.h"
 
 #define RESPONSE_BUFFER_SIZE 10
 
@@ -10,9 +11,18 @@ void Interrupt_HookOnEvent_handle_request(const Channel &requester,
                                           uint8_t *encoded_request) {
     OnEventHookRequest request{};
     OnEventHookResponse response{};
-    if (Interrupt_OnEventHook_deserialize_request(request, encoded_request,
+    Hook hook;
+    request.hook = &hook;
+
+    if (Interrupt_HookOnEvent_deserialize_request(request, encoded_request,
                                                   response.error_code)) {
-        response.type = INTERRUPT_RESPONSE_TYPE_SUCCESS;
+        if (manager.isAddHookOnEventAllowed(*request.hook)) {
+            manager.addHookOnNewEvent(hook);
+            response.type = INTERRUPT_RESPONSE_TYPE_SUCCESS;
+        } else {
+            response.error_code = HOOK_ON_EVENT_ERROR_CODE_UNALLOWED_HOOK;
+            response.type = INTERRUPT_RESPONSE_TYPE_ERROR;
+        }
     } else {
         response.type = INTERRUPT_RESPONSE_TYPE_ERROR;
     }
