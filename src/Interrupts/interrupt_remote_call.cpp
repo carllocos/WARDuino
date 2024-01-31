@@ -240,6 +240,11 @@ bool sendRemoteCallRequest(Channel &channel, FunCallRequest &request,
 }
 
 bool waitForReply(Channel &channel, uint8_t &error_code, std::string &dest) {
+    //  TODO: waitForReply should 1. timeout and 2. make it possible to wait for
+    //  a valid reply
+    // TODO: waitForReply right now just waits for a valid hex line. It should
+    // wait 1. for a valid hex line and 2. the hex line decodes to a response of
+    // proxy call.
     ChannelReader reader{channel};
     int number_bytes_read{};
     while ((number_bytes_read = reader.readNextHexaLine(dest)) != -1) {
