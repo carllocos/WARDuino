@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../Instrumentation/instrumentation.h"
 #include "../Utils/sockets.h"
 #include "../WARDuino/structs.h"
 
