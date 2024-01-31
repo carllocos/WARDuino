@@ -87,35 +87,11 @@ void CallbackHandler::push_event(Event *event) {
 }
 
 bool CallbackHandler::resolve_event(bool force) {
-    if ((!force && CallbackHandler::resolving_event) ||
-        CallbackHandler::events->empty()) {
-        if (force) {
-            printf("No events to be processed!\n");
-            WARDuino::instance()->debugger->channel->write(
-                "no events to be processed");
-        }
+    if (CallbackHandler::resolving_event || CallbackHandler::events->empty() ||
+        WARDuino::instance()->program_state == WARDUINOpause) {
         return false;
     }
     Event event = CallbackHandler::events->front();
-
-    if (should_push_event()) {
-        Event e = CallbackHandler::events->at(CallbackHandler::pushed_cursor++);
-        WARDuino::instance()->debugger->channel->write(
-            R"({"topic":"%s","payload":"%s"})", e.topic.c_str(),
-            e.payload.c_str());
-
-        CallbackHandler::events->pop_front();
-        CallbackHandler::pushed_cursor--;
-        CallbackHandler::resolving_event = false;
-        return !CallbackHandler::events->empty();
-        // no further execution if drone
-    }
-
-    if (!force && (CallbackHandler::manual_event_resolution ||
-                   WARDuino::instance()->program_state == WARDUINOpause)) {
-        return true;
-    }
-
     CallbackHandler::resolving_event = true;
     CallbackHandler::events->pop_front();
 
