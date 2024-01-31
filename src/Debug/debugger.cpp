@@ -96,11 +96,12 @@ void Debugger::parseDebugBuffer(size_t len, const uint8_t *buff) {
             if (this->interruptEven) {
                 if (!this->interruptBuffer.empty()) {
                     // done, send to process
-                    auto data = (uint8_t *)acalloc(sizeof(uint8_t),
-                                                   this->interruptBuffer.size(),
-                                                   "interrupt buffer");
+                    auto data = (uint8_t *)acalloc(
+                        sizeof(uint8_t), this->interruptBuffer.size() + 1,
+                        "interrupt buffer");
                     memcpy(data, this->interruptBuffer.data(),
                            this->interruptBuffer.size() * sizeof(uint8_t));
+                    data[this->interruptBuffer.size()] = '\0';
                     this->parsedInterrupts.push(data);
                     this->interruptBuffer.clear();
                 }
