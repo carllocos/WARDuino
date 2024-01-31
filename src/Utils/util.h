@@ -95,9 +95,9 @@ size_t size_for_stackvalues(StackValue *val, uint32_t nr_vals,
                             const ValueSerializationConfig &config);
 
 // Function to write a 32-bit integer in LEB32 format into a buffer
-size_t write_LEB(uint32_t value, uint8_t *buffer);
+size_t write_32BIT_TO_LEB(uint32_t value, uint8_t *buffer);
 
-size_t write_LEB(uint64_t value, uint8_t *buffer);
+size_t write_64BIT_TO_LEB(uint64_t value, uint8_t *buffer);
 
 size_t size_for_LEB(uint32_t value);
 

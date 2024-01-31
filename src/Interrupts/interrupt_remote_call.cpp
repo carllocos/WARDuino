@@ -152,7 +152,7 @@ char *Interrupt_RemoteCall_serialize_request(FunCallRequest &request,
     size_t offset = 1;
 
     // add LEB128 Func ID
-    offset += write_LEB(request.fun, buffer + offset);
+    offset += write_32BIT_TO_LEB(request.fun, buffer + offset);
 
     // serialize args
     offset += serializeStackValues(request.args, request.number_args, config,
