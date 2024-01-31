@@ -241,7 +241,28 @@ bool sendRemoteCallRequest(Channel &channel, FunCallRequest &request,
 
 bool waitForReply(Channel &channel, uint8_t &error_code, std::string &dest) {
     ChannelReader reader{channel};
-    int number_bytes_read = reader.readNextHexaLine(dest);
+    int number_bytes_read{};
+    while ((number_bytes_read = reader.readNextHexaLine(dest)) != -1) {
+        if (number_bytes_read < 2) {
+            // two hex chars needed to convert interrupt nr
+            WARDuino::instance()->debugger->channel->write(
+                "Skipping hex string %s (not right number of chars)\n",
+                dest.c_str());
+            continue;
+        }
+
+        uint8_t interruptNr =
+            (char_to_uint8(dest[0]) << 4u) + char_to_uint8(dest[1]);
+        if (interruptNr == interruptFunCall ||
+            interruptNr == interruptProxyCall) {
+            break;
+        }
+        WARDuino::instance()->debugger->channel->write(
+            "Skipping hexastring %s as it does not start with expected "
+            "interrupt nr\n",
+            dest.c_str());
+    }
+
     if (number_bytes_read == -1) {
         error_code = REMOTE_CALL_ERROR_CODE_READ_FROM_CLIENT;
         return false;
