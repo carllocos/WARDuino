@@ -34,3 +34,16 @@ void Interrupt_send_JSON_subscribe_message(
     outputMessageBody();
     output.write("}\n");
 }
+
+ssize_t Interrupt_serialize_hexa_string_response(
+    const InterruptTypes interrupt_nr, const uint8_t response_type,
+    char *dest) {
+    // format: interrupt_nr (1byte) | message_type (1byte)
+    uint8_t buffer[2] = {};
+    buffer[0] = interrupt_nr;
+    buffer[1] = response_type;
+    HexUInt8Encoding result{};
+    result.encoding = dest;
+    uint8_to_hex(buffer, 2, &result);
+    return result.bytesWritten;
+}
