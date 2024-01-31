@@ -128,14 +128,12 @@ bool deserialiseStackValue(uint8_t *input, bool decodeType, StackValue *value) {
     }
     switch (value->value_type) {
         case I32:
-            // TODO maybe here we need to use read_LEB_signed(&data, 32)
-            // maybe not. Figure that out!
-            value->value.uint32 = read_LEB(&input, 32);
+            // TODO figure out whether read_LEB_signed or read_LEB is needed
+            value->value.uint32 = read_LEB_signed(&input, 32);
             break;
         case I64:
-            // TODO maybe here we need to use read_LEB_signed(&data, 64)
-            // maybe not. Figure that out!
-            value->value.int64 = read_LEB(&input, 64);
+            // TODO figure out whether read_LEB_signed or read_LEB is needed
+            value->value.int64 = read_LEB_signed(&input, 64);
             break;
         case F32:
             memcpy(&value->value.uint32, input, 4);
@@ -514,13 +512,11 @@ size_t deserializeStackValue(StackValue *value,
     value->value.uint64 = 0;  // init all possible values to 0
     switch (value_type) {
         case I32:
-            // TODO maybe here we need to use read_LEB_signed(&data, 32)
-            // maybe not. Figure that out!
+            // TODO figure out whether read_LEB_signed or read_LEB is needed
             value->value.int32 = read_LEB(&data, 32);
             break;
         case I64:
-            // TODO maybe here we need to use read_LEB_signed(&data, 64)
-            // maybe not. Figure that out!
+            // TODO figure out whether read_LEB_signed or read_LEB is needed
             value->value.int64 = read_LEB(&data, 64);
             break;
         case F32: {
