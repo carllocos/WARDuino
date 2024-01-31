@@ -3,7 +3,7 @@
 #include "../Interrupts/interrupt_response.h"
 #include "../Utils/macros.h"
 
-#define RESPONSE_BUFFER_SIZE 100
+#define RESPONSE_BUFFER_SIZE 10
 
 void Interrupt_HookOnEvent_handle_request(const Channel &requester,
                                           InstrumentationManager &manager,
