@@ -1532,8 +1532,16 @@ bool interpret(Module *m, bool waiting) {
         fflush(stdout);
         reset_wdt();
 
-        // Resolve 1 callback event if queue is not empty and VM not paused, and
-        // no event currently resolving
+        // run hooks registered for newly events pushed
+        if (CallbackHandler::pendingEventsActivated) {
+            m->warduino->debugger->instrument.runHooksForOnNewEvent(
+                *m->warduino->debugger->channel, m);
+        }
+
+        // Resolve 1 callback event if queue is not empty and VM that should not
+        // happen
+
+        // not paused, and no event currently resolving
         if (CallbackHandler::resolve_event()) {
             lc->nr_of_events += 1;
         }
