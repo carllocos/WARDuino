@@ -1206,6 +1206,7 @@ void Debugger::handleHookOnAddress(Module *m, uint8_t *data) {
                                         data);
 }
 
-void Debugger::handleHookOnEvent(Module *m, uint8_t *data) {
-    Interrupt_OnEventHook_handle_request(*this->channel, *m, data);
+void Debugger::handleHookOnEvent(uint8_t *data) {
+    Interrupt_HookOnEvent_handle_request(*this->channel, this->instrument,
+                                         data);
 }
