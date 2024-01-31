@@ -27,6 +27,9 @@ class CallbackHandler {
     CallbackHandler() = default;  // Disallow creation
 
    public:
+    static std::deque<Event *> *pendingEvents;
+    static bool pendingEventsActivated;
+
     static size_t pushed_cursor;
 
     static size_t event_count();

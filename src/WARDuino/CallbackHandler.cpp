@@ -29,6 +29,8 @@ void push_guard(Module *m) {
 bool CallbackHandler::manual_event_resolution = false;
 bool CallbackHandler::resolving_event = false;
 size_t CallbackHandler::pushed_cursor = 0;
+bool CallbackHandler::pendingEventsActivated = false;
+std::deque<Event *> *CallbackHandler::pendingEvents = new std::deque<Event *>();
 
 bool should_push_event() {
     return WARDuino::instance()->program_state == PROXYrun ||
@@ -74,15 +76,22 @@ void CallbackHandler::push_event(std::string topic, const char *payload,
     snprintf(message, length + 1, "%s", payload);
     auto event =
         new Event(std::move(topic), reinterpret_cast<const char *>(message));
-    CallbackHandler::push_event(event);
+
+    if (CallbackHandler::pendingEventsActivated) {
+        if (events->size() + pendingEvents->size() < EVENTS_SIZE) {
+            CallbackHandler::pendingEvents->push_back(event);
+            WARDuino::instance()->debugger->freshMessages = true;
+        }
+    } else {
+        CallbackHandler::push_event(event);
+    }
 }
 
 void CallbackHandler::push_event(Event *event) {
     // WARNING: called within an ISR so do not use IO functions!
-    if (events->size() < EVENTS_SIZE) {
+    if (events->size() + pendingEvents->size() < EVENTS_SIZE) {
         events->push_back(*event);
         WARDuino::instance()->debugger->freshMessages = true;
-        WARDuino::instance()->debugger->freshEventPushed = true;
     }
 }
 
