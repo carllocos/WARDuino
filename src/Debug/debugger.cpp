@@ -284,7 +284,7 @@ bool Debugger::checkDebugMessages(Module *m, RunningState *program_state) {
             free(interruptData);
             break;
         case interruptHookOnEvent:
-            this->handleHookOnEvent(m, interruptData);
+            this->handleHookOnEvent(interruptData);
             free(interruptData);
             break;
         case interruptMonitorProxies: {
@@ -683,9 +683,9 @@ void Debugger::notifyPushedEvent() const {
 bool Debugger::handlePushedEvent(char *bytes) const {
     if (*bytes != interruptPUSHEvent) return false;
     auto parsed = nlohmann::json::parse(bytes + 1);
-    printf("handle pushed event: %s\n", bytes + 1);
-    auto *event = new Event(*parsed.find("topic"), *parsed.find("payload"));
-    CallbackHandler::push_event(event);
+    std::string topic{*parsed.find("topic")};
+    const std::string payload{*parsed.find("payload")};
+    CallbackHandler::push_event(topic, payload.c_str(), payload.length());
     this->notifyPushedEvent();
     return true;
 }
