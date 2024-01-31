@@ -107,8 +107,6 @@ class Debugger {
     ProxySupervisor *supervisor = nullptr;
     InstrumentationManager instrument;
 
-    bool freshEventPushed = false;
-
     std::set<uint8_t *> breakpoints = {};  // Vector, we expect few breakpoints
     uint8_t *mark = 0;  // a unique temporary breakpoint that gets removed
                         // whenever a breakpoint is hit
