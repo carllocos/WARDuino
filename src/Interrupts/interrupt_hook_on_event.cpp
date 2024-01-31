@@ -23,16 +23,17 @@ void Interrupt_HookOnEvent_handle_request(const Channel &requester,
 bool Interrupt_HookOnEvent_deserialize_request(OnEventHookRequest &dest,
                                                uint8_t *encoded_request,
                                                uint8_t &error_code) {
-    // format: interrupt nr | hook moment
+    // format: interrupt nr | hook moment | Hook
 
-    if (encoded_request[0] != interruptHookOnEvent) {
+    if (*encoded_request++ != interruptHookOnEvent) {
         error_code = ON_EVENT_HOOK_ERROR_CODE_INVALID_INTERRUPT_NR;
         return false;
     }
-
-    dest.moment = (HookEventMoment)encoded_request[1];
+    dest.moment = (HookEventMoment)*encoded_request++;
     switch (dest.moment) {
+        case HookOnNewEvent:
         case HookOnEventHandling:
+        case HookAfterEventHandled:
             break;
         default:
             error_code = ON_EVENT_HOOK_ERROR_CODE_INVALID_HOOK_MOMENT;
