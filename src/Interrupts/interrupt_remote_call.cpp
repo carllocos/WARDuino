@@ -70,10 +70,15 @@ class ChannelReader {
             for (char c : line) {
                 if (!is_hexa_char(c)) {
                     foundHexaLine = false;
+                    // TODO remove
+                    printf("Received a non hexa char %c in line %s\n", c,
+                           line.c_str());
                     break;
                 }
             }
             if (foundHexaLine) {
+                // TODO remove
+                printf("Found hexa line %s\n", line.c_str());
                 break;
             }
         }
@@ -241,6 +246,10 @@ bool waitForReply(Channel &channel, uint8_t &error_code, std::string &dest) {
         error_code = REMOTE_CALL_ERROR_CODE_READ_FROM_CLIENT;
         return false;
     }
+
+    // TODO remove
+    WARDuino::instance()->debugger->channel->write("Received valid reply %s\n",
+                                                   dest.c_str());
     return true;
 }
 
@@ -377,6 +386,13 @@ bool Interrupt_RemoteCall_deserialize_request(const Module *m,
     uint8_t interruptNr = *encoded_request++;
     if (interruptNr != interruptFunCall && interruptNr != interruptProxyCall) {
         error_code = REMOTE_CALL_ERROR_CODE_MALFORMED_REQUEST_INTERRUPT_NR;
+        // TODO remove
+        std::string s{};
+        getHumanReadableInterrupt(s, interruptNr);
+        WARDuino::instance()->debugger->channel->write(
+            "ProxyCall request has malformed interruptNr received interrupt "
+            "%s\n",
+            s.c_str());
         return false;
     }
 
@@ -399,6 +415,11 @@ bool Interrupt_RemoteCall_deserialize_request(const Module *m,
     request.number_args = read_LEB_32(&data);
     if (request.number_args != type->param_count) {
         error_code = REMOTE_CALL_ERROR_CODE_INVALID_NUMBER_OF_ARGUMENTS;
+        // TODO remove
+        WARDuino::instance()->debugger->channel->write(
+            "ProxyCall request has invalid number of args expected %" PRIu32
+            " received #%" PRIu32 "\n",
+            type->param_count, request.number_args);
         return false;
     }
 
@@ -407,6 +428,9 @@ bool Interrupt_RemoteCall_deserialize_request(const Module *m,
     request.args = deserializeStackValues(encoded_request, config, type);
     if (request.args == nullptr) {
         error_code = REMOTE_CALL_ERROR_CODE_MALFORMED_FUNCTION_ARGS;
+        // TODO remove
+        WARDuino::instance()->debugger->channel->write(
+            "ProxyCall request has malformed args\n");
         return false;
     }
 
@@ -416,6 +440,9 @@ bool Interrupt_RemoteCall_deserialize_request(const Module *m,
             "TODO:  Proxy Call of non primitive functions is not yet "
             "supported\n");
         error_code = REMOTE_CALL_ERROR_CODE_INVALID_FUNCTION;
+        // TODO remove
+        WARDuino::instance()->debugger->channel->write(
+            "ProxyCall request of non primtive function not yet supported\n");
         return false;
     }
 
