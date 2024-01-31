@@ -318,7 +318,7 @@ bool Debugger::checkDebugMessages(Module *m, RunningState *program_state) {
             break;
         case interruptRecvCallbackmapping:
             Debugger::updateCallbackmapping(
-                m, reinterpret_cast<const char *>(interruptData + 2));
+                m, reinterpret_cast<const uint8_t *>(interruptData));
             free(interruptData);
             break;
         case interruptDUMPCallbackmapping:
@@ -1101,15 +1101,21 @@ void Debugger::disconnect_proxy() {
     this->supervisor->thread.join();
 }
 
-void Debugger::updateCallbackmapping(Module *m, const char *data) {
-    nlohmann::basic_json<> parsed = nlohmann::json::parse(data);
+void Debugger::updateCallbackmapping(Module *m, const uint8_t *data) {
     CallbackHandler::clear_callbacks();
-    nlohmann::basic_json<> callbacks = *parsed.find("callbacks");
-    for (auto &array : callbacks.items()) {
-        auto callback = array.value().begin();
-        for (auto &functions : callback.value().items()) {
-            CallbackHandler::add_callback(
-                Callback(m, callback.key(), functions.value()));
+    uint8_t *encoding = (uint8_t *)data + 1;
+    uint32_t numberOfMappings = read_LEB_32(&encoding);
+    for (auto idx = 0; idx < numberOfMappings; ++idx) {
+        uint32_t callbackKeySize = read_LEB_32(&encoding);
+        char *callbackKey = (char *)malloc(callbackKeySize + 1);
+        memcpy((void *)callbackKey, encoding, callbackKeySize);
+        callbackKey[callbackKeySize] = '\0';
+        encoding += callbackKeySize;
+        uint32_t numberTableIndexes = read_LEB_32(&encoding);
+        for (auto j = 0; j < numberTableIndexes; ++j) {
+            uint32_t tidx = read_LEB_32(&encoding);
+            std::string key{callbackKey};
+            CallbackHandler::add_callback(Callback(m, key, tidx));
         }
     }
 }
