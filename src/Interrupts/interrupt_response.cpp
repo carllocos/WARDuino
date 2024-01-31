@@ -118,9 +118,6 @@ void getHumanReadableInterrupt(std::string &s, uint8_t interruptNr) {
         case interruptHookOnEvent:
             s = "interruptHookOnEvent";
             break;
-        case interruptReboot:
-            s = "interruptReboot";
-            break;
         case interruptSnapshot:
             s = "interruptSnapshot";
             break;
