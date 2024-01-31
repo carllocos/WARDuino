@@ -381,8 +381,9 @@ size_t write_LEB(uint64_t value, uint8_t *buffer) {
             byte |= 0x80;  // Set the high bit to indicate more bytes
         }
         if (buffer != nullptr) {
-            buffer[bytesWritten++] = byte;
+            buffer[bytesWritten] = byte;
         }
+        bytesWritten++;
     } while (value != 0);
 
     return bytesWritten;
