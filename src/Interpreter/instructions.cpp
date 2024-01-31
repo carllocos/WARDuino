@@ -1556,11 +1556,6 @@ bool interpret(Module *m, bool waiting) {
                 m->warduino->debugger->messageQueueConditionVariable.wait(
                     lock, [m] { return m->warduino->debugger->freshMessages; });
             }
-
-            if (m->warduino->debugger->freshEventPushed) {
-                m->warduino->debugger->freshEventPushed = false;
-                m->warduino->debugger->instrument.runHooksForOnNewEvent();
-            }
             continue;
         }
 
