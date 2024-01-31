@@ -272,6 +272,9 @@ bool Hooks_deserialize_hook_rest(Hook &dest, uint8_t **encoded_hook,
             dest.value.runState = (RunningState)newRunState;
             break;
         }
+        case EventInspect:
+        case EventRemove:
+            break;
         default:
             printf("HookKind %02X is not supported\n", kind);
             error_code = HOOK_ERROR_CODE_UNEXISTING_HOOK_KIND;
