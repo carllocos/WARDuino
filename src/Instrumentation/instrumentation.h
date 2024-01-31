@@ -3,10 +3,12 @@
 #include <functional>
 #include <stack>
 #include <unordered_map>
+#include <vector>
 
 #include "../Instrumentation/logical_clock.h"
 #include "../Instrumentation/schedule.h"
 #include "../Utils/sockets.h"
+#include "../WARDuino/CallbackHandler.h"
 #include "../WARDuino/structs.h"
 #include "./hook.h"
 #include "./instrumentation_structs.h"
@@ -35,6 +37,8 @@ class InstrumentationManager {
     std::unordered_map<uint32_t, InstrumentationWasmAddr *>
         instr_wasm_addr_after{};
 
+    Hook *hooksForOnNewEvent{};
+
     InstrumentationPrimitiveFunc *new_Primitive_Instrumentation();
 
     InstrumentationWasmAddr *new_WasmAddress_Instrumentation();
@@ -45,7 +49,10 @@ class InstrumentationManager {
     bool run_hook(
         const Channel &output, Module &module, uint32_t local_fidx, Hook &hook,
         std::function<void(std::function<void()>)> sendSubscriptionMsg,
-        RunningState &runningState);
+        RunningState &runningState, Event *ev);
+
+    void run_hook_on_new_event(const Channel &output, Module &module,
+                               Hook &hook, Event *ev);
 
     bool do_value_substitution(Module *module, uint32_t func_called,
                                Hook *hook);
@@ -59,6 +66,12 @@ class InstrumentationManager {
     bool do_before_wasm_addr_hooks(const Channel &hookOutput, Module &module,
                                    LogicalClock &currentTime, uint32_t addr,
                                    uint8_t &opcode, RunningState &runningState);
+
+    /*
+     * Methods that stop instrumentation
+     */
+
+    void stopRunningHooksOnNewEvents();
 
    public:
     bool awakeOnNextInstruction = false;
@@ -79,6 +92,9 @@ class InstrumentationManager {
 
     bool removeHooksOnWasmAddress(Module &module, uint32_t addr,
                                   const InstrumentMoment moment);
+
+    bool addHookOnNewEvent(Hook &hook);
+
     /*
      *  Predicate methods
      */
@@ -88,11 +104,13 @@ class InstrumentationManager {
 
     bool isAddHookAllowed(uint32_t funID);
 
+    bool isAddHookOnEventAllowed(Hook &hook);
+
     /*
      * Running hooks methods
      */
 
-    void runHooksForOnNewEvent();
+    void runHooksForOnNewEvent(const Channel &output, Module *module);
 
     void runHooksAfterWasmAddr(const Channel &output, Module *module,
                                RunningState &runningState);

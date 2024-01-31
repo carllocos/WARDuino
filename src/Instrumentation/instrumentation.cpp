@@ -1,6 +1,7 @@
 #include "instrumentation.h"
 
 #include "../Interrupts/interrupt_hook_on_addr.h"
+#include "../Interrupts/interrupt_hook_on_event.h"
 #include "../Interrupts/interrupt_remote_call.h"
 #include "../Interrupts/interrupt_response.h"
 #include "../Utils/macros.h"
@@ -40,6 +41,17 @@ bool InstrumentationManager::has_HookOnWasmAddr(uint32_t addr,
             FATAL("Around monitor not supported");
     }
     return false;
+}
+
+bool InstrumentationManager::isAddHookOnEventAllowed(Hook &hook) {
+    switch (hook.kind) {
+        case EventInspect:
+        case EventRemove:
+        case StateInspect:
+            return true;
+        default:
+            return false;
+    }
 }
 
 bool InstrumentationManager::isAddHookAllowed(uint32_t funID) {
@@ -131,6 +143,19 @@ bool InstrumentationManager::addHookOnWasmAddress(
         return false;
     }
     instr->hook = Hooks_add_and_sort(instr->hook, cpy);
+    return true;
+}
+
+bool InstrumentationManager::addHookOnNewEvent(Hook &hook) {
+    if (!this->isAddHookOnEventAllowed(hook)) {
+        return false;
+    }
+    CallbackHandler::pendingEventsActivated = true;
+    Hook *h = new Hook();
+    *h = hook;
+    hook.nextHook = nullptr;
+    this->hooksForOnNewEvent = Hooks_add_and_sort(this->hooksForOnNewEvent, h);
+
     return true;
 }
 
@@ -235,8 +260,8 @@ bool InstrumentationManager::runHooksOnInterceptedFuncCall(
     InstrumentationPrimitiveFunc *instr = iterator->second;
     Hook *hookToRun = Hooks_nextScheduledHook(instr->hook, *currentTime);
     if (hookToRun == nullptr) {
-        // We did not find a hook to run, but we may have to wait for an event
-        // to occur
+        // We did not find a hook to run, but we may have to wait for an
+        // event to occur
         if (Hooks_isHookWaitingForEvent(instr->hook, *currentTime)) {
             printf(
                 "TODO: restore the PC to the position before the call "
@@ -252,9 +277,10 @@ bool InstrumentationManager::runHooksOnInterceptedFuncCall(
     }
 
     auto printSubMsg = [](std::function<void()> hookOutput) {};
+    Event *noEvent = nullptr;
     bool around_successful =
         this->run_hook(output, *module, primitive_called, *hookToRun,
-                       printSubMsg, runningState);
+                       printSubMsg, runningState, noEvent);
     instr->hook = Hooks_remove_completed_hook(instr->hook, hookToRun);
 
     // After call instrumentation(s)
@@ -264,7 +290,7 @@ bool InstrumentationManager::runHooksOnInterceptedFuncCall(
 bool InstrumentationManager::run_hook(
     const Channel &output, Module &module, uint32_t local_fidx, Hook &hook,
     std::function<void(std::function<void()>)> sendSubscriptionMsg,
-    RunningState &runningState) {
+    RunningState &runningState, Event *ev) {
     switch (hook.kind) {
         case ProxyCall:
         case RemoteCall:
@@ -293,18 +319,41 @@ bool InstrumentationManager::run_hook(
         case ChangeRunningState:
             module.warduino->program_state = hook.value.runState;
             return true;
+        case EventRemove:
+            if (!CallbackHandler::pendingEvents->empty()) {
+                CallbackHandler::pendingEvents->pop_front();
+            }
+            return true;
+        case EventInspect:
+            Interrupt_HookOnEvent_send_Binary_subscribe_message(output, *ev);
+            return true;
         default:
             VM_Exception_write("Unsupported around hook\n");
             return false;
     }
 }
 
+void InstrumentationManager::run_hook_on_new_event(const Channel &output,
+                                                   Module &module, Hook &hook,
+                                                   Event *ev) {
+    uint32_t noFunction = 0;
+    auto printSubMsg = [&output](std::function<void()> hookOutput) {
+        Interrupt_HookOnEvent_send_JSON_subscribe_message(
+            output, HookOnNewEvent, hookOutput);
+    };
+
+    RunningState unUsedRunningState = WARDUINOpause;
+    this->run_hook(output, module, noFunction, hook, printSubMsg,
+                   unUsedRunningState, ev);
+}
+
 void InstrumentationManager::runHooksAfterWasmAddr(const Channel &output,
                                                    Module *module,
                                                    RunningState &runningState) {
-    // Only called when tool client wants to do something after some wasm addr.
-    // Inefficiently called after each instruction execution. Benchmark needed
-    // to determine whether an alternative approach is required
+    // Only called when tool client wants to do something after some wasm
+    // addr. Inefficiently called after each instruction execution.
+    // Benchmark needed to determine whether an alternative approach is
+    // required
 
     while (!this->frames_to_monitor.empty()) {
         MonitoredFrame frame = this->frames_to_monitor.top();
@@ -325,9 +374,10 @@ void InstrumentationManager::runHooksAfterWasmAddr(const Channel &output,
         };
 
         Hook *hooks = instr->hook;
+        Event *noEvent = nullptr;
         while (hooks != nullptr) {
             this->run_hook(output, *module, 0, *hooks, printSubMsg,
-                           runningState);
+                           runningState, noEvent);
             instr->hook = Hooks_remove_completed_hook(instr->hook, hooks);
             hooks = hooks->nextHook;
         }
@@ -401,9 +451,10 @@ bool InstrumentationManager::do_before_wasm_addr_hooks(
     };
     bool success = true;
     Hook *hooks = instr->hook;
+    Event *noEvent = nullptr;
     while (hooks != nullptr && success) {
         success = this->run_hook(output, module, 0, *hooks, printSubMsg,
-                                 runningState);
+                                 runningState, noEvent);
         instr->hook = Hooks_remove_completed_hook(instr->hook, hooks);
         if (!success) {
             break;
@@ -462,8 +513,62 @@ InstrumentationWasmAddr *InstrumentationManager::start_wasm_addr_intercept(
     return instr;
 }
 
-void InstrumentationManager::runHooksForOnNewEvent() {
-    printf("TODO: runHooksForOnNewEvent\n");
+void InstrumentationManager::runHooksForOnNewEvent(const Channel &output,
+                                                   Module *module) {
+    while (!CallbackHandler::pendingEvents->empty()) {
+        Hook *hookToRun = this->hooksForOnNewEvent;
+        if (hookToRun == nullptr) {
+            printf(
+                "TODO: runHooksforOnNewEvent: there is no hook found to be "
+                "run on newly pushed events. We will now therefore undo "
+                "the instrumentation but we still need to decide what "
+                "would be the default behaviour. Pause for instance?\n");
+            this->stopRunningHooksOnNewEvents();
+            return;
+        }
+
+        Event *ev = CallbackHandler::pendingEvents->front();
+        while (hookToRun != nullptr) {
+            this->run_hook_on_new_event(output, *module, *hookToRun, ev);
+            this->hooksForOnNewEvent = Hooks_remove_completed_hook(
+                this->hooksForOnNewEvent, hookToRun);
+            if (CallbackHandler::pendingEvents->empty() ||
+                ev != CallbackHandler::pendingEvents->front()) {
+                // event got removed by last hook
+                // do no run remaining hooks
+                break;
+            }
+            hookToRun = hookToRun->nextHook;
+        }
+        if (!CallbackHandler::pendingEvents->empty() &&
+            ev == CallbackHandler::pendingEvents->front()) {
+            // event did not get removed by any hook
+            // add event to main queue
+            CallbackHandler::push_event(ev);
+            CallbackHandler::pendingEvents->pop_front();
+        }
+    }
+}
+
+/*
+ * Methods that stop instrumentation
+ */
+
+void InstrumentationManager::stopRunningHooksOnNewEvents() {
+    while (!CallbackHandler::pendingEvents->empty()) {
+        // put pending events into main queue
+        Event *ev = CallbackHandler::pendingEvents->front();
+        CallbackHandler::pendingEvents->pop_front();
+        CallbackHandler::push_event(ev);
+    }
+    CallbackHandler::pendingEventsActivated = false;
+
+    // TODO refactor remove hooks
+    while (this->hooksForOnNewEvent != nullptr) {
+        Hook *hookToFree = this->hooksForOnNewEvent;
+        this->hooksForOnNewEvent = this->hooksForOnNewEvent->nextHook;
+        Hooks_free_hook(hookToFree);
+    }
 }
 
 bool Instrumentation_interceptPrimitiveCall(Module *m) {
