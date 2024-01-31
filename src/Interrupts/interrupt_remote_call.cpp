@@ -153,11 +153,16 @@ char *Interrupt_RemoteCall_serialize_request(FunCallRequest &request,
     offset += serializeStackValues(request.args, request.number_args, config,
                                    buffer + offset);
 
-    char *hex = uint8_to_hex(buffer, offset);
+    HexUInt8Encoding dest{};
+    char *encoding{};
+    if (uint8_to_hex(buffer, offset, &dest)) {
+        serialized_size = offset * 2;
+        encoding = dest.encoding;
+    } else {
+        serialized_size = 0;
+    }
     free(buffer);
-
-    serialized_size = hex == nullptr ? 0 : offset * 2;
-    return hex;
+    return encoding;
 }
 
 bool Interrupt_RemoteCall_deserialize_response(FunCallResponse *response,
@@ -346,16 +351,19 @@ uint8_t *serialize_error_response(const FunCallResponse &response,
 char *Interrupt_RemoteCall_serialize_response(const FunCallResponse &response,
                                               size_t &size_response) {
     size_t size_encoding{};
-    uint8_t *encoding =
+    uint8_t *toEncode =
         response.type == INTERRUPT_RESPONSE_TYPE_SUCCESS
             ? serialize_success_response(response, size_encoding)
             : serialize_error_response(response, size_encoding);
 
     char *hexa_encoding = nullptr;
-    if (encoding != nullptr) {
-        hexa_encoding = uint8_to_hex(encoding, size_encoding);
+    if (toEncode != nullptr) {
+        HexUInt8Encoding dest{};
+        if (uint8_to_hex(toEncode, size_encoding, &dest)) {
+            hexa_encoding = dest.encoding;
+        }
         size_response = size_encoding * 2;  // size in hexa
-        free(encoding);
+        free(toEncode);
     }
     return hexa_encoding;
 }
