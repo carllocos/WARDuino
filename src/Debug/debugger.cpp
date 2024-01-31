@@ -1118,6 +1118,7 @@ void Debugger::updateCallbackmapping(Module *m, const uint8_t *data) {
             CallbackHandler::add_callback(Callback(m, key, tidx));
         }
     }
+    m->warduino->debugger->channel->write("mappings updated!\n");
 }
 
 // Stop the debugger
