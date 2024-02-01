@@ -1,8 +1,11 @@
 #pragma once
 
+#include "../Instrumentation/hook.h"
 #include "../Instrumentation/instrumentation.h"
 #include "../Utils/sockets.h"
+#include "../WARDuino/event_structs.h"
 #include "../WARDuino/structs.h"
+#include "./interrupt_hook_on_event_struct.h"
 
 #define ON_EVENT_HOOK_ERROR_CODE_INVALID_INTERRUPT_NR 1;
 #define ON_EVENT_HOOK_ERROR_CODE_INVALID_HOOK_MOMENT 2;

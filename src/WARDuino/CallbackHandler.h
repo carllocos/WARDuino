@@ -5,9 +5,8 @@
 #include <unordered_map>
 #include <vector>
 
-struct Module;
-
-class Callback;
+#include "../Instrumentation/instrumentation.h"
+#include "./event_structs.h"
 
 class Event {
    public:
