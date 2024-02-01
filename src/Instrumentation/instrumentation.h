@@ -84,6 +84,7 @@ class InstrumentationManager {
 
    public:
     bool awakeOnNextInstruction = false;
+    bool interceptEvents = false;
 
     InstrumentationManager();
 
@@ -104,6 +105,8 @@ class InstrumentationManager {
 
     bool addHookOnNewEvent(Hook &hook);
 
+    bool addHookOnEventHandling(Hook &hook);
+
     /*
      *  Predicate methods
      */
@@ -114,6 +117,8 @@ class InstrumentationManager {
     bool isAddHookAllowed(uint32_t funID);
 
     bool isAddHookOnEventAllowed(Hook &hook);
+
+    bool isAddHookOnEventHandlingAllowed(Hook &hook);
 
     /*
      * Running hooks methods

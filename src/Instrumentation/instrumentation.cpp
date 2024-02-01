@@ -54,6 +54,10 @@ bool InstrumentationManager::isAddHookOnEventAllowed(Hook &hook) {
     }
 }
 
+bool InstrumentationManager::isAddHookOnEventHandlingAllowed(Hook &hook) {
+    return this->isAddHookOnEventAllowed(hook);
+}
+
 bool InstrumentationManager::isAddHookAllowed(uint32_t funID) {
     if (!this->has_AroundFunction(funID)) return true;
     // Dissallows hooks that have been scheduled for always if one is
@@ -155,6 +159,21 @@ bool InstrumentationManager::addHookOnNewEvent(Hook &hook) {
     *h = hook;
     hook.nextHook = nullptr;
     this->hooksForOnNewEvent = Hooks_add_and_sort(this->hooksForOnNewEvent, h);
+
+    return true;
+}
+
+bool InstrumentationManager::addHookOnEventHandling(Hook &hook) {
+    if (!this->isAddHookOnEventHandlingAllowed(hook)) {
+        return false;
+    }
+
+    Hook *h = new Hook();
+    *h = hook;
+    hook.nextHook = nullptr;
+    this->hooksForOnEventHandling =
+        Hooks_add_and_sort(this->hooksForOnEventHandling, h);
+    this->interceptEvents = true;
 
     return true;
 }
