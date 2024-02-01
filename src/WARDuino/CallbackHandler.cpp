@@ -42,6 +42,13 @@ std::unordered_map<std::string, std::vector<Callback> *>
         new std::unordered_map<std::string, std::vector<Callback> *>();
 std::deque<Event> *CallbackHandler::events = new std::deque<Event>();
 
+InstrumentationManager *CallbackHandler::manager = nullptr;
+
+void CallbackHandler::setInstrumentationMangager(
+    InstrumentationManager *manager) {
+    CallbackHandler::manager = manager;
+}
+
 void CallbackHandler::add_callback(const Callback &c) {
     auto item = callbacks->find(c.topic);
     if (item == callbacks->end()) {

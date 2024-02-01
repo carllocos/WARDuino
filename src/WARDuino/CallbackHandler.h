@@ -13,13 +13,15 @@ class InstrumentationManager;  // Fix cyclic dependency
 class CallbackHandler {
    private:
     static std::unordered_map<std::string, std::vector<Callback> *> *callbacks;
-    static std::deque<Event> *events;
+    static InstrumentationManager *manager;
 
     CallbackHandler() = default;  // Disallow creation
 
    public:
     static std::deque<Event *> *pendingEvents;
     static bool pendingEventsActivated;
+
+    static void setInstrumentationMangager(InstrumentationManager *manager);
 
     static size_t pushed_cursor;
 

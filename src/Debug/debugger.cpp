@@ -26,6 +26,7 @@ Debugger::Debugger(Channel *duplex) {
     this->channel = duplex;
     this->supervisor_mutex = new std::mutex();
     this->supervisor_mutex->lock();
+    CallbackHandler::setInstrumentationMangager(&this->instrument);
 }
 
 // Public methods
