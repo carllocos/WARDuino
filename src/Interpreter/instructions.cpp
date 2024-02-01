@@ -1532,9 +1532,20 @@ bool interpret(Module *m, bool waiting) {
         fflush(stdout);
         reset_wdt();
 
-        // Resolve 1 callback event if queue is not empty and VM not paused, and
-        // no event currently resolving
-        if (CallbackHandler::resolve_event()) {
+        // run hooks registered for newly events pushed
+        if (CallbackHandler::pendingEventsActivated) {
+            m->warduino->debugger->instrument.runHooksForOnNewEvent(
+                *m->warduino->debugger->channel, m);
+        }
+
+        // Resolve 1 callback event if queue is not empty and VM that should not
+        // happen
+
+        // not paused, and no event currently resolving
+        if (CallbackHandler::resolve_event(*m->warduino->debugger->channel,
+                                           m)) {
+            // TODO: nr of events does not increase as callbackhandler does not
+            // return true when an event gets handled
             lc->nr_of_events += 1;
         }
 
@@ -1564,7 +1575,7 @@ bool interpret(Module *m, bool waiting) {
         m->warduino->debugger->skipBreakpoint = nullptr;
 
         if (m->warduino->debugger->instrument.awakeOnNextInstruction) {
-            m->warduino->debugger->instrument.apply_instrumentation_after_instr(
+            m->warduino->debugger->instrument.runHooksAfterWasmAddr(
                 *m->warduino->debugger->channel, m, m->warduino->program_state);
         }
 
@@ -1574,10 +1585,9 @@ bool interpret(Module *m, bool waiting) {
 
         switch (opcode) {
             case INSTRUMENTATION_INTERCEPT_OPCODE:
-                success = m->warduino->debugger->instrument
-                              .apply_wasm_addr_instrumentation(
-                                  *m->warduino->debugger->channel, m, lc,
-                                  opcode, m->warduino->program_state);
+                success = m->warduino->debugger->instrument.runHooksOnWasmAddr(
+                    *m->warduino->debugger->channel, m, lc, opcode,
+                    m->warduino->program_state);
                 if (!success || m->warduino->program_state == WARDUINOpause) {
                     continue;
                 }
@@ -1788,8 +1798,9 @@ bool interpret(Module *m, bool waiting) {
     }
 
     // Resolve all unhandled callback events
-    while (CallbackHandler::resolving_event && CallbackHandler::resolve_event())
-        ;
+    while (CallbackHandler::resolving_event &&
+           CallbackHandler::resolve_event(*m->warduino->debugger->channel, m)) {
+    }
 
     dbg_trace("Interpretation ended %s with status %s\n",
               program_done ? "expectedly" : "unexpectedly",

@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <string>  // tmp import
 
 #include "../Instrumentation/instrumentation_structs.h"
 #include "../Utils/sockets.h"
@@ -34,3 +35,9 @@ ssize_t Interrupt_serialize_JSON_response(const InterruptTypes interrupt_nr,
 void Interrupt_send_JSON_subscribe_message(
     const Channel &output, InterruptTypes interrupt_nr,
     std::function<void()> outputMessageBody);
+
+ssize_t Interrupt_serialize_hexa_string_response(
+    const InterruptTypes interrupt_nr, const uint8_t response_type, char *dest);
+
+// Tmp function for debug
+void getHumanReadableInterrupt(std::string &s, uint8_t interruptNr);

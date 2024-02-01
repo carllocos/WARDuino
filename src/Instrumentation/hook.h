@@ -18,6 +18,11 @@ enum HookKind {
     StateInspect = 0x03,
     ChangeRunningState = 0x04,
     ProxyCall = 0x05,
+
+    // event hooks from 0x10 to 0x1f
+    EventInspect = 0x10,
+    EventRemove = 0x11,  // disallow when hookmoment === HookAfterEventHandled,
+                         // maybe also for OnEventHandling?
 };
 
 struct Hook {

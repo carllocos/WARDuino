@@ -96,7 +96,7 @@ class Debugger {
 
     static uintptr_t readPointer(uint8_t **data);
 
-    static void updateCallbackmapping(Module *m, const char *interruptData);
+    static void updateCallbackmapping(Module *m, const uint8_t *interruptData);
 
    public:
     // Public fields
@@ -185,5 +185,5 @@ class Debugger {
 
     void handleHookOnAddress(Module *m, uint8_t *data);
 
-    void handleMonitorEvent(Module *m, uint8_t *data);
+    void handleHookOnEvent(uint8_t *data);
 };

@@ -11,6 +11,7 @@ set(SOURCE_FILES
         ../../src/Utils/util.cpp
         ../../src/Utils/util_arduino.cpp
         ../../src/WARDuino/CallbackHandler.cpp
+        ../../src/WARDuino/event_structs.cpp
         ../../src/WARDuino/WARDuino.cpp
         ../../src/WARDuino/vm_exception.cpp
         ../../src/Interrupts/interrupt_inspect.cpp
@@ -18,7 +19,7 @@ set(SOURCE_FILES
         ../../src/Interrupts/interrupt_around_function.cpp
         ../../src/Interrupts/interrupt_remote_call.cpp
         ../../src/Interrupts/interrupt_hook_on_addr.cpp
-        ../../src/Interrupts/interrupt_monitor_event.cpp
+        ../../src/Interrupts/interrupt_hook_on_event.cpp
         ../../src/Interrupts/interrupt_response.cpp
         ../../src/Instrumentation/logical_clock.cpp
         ../../src/Instrumentation/hook.cpp

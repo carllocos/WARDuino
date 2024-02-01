@@ -5,28 +5,25 @@
 #include <unordered_map>
 #include <vector>
 
-struct Module;
+#include "../Instrumentation/instrumentation.h"
+#include "./event_structs.h"
 
-class Callback;
-
-class Event {
-   public:
-    std::string topic;
-    std::string payload;
-
-    Event(std::string topic, std::string payload);
-
-    std::string serialized() const;
-};
+class InstrumentationManager;  // Fix cyclic dependency
 
 class CallbackHandler {
    private:
     static std::unordered_map<std::string, std::vector<Callback> *> *callbacks;
-    static std::deque<Event> *events;
+    static InstrumentationManager *manager;
 
     CallbackHandler() = default;  // Disallow creation
 
    public:
+    static std::deque<Event> *events;
+    static std::deque<Event *> *pendingEvents;
+    static bool pendingEventsActivated;
+
+    static void setInstrumentationMangager(InstrumentationManager *manager);
+
     static size_t pushed_cursor;
 
     static size_t event_count();
@@ -44,19 +41,8 @@ class CallbackHandler {
     static void push_event(std::string topic, const char *payload,
                            unsigned int length);
     static void push_event(Event *event);
-    static bool resolve_event(bool force = false);
+    static bool resolve_event(const Channel &output, Module *module,
+                              bool force = false);
 
     static bool manual_event_resolution;  // do not resolve event automatically
-};
-
-class Callback {
-   public:
-    Module *module;  // reference to module
-    std::string topic;
-    uint32_t table_index{};
-
-    explicit Callback(Module *m, std::string id, uint32_t tidx);
-    Callback(const Callback &c);
-
-    void resolve_event(const Event &e);
 };

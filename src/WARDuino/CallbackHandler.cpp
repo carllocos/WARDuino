@@ -29,6 +29,8 @@ void push_guard(Module *m) {
 bool CallbackHandler::manual_event_resolution = false;
 bool CallbackHandler::resolving_event = false;
 size_t CallbackHandler::pushed_cursor = 0;
+bool CallbackHandler::pendingEventsActivated = false;
+std::deque<Event *> *CallbackHandler::pendingEvents = new std::deque<Event *>();
 
 bool should_push_event() {
     return WARDuino::instance()->program_state == PROXYrun ||
@@ -39,6 +41,13 @@ std::unordered_map<std::string, std::vector<Callback> *>
     *CallbackHandler::callbacks =
         new std::unordered_map<std::string, std::vector<Callback> *>();
 std::deque<Event> *CallbackHandler::events = new std::deque<Event>();
+
+InstrumentationManager *CallbackHandler::manager = nullptr;
+
+void CallbackHandler::setInstrumentationMangager(
+    InstrumentationManager *manager) {
+    CallbackHandler::manager = manager;
+}
 
 void CallbackHandler::add_callback(const Callback &c) {
     auto item = callbacks->find(c.topic);
@@ -74,45 +83,49 @@ void CallbackHandler::push_event(std::string topic, const char *payload,
     snprintf(message, length + 1, "%s", payload);
     auto event =
         new Event(std::move(topic), reinterpret_cast<const char *>(message));
-    CallbackHandler::push_event(event);
+
+    if (CallbackHandler::pendingEventsActivated) {
+        if (events->size() + pendingEvents->size() < EVENTS_SIZE) {
+            CallbackHandler::pendingEvents->push_back(event);
+            WARDuino::instance()->debugger->freshMessages = true;
+        }
+    } else {
+        CallbackHandler::push_event(event);
+    }
 }
 
 void CallbackHandler::push_event(Event *event) {
-    if (events->size() < EVENTS_SIZE) {
+    // WARNING: called within an ISR so do not use IO functions!
+    if (events->size() + pendingEvents->size() < EVENTS_SIZE) {
         events->push_back(*event);
+        WARDuino::instance()->debugger->freshMessages = true;
     }
 }
 
-bool CallbackHandler::resolve_event(bool force) {
-    if ((!force && CallbackHandler::resolving_event) ||
-        CallbackHandler::events->empty()) {
-        if (force) {
-            printf("No events to be processed!\n");
-            WARDuino::instance()->debugger->channel->write(
-                "no events to be processed");
-        }
+bool CallbackHandler::resolve_event(const Channel &output, Module *module,
+                                    bool force) {
+    if (CallbackHandler::resolving_event || CallbackHandler::events->empty() ||
+        WARDuino::instance()->program_state == WARDUINOpause) {
         return false;
     }
+
+    while (
+        CallbackHandler::manager->interceptEvents &&
+        CallbackHandler::manager->runHookForOnEventHandling(output, module)) {
+    }
+
+    // empty events case is possible since hook can remove events
+    if (CallbackHandler::events->empty()) {
+        return false;
+    }
+
+    // Note front event may be one just pushed via another thread that did not
+    // get handled via hooks we need a good mechanism to be thread safe.
+    // Maybe use the pending queue as the queue for new events and at each
+    // resolve_event the pending queue gets moved to the events queue. If you
+    // pendingbuffer then also move the code that run hooks on the pendingbuffer
+    // from instructions to here.
     Event event = CallbackHandler::events->front();
-
-    if (should_push_event()) {
-        Event e = CallbackHandler::events->at(CallbackHandler::pushed_cursor++);
-        WARDuino::instance()->debugger->channel->write(
-            R"({"topic":"%s","payload":"%s"})", e.topic.c_str(),
-            e.payload.c_str());
-
-        CallbackHandler::events->pop_front();
-        CallbackHandler::pushed_cursor--;
-        CallbackHandler::resolving_event = false;
-        return !CallbackHandler::events->empty();
-        // no further execution if drone
-    }
-
-    if (!force && (CallbackHandler::manual_event_resolution ||
-                   WARDuino::instance()->program_state == WARDUINOpause)) {
-        return true;
-    }
-
     CallbackHandler::resolving_event = true;
     CallbackHandler::events->pop_front();
 
@@ -185,67 +198,4 @@ std::string CallbackHandler::dump_callbacksV2(bool includeOuterCurlyBraces) {
     }
     repr += includeOuterCurlyBraces ? "]}" : "]";
     return repr;
-}
-
-// Callback class
-
-Callback::Callback(Module *m, std::string id, uint32_t tidx) {
-    this->module = m;
-    this->topic = std::move(id);
-    this->table_index = tidx;
-}
-
-void Callback::resolve_event(const Event &e) {
-    dbg_trace("Callback(%s, %i): resolving Event(%s, \"%s\")\n", topic.c_str(),
-              table_index, e.topic.c_str(), e.payload);
-
-    // Copy topic and payload to linear memory
-    uint32_t start = 10000;  // TODO use reserved area in linear memory
-    std::string topic = e.topic;
-    std::string payload = e.payload;
-    for (unsigned long i = 0; i < topic.length(); i++) {
-        module->memory.bytes[start + i] = (uint32_t)e.topic[i];
-    }
-    start += topic.length();
-    for (unsigned long i = 0; i < payload.length(); i++) {
-        module->memory.bytes[start + i] = (uint32_t)e.payload[i];
-    }
-
-    // Push arguments (5 args)
-    module->stack[++module->sp].value.uint32 = start - topic.length();
-    module->stack[module->sp].value_type = I32;
-    module->stack[++module->sp].value.uint32 = topic.length();
-    module->stack[module->sp].value_type = I32;
-    module->stack[++module->sp].value.uint32 = start;
-    module->stack[module->sp].value_type = I32;
-    module->stack[++module->sp].value.uint32 = payload.length();
-    module->stack[module->sp].value_type = I32;
-    module->stack[++module->sp].value.uint32 = payload.length();
-    module->stack[module->sp].value_type = I32;
-
-    // Setup function
-    uint32_t fidx = module->table.entries[table_index];
-    setup_call(module, fidx);
-
-    // Validate argument count
-    // Callback function cannot return a result, should have return type void
-    // TODO
-}
-
-Callback::Callback(const Callback &c) {
-    module = c.module;
-    topic = c.topic;
-    table_index = c.table_index;
-}
-
-// Event class
-
-Event::Event(std::string topic, std::string payload) {
-    this->topic = topic;
-    this->payload = payload;
-}
-
-std::string Event::serialized() const {
-    return R"({"topic": ")" + this->topic + R"(", "payload": ")" +
-           this->payload + R"("})";
 }

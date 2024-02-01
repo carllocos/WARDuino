@@ -61,6 +61,7 @@ bool Interrupt_AroundFunction_deserialize_request(AroundFunctionRequest &dest,
     bool success = Hooks_deserialize_hook(dest.hook, &data, error_code);
     if (success) {
         switch (dest.hook.kind) {
+            case ValueSubstitution:
             case RemoteCall:
                 break;
             case ProxyCall:

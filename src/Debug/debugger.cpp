@@ -11,9 +11,10 @@
 
 #include "../Interrupts/interrupt_around_function.h"
 #include "../Interrupts/interrupt_hook_on_addr.h"
+#include "../Interrupts/interrupt_hook_on_event.h"
 #include "../Interrupts/interrupt_inspect.h"
-#include "../Interrupts/interrupt_monitor_event.h"
 #include "../Interrupts/interrupt_remote_call.h"
+#include "../Interrupts/interrupt_response.h"
 #include "../Interrupts/interrupts.h"
 #include "../Memory/mem.h"
 #include "../Utils//util.h"
@@ -25,6 +26,7 @@ Debugger::Debugger(Channel *duplex) {
     this->channel = duplex;
     this->supervisor_mutex = new std::mutex();
     this->supervisor_mutex->lock();
+    CallbackHandler::setInstrumentationMangager(&this->instrument);
 }
 
 // Public methods
@@ -42,26 +44,7 @@ void Debugger::addDebugMessage(size_t len, const uint8_t *buff) {
     while (!this->parsedInterrupts.empty()) {
         data = this->parsedInterrupts.front();
         this->parsedInterrupts.pop();
-        if (*data == interruptRecvCallbackmapping) {
-            size_t startIdx = 0;
-            size_t endIdx;
-            while (buff[startIdx] != '7' || buff[startIdx + 1] != '5' ||
-                   buff[startIdx + 2] != '{') {
-                startIdx++;
-            }
-            endIdx = startIdx;
-            while (buff[endIdx] != '\n') {
-                endIdx++;
-            }
-            auto *msg = (uint8_t *)acalloc(sizeof(uint8_t), (endIdx - startIdx),
-                                           "interrupt buffer");
-            memcpy(msg, buff + startIdx, (endIdx - startIdx) * sizeof(uint8_t));
-            *msg = *data;
-            free(data);
-            this->pushMessage(msg);
-        } else {
-            this->pushMessage(data);
-        }
+        this->pushMessage(data);
     }
 }
 
@@ -96,11 +79,12 @@ void Debugger::parseDebugBuffer(size_t len, const uint8_t *buff) {
             if (this->interruptEven) {
                 if (!this->interruptBuffer.empty()) {
                     // done, send to process
-                    auto data = (uint8_t *)acalloc(sizeof(uint8_t),
-                                                   this->interruptBuffer.size(),
-                                                   "interrupt buffer");
+                    auto data = (uint8_t *)acalloc(
+                        sizeof(uint8_t), this->interruptBuffer.size() + 1,
+                        "interrupt buffer");
                     memcpy(data, this->interruptBuffer.data(),
                            this->interruptBuffer.size() * sizeof(uint8_t));
+                    data[this->interruptBuffer.size()] = '\0';
                     this->parsedInterrupts.push(data);
                     this->interruptBuffer.clear();
                 }
@@ -180,6 +164,9 @@ bool Debugger::checkDebugMessages(Module *m, RunningState *program_state) {
     printf("received interrupt %x\n", *interruptData);
     fflush(stdout);
 
+    std::string s{};
+    getHumanReadableInterrupt(s, *interruptData);
+    printf("received %s\n", s.c_str());
     this->channel->write("Interrupt: %x\n", *interruptData);
 
     long start = 0, size = 0;
@@ -301,8 +288,8 @@ bool Debugger::checkDebugMessages(Module *m, RunningState *program_state) {
             this->handleHookOnAddress(m, interruptData);
             free(interruptData);
             break;
-        case interruptMonitorEvent:
-            this->handleMonitorEvent(m, interruptData);
+        case interruptHookOnEvent:
+            this->handleHookOnEvent(interruptData);
             free(interruptData);
             break;
         case interruptMonitorProxies: {
@@ -327,7 +314,7 @@ bool Debugger::checkDebugMessages(Module *m, RunningState *program_state) {
             free(interruptData);
             break;
         case interruptPOPEvent:
-            CallbackHandler::resolve_event(true);
+            CallbackHandler::resolve_event(*this->channel, m, true);
             free(interruptData);
             break;
         case interruptPUSHEvent:
@@ -336,7 +323,7 @@ bool Debugger::checkDebugMessages(Module *m, RunningState *program_state) {
             break;
         case interruptRecvCallbackmapping:
             Debugger::updateCallbackmapping(
-                m, reinterpret_cast<const char *>(interruptData + 2));
+                m, reinterpret_cast<const uint8_t *>(interruptData));
             free(interruptData);
             break;
         case interruptDUMPCallbackmapping:
@@ -701,9 +688,9 @@ void Debugger::notifyPushedEvent() const {
 bool Debugger::handlePushedEvent(char *bytes) const {
     if (*bytes != interruptPUSHEvent) return false;
     auto parsed = nlohmann::json::parse(bytes + 1);
-    printf("handle pushed event: %s\n", bytes + 1);
-    auto *event = new Event(*parsed.find("topic"), *parsed.find("payload"));
-    CallbackHandler::push_event(event);
+    std::string topic{*parsed.find("topic")};
+    const std::string payload{*parsed.find("payload")};
+    CallbackHandler::push_event(topic, payload.c_str(), payload.length());
     this->notifyPushedEvent();
     return true;
 }
@@ -1119,17 +1106,24 @@ void Debugger::disconnect_proxy() {
     this->supervisor->thread.join();
 }
 
-void Debugger::updateCallbackmapping(Module *m, const char *data) {
-    nlohmann::basic_json<> parsed = nlohmann::json::parse(data);
+void Debugger::updateCallbackmapping(Module *m, const uint8_t *data) {
     CallbackHandler::clear_callbacks();
-    nlohmann::basic_json<> callbacks = *parsed.find("callbacks");
-    for (auto &array : callbacks.items()) {
-        auto callback = array.value().begin();
-        for (auto &functions : callback.value().items()) {
-            CallbackHandler::add_callback(
-                Callback(m, callback.key(), functions.value()));
+    uint8_t *encoding = (uint8_t *)data + 1;
+    uint32_t numberOfMappings = read_LEB_32(&encoding);
+    for (auto idx = 0; idx < numberOfMappings; ++idx) {
+        uint32_t callbackKeySize = read_LEB_32(&encoding);
+        char *callbackKey = (char *)malloc(callbackKeySize + 1);
+        memcpy((void *)callbackKey, encoding, callbackKeySize);
+        callbackKey[callbackKeySize] = '\0';
+        encoding += callbackKeySize;
+        uint32_t numberTableIndexes = read_LEB_32(&encoding);
+        for (auto j = 0; j < numberTableIndexes; ++j) {
+            uint32_t tidx = read_LEB_32(&encoding);
+            std::string key{callbackKey};
+            CallbackHandler::add_callback(Callback(m, key, tidx));
         }
     }
+    m->warduino->debugger->channel->write("mappings updated!\n");
 }
 
 // Stop the debugger
@@ -1213,6 +1207,7 @@ void Debugger::handleHookOnAddress(Module *m, uint8_t *data) {
                                         data);
 }
 
-void Debugger::handleMonitorEvent(Module *m, uint8_t *data) {
-    Interrupt_Monitor_Event_handle_request(*this->channel, *m, data);
+void Debugger::handleHookOnEvent(uint8_t *data) {
+    Interrupt_HookOnEvent_handle_request(*this->channel, this->instrument,
+                                         data);
 }

@@ -95,13 +95,13 @@ size_t size_for_stackvalues(StackValue *val, uint32_t nr_vals,
                             const ValueSerializationConfig &config);
 
 // Function to write a 32-bit integer in LEB32 format into a buffer
-size_t write_LEB(uint32_t value, uint8_t *buffer);
+size_t write_32BIT_LEB(uint32_t value, uint8_t *buffer);
 
-size_t write_LEB(uint64_t value, uint8_t *buffer);
+size_t write_64BIT_LEB(uint64_t value, uint8_t *buffer);
 
-size_t size_for_LEB(uint32_t value);
+size_t size_for_32BIT_LEB(uint32_t value);
 
-size_t size_for_LEB(uint64_t value);
+size_t size_for_64BIT_LEB(uint64_t value);
 
 uint8_t *findStartOfLEB128(uint8_t *ptr);
 
@@ -150,7 +150,12 @@ uint32_t read_L32(uint8_t **bytes);
 void chars_as_hexa(unsigned char *dest, unsigned char *source,
                    uint32_t len_source);
 
-char *uint8_to_hex(const uint8_t *data, size_t size);
+typedef struct {
+    ssize_t bytesWritten{-1};
+    char *encoding{};
+} HexUInt8Encoding;
+
+bool uint8_to_hex(const uint8_t *data, size_t size, HexUInt8Encoding *dest);
 
 unsigned short int sizeof_valuetype(uint32_t);
 

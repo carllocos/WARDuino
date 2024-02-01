@@ -70,10 +70,15 @@ class ChannelReader {
             for (char c : line) {
                 if (!is_hexa_char(c)) {
                     foundHexaLine = false;
+                    // TODO remove
+                    printf("Received a non hexa char %c in line %s\n", c,
+                           line.c_str());
                     break;
                 }
             }
             if (foundHexaLine) {
+                // TODO remove
+                printf("Found hexa line %s\n", line.c_str());
                 break;
             }
         }
@@ -138,7 +143,7 @@ char *Interrupt_RemoteCall_serialize_request(FunCallRequest &request,
 
     // serialisation
     size_t total_size =
-        1 + size_for_LEB(request.fun) +
+        1 + size_for_32BIT_LEB(request.fun) +
         size_for_stackvalues(request.args, request.number_args, config) + 2;
     uint8_t *buffer = (uint8_t *)malloc(total_size);
 
@@ -147,17 +152,22 @@ char *Interrupt_RemoteCall_serialize_request(FunCallRequest &request,
     size_t offset = 1;
 
     // add LEB128 Func ID
-    offset += write_LEB(request.fun, buffer + offset);
+    offset += write_32BIT_LEB(request.fun, buffer + offset);
 
     // serialize args
     offset += serializeStackValues(request.args, request.number_args, config,
                                    buffer + offset);
 
-    char *hex = uint8_to_hex(buffer, offset);
+    HexUInt8Encoding dest{};
+    char *encoding{};
+    if (uint8_to_hex(buffer, offset, &dest)) {
+        serialized_size = offset * 2;
+        encoding = dest.encoding;
+    } else {
+        serialized_size = 0;
+    }
     free(buffer);
-
-    serialized_size = hex == nullptr ? 0 : offset * 2;
-    return hex;
+    return encoding;
 }
 
 bool Interrupt_RemoteCall_deserialize_response(FunCallResponse *response,
@@ -230,12 +240,42 @@ bool sendRemoteCallRequest(Channel &channel, FunCallRequest &request,
 }
 
 bool waitForReply(Channel &channel, uint8_t &error_code, std::string &dest) {
+    //  TODO: waitForReply should 1. timeout and 2. make it possible to wait for
+    //  a valid reply
+    // TODO: waitForReply right now just waits for a valid hex line. It should
+    // wait 1. for a valid hex line and 2. the hex line decodes to a response of
+    // proxy call.
     ChannelReader reader{channel};
-    int number_bytes_read = reader.readNextHexaLine(dest);
+    int number_bytes_read{};
+    while ((number_bytes_read = reader.readNextHexaLine(dest)) != -1) {
+        if (number_bytes_read < 2) {
+            // two hex chars needed to convert interrupt nr
+            WARDuino::instance()->debugger->channel->write(
+                "Skipping hex string %s (not right number of chars)\n",
+                dest.c_str());
+            continue;
+        }
+
+        uint8_t interruptNr =
+            (char_to_uint8(dest[0]) << 4u) + char_to_uint8(dest[1]);
+        if (interruptNr == interruptFunCall ||
+            interruptNr == interruptProxyCall) {
+            break;
+        }
+        WARDuino::instance()->debugger->channel->write(
+            "Skipping hexastring %s as it does not start with expected "
+            "interrupt nr\n",
+            dest.c_str());
+    }
+
     if (number_bytes_read == -1) {
         error_code = REMOTE_CALL_ERROR_CODE_READ_FROM_CLIENT;
         return false;
     }
+
+    // TODO remove
+    WARDuino::instance()->debugger->channel->write("Received valid reply %s\n",
+                                                   dest.c_str());
     return true;
 }
 
@@ -346,16 +386,19 @@ uint8_t *serialize_error_response(const FunCallResponse &response,
 char *Interrupt_RemoteCall_serialize_response(const FunCallResponse &response,
                                               size_t &size_response) {
     size_t size_encoding{};
-    uint8_t *encoding =
+    uint8_t *toEncode =
         response.type == INTERRUPT_RESPONSE_TYPE_SUCCESS
             ? serialize_success_response(response, size_encoding)
             : serialize_error_response(response, size_encoding);
 
     char *hexa_encoding = nullptr;
-    if (encoding != nullptr) {
-        hexa_encoding = uint8_to_hex(encoding, size_encoding);
+    if (toEncode != nullptr) {
+        HexUInt8Encoding dest{};
+        if (uint8_to_hex(toEncode, size_encoding, &dest)) {
+            hexa_encoding = dest.encoding;
+        }
         size_response = size_encoding * 2;  // size in hexa
-        free(encoding);
+        free(toEncode);
     }
     return hexa_encoding;
 }
@@ -369,6 +412,13 @@ bool Interrupt_RemoteCall_deserialize_request(const Module *m,
     uint8_t interruptNr = *encoded_request++;
     if (interruptNr != interruptFunCall && interruptNr != interruptProxyCall) {
         error_code = REMOTE_CALL_ERROR_CODE_MALFORMED_REQUEST_INTERRUPT_NR;
+        // TODO remove
+        std::string s{};
+        getHumanReadableInterrupt(s, interruptNr);
+        WARDuino::instance()->debugger->channel->write(
+            "ProxyCall request has malformed interruptNr received interrupt "
+            "%s\n",
+            s.c_str());
         return false;
     }
 
@@ -391,6 +441,11 @@ bool Interrupt_RemoteCall_deserialize_request(const Module *m,
     request.number_args = read_LEB_32(&data);
     if (request.number_args != type->param_count) {
         error_code = REMOTE_CALL_ERROR_CODE_INVALID_NUMBER_OF_ARGUMENTS;
+        // TODO remove
+        WARDuino::instance()->debugger->channel->write(
+            "ProxyCall request has invalid number of args expected %" PRIu32
+            " received #%" PRIu32 "\n",
+            type->param_count, request.number_args);
         return false;
     }
 
@@ -399,6 +454,9 @@ bool Interrupt_RemoteCall_deserialize_request(const Module *m,
     request.args = deserializeStackValues(encoded_request, config, type);
     if (request.args == nullptr) {
         error_code = REMOTE_CALL_ERROR_CODE_MALFORMED_FUNCTION_ARGS;
+        // TODO remove
+        WARDuino::instance()->debugger->channel->write(
+            "ProxyCall request has malformed args\n");
         return false;
     }
 
@@ -408,6 +466,9 @@ bool Interrupt_RemoteCall_deserialize_request(const Module *m,
             "TODO:  Proxy Call of non primitive functions is not yet "
             "supported\n");
         error_code = REMOTE_CALL_ERROR_CODE_INVALID_FUNCTION;
+        // TODO remove
+        WARDuino::instance()->debugger->channel->write(
+            "ProxyCall request of non primtive function not yet supported\n");
         return false;
     }
 
