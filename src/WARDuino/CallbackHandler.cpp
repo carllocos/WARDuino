@@ -108,6 +108,23 @@ bool CallbackHandler::resolve_event(const Channel &output, Module *module,
         WARDuino::instance()->program_state == WARDUINOpause) {
         return false;
     }
+
+    while (
+        CallbackHandler::manager->interceptEvents &&
+        CallbackHandler::manager->runHookForOnEventHandling(output, module)) {
+    }
+
+    // empty events case is possible since hook can remove events
+    if (CallbackHandler::events->empty()) {
+        return false;
+    }
+
+    // Note front event may be one just pushed via another thread that did not
+    // get handled via hooks we need a good mechanism to be thread safe.
+    // Maybe use the pending queue as the queue for new events and at each
+    // resolve_event the pending queue gets moved to the events queue. If you
+    // pendingbuffer then also move the code that run hooks on the pendingbuffer
+    // from instructions to here.
     Event event = CallbackHandler::events->front();
     CallbackHandler::resolving_event = true;
     CallbackHandler::events->pop_front();
