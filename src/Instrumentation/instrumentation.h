@@ -41,6 +41,8 @@ class InstrumentationManager {
 
     Hook *hooksForOnNewEvent{};
 
+    Hook *hooksForOnEventHandling{};
+
     InstrumentationPrimitiveFunc *new_Primitive_Instrumentation();
 
     InstrumentationWasmAddr *new_WasmAddress_Instrumentation();
@@ -53,6 +55,10 @@ class InstrumentationManager {
         std::function<void(std::function<void()>)> sendSubscriptionMsg,
         RunningState &runningState);
 
+    bool run_hook_event(
+        const Channel &output, Module &module, Hook &hook,
+        std::function<void(std::function<void()>)> sendSubscriptionMsg,
+        Event *ev, HookEventMoment hookMoment);
 
     void run_hook_on_new_event(const Channel &output, Module &module,
                                Hook &hook, Event *ev);

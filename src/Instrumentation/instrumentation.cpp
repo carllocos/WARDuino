@@ -286,6 +286,53 @@ bool InstrumentationManager::runHooksOnInterceptedFuncCall(
     return around_successful;
 }
 
+bool InstrumentationManager::run_hook_event(
+    const Channel &output, Module &module, Hook &hook,
+    std::function<void(std::function<void()>)> sendSubscriptionMsg, Event *ev,
+    HookEventMoment hookMoment) {
+    switch (hook.kind) {
+        case StateInspect: {
+            const Module *m = &module;
+            bool success = true;
+            std::function<void()> printState = [&output, m, hook, &success]() {
+                bool includeHeader = false;
+                bool includeNewline = false;
+                success = Interrupt_Inspect_inspect_json_output(
+                    output, m, *hook.value.state, includeHeader,
+                    includeNewline);
+            };
+            sendSubscriptionMsg(printState);
+            if (!success) {
+                VM_Exception_write("Unexisting State to inspect\n");
+                return false;
+            }
+            return true;
+        }
+        case EventRemove:
+            if (hookMoment == HookOnNewEvent) {
+                if (!CallbackHandler::pendingEvents->empty()) {
+                    CallbackHandler::pendingEvents->pop_front();
+                }
+                return true;
+            } else if (hookMoment == HookOnEventHandling) {
+                if (!CallbackHandler::events->empty()) {
+                    CallbackHandler::events->pop_front();
+                }
+                return true;
+            } else {
+                VM_Exception_write("Unsupported event hook moment\n");
+                return false;
+            }
+            break;
+        case EventInspect:
+            Interrupt_HookOnEvent_send_Binary_subscribe_message(output, *ev);
+            return true;
+        default:
+            VM_Exception_write("unsupported event hook\n");
+            return false;
+    }
+}
+
 bool InstrumentationManager::run_hook(
     const Channel &output, Module &module, uint32_t local_fidx, Hook &hook,
     std::function<void(std::function<void()>)> sendSubscriptionMsg,
@@ -318,14 +365,6 @@ bool InstrumentationManager::run_hook(
         case ChangeRunningState:
             module.warduino->program_state = hook.value.runState;
             return true;
-        case EventRemove:
-            if (!CallbackHandler::pendingEvents->empty()) {
-                CallbackHandler::pendingEvents->pop_front();
-            }
-            return true;
-        case EventInspect:
-            Interrupt_HookOnEvent_send_Binary_subscribe_message(output, *ev);
-            return true;
         default:
             VM_Exception_write("Unsupported around hook\n");
             return false;
@@ -335,11 +374,12 @@ bool InstrumentationManager::run_hook(
 void InstrumentationManager::run_hook_on_new_event(const Channel &output,
                                                    Module &module, Hook &hook,
                                                    Event *ev) {
-    uint32_t noFunction = 0;
     auto printSubMsg = [&output](std::function<void()> hookOutput) {
         Interrupt_HookOnEvent_send_JSON_subscribe_message(
             output, HookOnNewEvent, hookOutput);
     };
+    this->run_hook_event(output, module, hook, printSubMsg, ev, HookOnNewEvent);
+}
 
     RunningState unUsedRunningState = WARDUINOpause;
     this->run_hook(output, module, noFunction, hook, printSubMsg,
