@@ -6,6 +6,9 @@
 
 #define RESPONSE_BUFFER_SIZE 10
 
+bool addHook(InstrumentationManager &manager, Hook &hook,
+             HookEventMoment moment, uint8_t &error_code);
+
 void Interrupt_HookOnEvent_handle_request(const Channel &requester,
                                           InstrumentationManager &manager,
                                           uint8_t *encoded_request) {
@@ -15,14 +18,9 @@ void Interrupt_HookOnEvent_handle_request(const Channel &requester,
     request.hook = &hook;
 
     if (Interrupt_HookOnEvent_deserialize_request(request, encoded_request,
-                                                  response.error_code)) {
-        if (manager.isAddHookOnEventAllowed(*request.hook)) {
-            manager.addHookOnNewEvent(hook);
-            response.type = INTERRUPT_RESPONSE_TYPE_SUCCESS;
-        } else {
-            response.error_code = HOOK_ON_EVENT_ERROR_CODE_UNALLOWED_HOOK;
-            response.type = INTERRUPT_RESPONSE_TYPE_ERROR;
-        }
+                                                  response.error_code) &&
+        addHook(manager, *request.hook, request.moment, response.error_code)) {
+        response.type = INTERRUPT_RESPONSE_TYPE_SUCCESS;
     } else {
         response.type = INTERRUPT_RESPONSE_TYPE_ERROR;
     }
@@ -120,4 +118,25 @@ void Interrupt_HookOnEvent_send_Binary_subscribe_message(const Channel &output,
         free(dest.encoding);
     }
     free(buffer);
+}
+
+bool addHook(InstrumentationManager &manager, Hook &hook,
+             HookEventMoment moment, uint8_t &error_code) {
+    bool success = true;
+    switch (moment) {
+        case HookOnNewEvent:
+            if (!manager.addHookOnNewEvent(hook)) {
+                error_code = HOOK_ON_EVENT_ERROR_CODE_UNALLOWED_HOOK;
+                success = false;
+            }
+            break;
+        case HookOnEventHandling:
+            if (!manager.addHookOnEventHandling(hook)) {
+                error_code = HOOK_ON_EVENT_ERROR_CODE_UNALLOWED_HOOK;
+                success = false;
+            }
+        default:
+            break;
+    }
+    return success;
 }
