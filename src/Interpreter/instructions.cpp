@@ -1542,7 +1542,10 @@ bool interpret(Module *m, bool waiting) {
         // happen
 
         // not paused, and no event currently resolving
-        if (CallbackHandler::resolve_event()) {
+        if (CallbackHandler::resolve_event(*m->warduino->debugger->channel,
+                                           m)) {
+            // TODO: nr of events does not increase as callbackhandler does not
+            // return true when an event gets handled
             lc->nr_of_events += 1;
         }
 
@@ -1795,8 +1798,9 @@ bool interpret(Module *m, bool waiting) {
     }
 
     // Resolve all unhandled callback events
-    while (CallbackHandler::resolving_event && CallbackHandler::resolve_event())
-        ;
+    while (CallbackHandler::resolving_event &&
+           CallbackHandler::resolve_event(*m->warduino->debugger->channel, m)) {
+    }
 
     dbg_trace("Interpretation ended %s with status %s\n",
               program_done ? "expectedly" : "unexpectedly",

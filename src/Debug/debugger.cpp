@@ -314,7 +314,7 @@ bool Debugger::checkDebugMessages(Module *m, RunningState *program_state) {
             free(interruptData);
             break;
         case interruptPOPEvent:
-            CallbackHandler::resolve_event(true);
+            CallbackHandler::resolve_event(*this->channel, m, true);
             free(interruptData);
             break;
         case interruptPUSHEvent:

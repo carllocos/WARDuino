@@ -41,7 +41,8 @@ class CallbackHandler {
     static void push_event(std::string topic, const char *payload,
                            unsigned int length);
     static void push_event(Event *event);
-    static bool resolve_event(bool force = false);
+    static bool resolve_event(const Channel &output, Module *module,
+                              bool force = false);
 
     static bool manual_event_resolution;  // do not resolve event automatically
 };

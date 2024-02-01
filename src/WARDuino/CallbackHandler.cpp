@@ -102,7 +102,8 @@ void CallbackHandler::push_event(Event *event) {
     }
 }
 
-bool CallbackHandler::resolve_event(bool force) {
+bool CallbackHandler::resolve_event(const Channel &output, Module *module,
+                                    bool force) {
     if (CallbackHandler::resolving_event || CallbackHandler::events->empty() ||
         WARDuino::instance()->program_state == WARDUINOpause) {
         return false;
