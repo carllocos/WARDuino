@@ -39,6 +39,7 @@ if (BUILD_EMULATOR)
 
     set(SOURCE_FILES
             src/WARDuino/WARDuino.cpp
+            src/WARDuino/event_structs.cpp
             src/WARDuino/CallbackHandler.cpp
             src/Primitives/emulated.cpp
             src/Interpreter/instructions.cpp
@@ -100,6 +101,7 @@ if (BUILD_UNITTEST)
     message(DEBUG "Create WARDuino as shared library")
     add_library(warduino_lib SHARED
             src/WARDuino/WARDuino.cpp
+            src/WARDuino/event_structs.cpp
             src/WARDuino/CallbackHandler.cpp
             src/Primitives/emulated.cpp
             src/Interpreter/instructions.cpp

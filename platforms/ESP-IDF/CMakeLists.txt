@@ -11,6 +11,7 @@ set(SOURCE_FILES
         ../../src/Utils/util.cpp
         ../../src/Utils/util_arduino.cpp
         ../../src/WARDuino/CallbackHandler.cpp
+        ../../src/WARDuino/event_structs.cpp
         ../../src/WARDuino/WARDuino.cpp
         ../../src/WARDuino/vm_exception.cpp
         ../../src/Interrupts/interrupt_inspect.cpp
