@@ -63,6 +63,9 @@ class InstrumentationManager {
     void run_hook_on_new_event(const Channel &output, Module &module,
                                Hook &hook, Event *ev);
 
+    void run_hook_on_handled_event(const Channel &output, Module &module,
+                                   Hook &hook, Event *ev);
+
     bool do_value_substitution(Module *module, uint32_t func_called,
                                Hook *hook);
 
@@ -81,6 +84,8 @@ class InstrumentationManager {
      */
 
     void stopRunningHooksOnNewEvents();
+
+    void stopRunningHooksOnEventsHandled();
 
    public:
     bool awakeOnNextInstruction = false;
@@ -123,6 +128,15 @@ class InstrumentationManager {
     /*
      * Running hooks methods
      */
+
+    /* method called by the CallbackHandler to give control the Instrumentration
+     * object for intercepting events that will be handled.
+     *
+     * returns bool :  if true the Instrumentation wants to continue handling
+     * intercepting events after the call false the. If false control is given
+     * back to the callback handler
+     */
+    bool runHookForOnEventHandling(const Channel &output, Module *module);
 
     void runHooksForOnNewEvent(const Channel &output, Module *module);
 

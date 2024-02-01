@@ -400,9 +400,15 @@ void InstrumentationManager::run_hook_on_new_event(const Channel &output,
     this->run_hook_event(output, module, hook, printSubMsg, ev, HookOnNewEvent);
 }
 
-    RunningState unUsedRunningState = WARDUINOpause;
-    this->run_hook(output, module, noFunction, hook, printSubMsg,
-                   unUsedRunningState, ev);
+void InstrumentationManager::run_hook_on_handled_event(const Channel &output,
+                                                       Module &module,
+                                                       Hook &hook, Event *ev) {
+    auto printSubMsg = [&output](std::function<void()> hookOutput) {
+        Interrupt_HookOnEvent_send_JSON_subscribe_message(
+            output, HookOnEventHandling, hookOutput);
+    };
+    this->run_hook_event(output, module, hook, printSubMsg, ev,
+                         HookOnEventHandling);
 }
 
 void InstrumentationManager::runHooksAfterWasmAddr(const Channel &output,
@@ -569,6 +575,47 @@ InstrumentationWasmAddr *InstrumentationManager::start_wasm_addr_intercept(
     return instr;
 }
 
+bool InstrumentationManager::runHookForOnEventHandling(const Channel &output,
+                                                       Module *module) {
+    Hook *hookToRun = this->hooksForOnEventHandling;
+    if (hookToRun == nullptr || CallbackHandler::events->empty()) {
+        if (hookToRun == nullptr) {
+            printf(
+                "TODO: hooksForOnEventHandling: there is no hook found to be "
+                "run on newly pushed events. We will now therefore undo "
+                "the instrumentation but we still need to decide what "
+                "would be the default behaviour. Pause for instance?\n");
+            this->stopRunningHooksOnEventsHandled();
+        }
+        return false;
+    }
+
+    Event event = CallbackHandler::events->front();
+    uint32_t sizeBeforeHooks = CallbackHandler::events->size();
+    bool eventRemoved = false;
+    while (hookToRun != nullptr) {
+        this->run_hook_on_handled_event(output, *module, *hookToRun, &event);
+        this->hooksForOnEventHandling = Hooks_remove_completed_hook(
+            this->hooksForOnEventHandling, hookToRun);
+        if (hookToRun->kind == EventRemove) {
+            // no need to run next hooks as event got removed
+            eventRemoved = true;
+            break;
+        }
+        hookToRun = hookToRun->nextHook;
+    }
+
+    uint32_t sizeAfterHooks = CallbackHandler::events->size();
+    if (eventRemoved && sizeAfterHooks >= sizeBeforeHooks) {
+        printf(
+            "TODO: the edge case occurred where new events got pushed into the "
+            "queue (because of interrupts or hooks) while removing ones "
+            "because of hooks. You need to introduce IDs for each event to "
+            "know when to stop the isntrumentation.\n");
+    }
+    return eventRemoved && !CallbackHandler::events->empty();
+}
+
 void InstrumentationManager::runHooksForOnNewEvent(const Channel &output,
                                                    Module *module) {
     while (!CallbackHandler::pendingEvents->empty()) {
@@ -623,6 +670,16 @@ void InstrumentationManager::stopRunningHooksOnNewEvents() {
     while (this->hooksForOnNewEvent != nullptr) {
         Hook *hookToFree = this->hooksForOnNewEvent;
         this->hooksForOnNewEvent = this->hooksForOnNewEvent->nextHook;
+        Hooks_free_hook(hookToFree);
+    }
+}
+
+void InstrumentationManager::stopRunningHooksOnEventsHandled() {
+    this->interceptEvents = false;
+    // TODO refactor remove hooks
+    while (this->hooksForOnEventHandling != nullptr) {
+        Hook *hookToFree = this->hooksForOnEventHandling;
+        this->hooksForOnEventHandling = this->hooksForOnEventHandling->nextHook;
         Hooks_free_hook(hookToFree);
     }
 }
