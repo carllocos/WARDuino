@@ -18,6 +18,7 @@ class CallbackHandler {
     CallbackHandler() = default;  // Disallow creation
 
    public:
+    static std::deque<Event> *events;
     static std::deque<Event *> *pendingEvents;
     static bool pendingEventsActivated;
 
