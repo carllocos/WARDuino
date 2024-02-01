@@ -8,15 +8,7 @@
 #include "../Instrumentation/instrumentation.h"
 #include "./event_structs.h"
 
-class Event {
-   public:
-    std::string topic;
-    std::string payload;
-
-    Event(std::string topic, std::string payload);
-
-    std::string serialized() const;
-};
+class InstrumentationManager;  // Fix cyclic dependency
 
 class CallbackHandler {
    private:

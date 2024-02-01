@@ -11,17 +11,8 @@
 #define ON_EVENT_HOOK_ERROR_CODE_INVALID_HOOK_MOMENT 2;
 #define HOOK_ON_EVENT_ERROR_CODE_UNALLOWED_HOOK 3;
 
-enum HookEventMoment {
-    HookOnNewEvent = 0x01,
-    HookOnEventHandling = 0x02,
-    HookAfterEventHandled = 0x03
-};
-
-typedef struct OnEventHookRequest {
-    HookEventMoment moment{};
-    Hook *hook;
-} OnEventHookRequest;
-
+class InstrumentationManager;  // Fix cyclic dependency by moving struct in
+                               // separate file
 typedef struct OnEventHookResponse {
     uint8_t type{};
     uint8_t error_code{};
