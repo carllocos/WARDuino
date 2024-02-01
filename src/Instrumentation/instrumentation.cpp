@@ -277,10 +277,9 @@ bool InstrumentationManager::runHooksOnInterceptedFuncCall(
     }
 
     auto printSubMsg = [](std::function<void()> hookOutput) {};
-    Event *noEvent = nullptr;
     bool around_successful =
         this->run_hook(output, *module, primitive_called, *hookToRun,
-                       printSubMsg, runningState, noEvent);
+                       printSubMsg, runningState);
     instr->hook = Hooks_remove_completed_hook(instr->hook, hookToRun);
 
     // After call instrumentation(s)
@@ -290,7 +289,7 @@ bool InstrumentationManager::runHooksOnInterceptedFuncCall(
 bool InstrumentationManager::run_hook(
     const Channel &output, Module &module, uint32_t local_fidx, Hook &hook,
     std::function<void(std::function<void()>)> sendSubscriptionMsg,
-    RunningState &runningState, Event *ev) {
+    RunningState &runningState) {
     switch (hook.kind) {
         case ProxyCall:
         case RemoteCall:
@@ -374,10 +373,9 @@ void InstrumentationManager::runHooksAfterWasmAddr(const Channel &output,
         };
 
         Hook *hooks = instr->hook;
-        Event *noEvent = nullptr;
         while (hooks != nullptr) {
             this->run_hook(output, *module, 0, *hooks, printSubMsg,
-                           runningState, noEvent);
+                           runningState);
             instr->hook = Hooks_remove_completed_hook(instr->hook, hooks);
             hooks = hooks->nextHook;
         }
@@ -451,10 +449,9 @@ bool InstrumentationManager::do_before_wasm_addr_hooks(
     };
     bool success = true;
     Hook *hooks = instr->hook;
-    Event *noEvent = nullptr;
     while (hooks != nullptr && success) {
         success = this->run_hook(output, module, 0, *hooks, printSubMsg,
-                                 runningState, noEvent);
+                                 runningState);
         instr->hook = Hooks_remove_completed_hook(instr->hook, hooks);
         if (!success) {
             break;

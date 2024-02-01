@@ -51,7 +51,8 @@ class InstrumentationManager {
     bool run_hook(
         const Channel &output, Module &module, uint32_t local_fidx, Hook &hook,
         std::function<void(std::function<void()>)> sendSubscriptionMsg,
-        RunningState &runningState, Event *ev);
+        RunningState &runningState);
+
 
     void run_hook_on_new_event(const Channel &output, Module &module,
                                Hook &hook, Event *ev);
