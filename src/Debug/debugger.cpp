@@ -11,6 +11,7 @@
 
 #include "../Interrupts/interrupt_around_function.h"
 #include "../Interrupts/interrupt_hook_on_addr.h"
+#include "../Interrupts/interrupt_hook_on_error.h"
 #include "../Interrupts/interrupt_hook_on_event.h"
 #include "../Interrupts/interrupt_inspect.h"
 #include "../Interrupts/interrupt_remote_call.h"
@@ -291,6 +292,9 @@ bool Debugger::checkDebugMessages(Module *m, RunningState *program_state) {
         case interruptHookOnEvent:
             this->handleHookOnEvent(interruptData);
             free(interruptData);
+            break;
+        case interruptHookOnError:
+            this->handleHookOnError(interruptData);
             break;
         case interruptMonitorProxies: {
             printf("receiving functions list to proxy\n");
@@ -1209,5 +1213,10 @@ void Debugger::handleHookOnAddress(Module *m, uint8_t *data) {
 
 void Debugger::handleHookOnEvent(uint8_t *data) {
     Interrupt_HookOnEvent_handle_request(*this->channel, this->instrument,
+                                         data);
+}
+
+void Debugger::handleHookOnError(uint8_t *data) {
+    Interrupt_HookOnError_handle_request(*this->channel, this->instrument,
                                          data);
 }
