@@ -8,7 +8,7 @@ typedef struct {
 } HookOnErrorRequest;
 
 typedef struct {
-    uint8_t response_type{};
+    uint8_t type{};
     uint8_t error_code{};
 } HookOnErrorResponse;
 
