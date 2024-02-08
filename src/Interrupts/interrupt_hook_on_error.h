@@ -12,7 +12,7 @@ typedef struct {
     uint8_t error_code{};
 } HookOnErrorResponse;
 
-void Interrupt_HookOnError_handle_request(const Channel &channel,
+void Interrupt_HookOnError_handle_request(const Channel &requester,
                                           InstrumentationManager &manager,
                                           uint8_t *encoded_request);
 
