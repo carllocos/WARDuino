@@ -3,6 +3,8 @@
 #include "../Instrumentation/hook.h"
 #include "../Instrumentation/instrumentation.h"
 
+#define HOOK_ON_ERROR_ERROR_CODE_INVALID_INTERRUPT_NR 1;
+
 typedef struct {
     Hook *hook{};
 } HookOnErrorRequest;
