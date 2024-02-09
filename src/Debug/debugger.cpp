@@ -700,11 +700,11 @@ bool Debugger::handlePushedEvent(char *bytes) const {
 
 void Debugger::snapshot(Module *m) {
     StateToInspect inspect{};
-    inspect.numberOfInspects = 10;
+    inspect.numberOfInspects = 11;
     ExecutionState state[] = {
         pcState,        breakpointsState, callstackState,      globalsState,
         tableState,     memoryState,      branchingTableState, stackState,
-        callbacksState, eventsState};
+        callbacksState, eventsState,      errorState};
     inspect.requestedState = state;
     Interrupt_Inspect_inspect_json_output(*this->channel, m, inspect);
 }
