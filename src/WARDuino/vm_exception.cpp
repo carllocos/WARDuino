@@ -4,7 +4,7 @@
 
 #include <cstdarg>
 
-char exception[VM_Exception_Size];
+char exception[VM_Exception_Size] = {'\0'};
 
 void VM_Exception_write(const char* fmt, ...) {
     va_list args;
