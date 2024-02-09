@@ -253,11 +253,10 @@ bool Debugger::checkDebugMessages(Module *m, RunningState *program_state) {
             free(interruptData);
             snapshot(m);
             break;
-        case interruptInspect: {
+        case interruptInspect:
             Interrupt_Inspect_handle_request(*this->channel, m, interruptData);
             free(interruptData);
             break;
-        }
         case interruptLoadSnapshot:
             if (!this->receivingData) {
                 this->pauseRuntime(m);
