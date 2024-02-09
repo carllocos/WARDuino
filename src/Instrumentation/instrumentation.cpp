@@ -666,19 +666,14 @@ void InstrumentationManager::stopRunningHooksOnNewEvents() {
     }
     CallbackHandler::pendingEventsActivated = false;
 
-    // TODO refactor remove hooks
-    while (this->hooksForOnNewEvent != nullptr) {
-        Hook *hookToFree = this->hooksForOnNewEvent;
-        this->hooksForOnNewEvent = this->hooksForOnNewEvent->nextHook;
-        Hooks_free_hook(hookToFree);
-    }
+    Hooks_free_hooks(this->hooksForOnNewEvent);
 }
 
 void InstrumentationManager::stopRunningHooksOnEventsHandled() {
     this->interceptEvents = false;
-    // TODO refactor remove hooks
-    while (this->hooksForOnEventHandling != nullptr) {
-        Hook *hookToFree = this->hooksForOnEventHandling;
+    Hooks_free_hooks(this->hooksForOnEventHandling);
+}
+
         this->hooksForOnEventHandling = this->hooksForOnEventHandling->nextHook;
         Hooks_free_hook(hookToFree);
     }
