@@ -51,6 +51,10 @@ bool Hooks_isHookWaitingForEvent(Hook *sorted_hooks,
 
 Hook *Hooks_copyHook(const Hook &hook);
 
+/*
+ * Removes from a hooks linked list `first_hook` the completed hook
+ * `hook_completed` and returns the updated linked list
+ */
 Hook *Hooks_remove_completed_hook(Hook *first_hook, Hook *hook_completed);
 
 void Hooks_free_hook(Hook *hook);
