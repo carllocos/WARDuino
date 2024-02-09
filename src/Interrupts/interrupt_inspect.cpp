@@ -195,7 +195,8 @@ bool Interrupt_Inspect_inspect_json_output(const Channel &requester,
                 char *errMsg = VM_Exception_has_exception()
                                    ? VM_Exception_get_exception()
                                    : (char *)"";
-                requester.write(R"("exception":%s)", errMsg);
+                requester.write(R"(%s"exception":"%s")", addComma ? "," : "",
+                                errMsg);
                 addComma = true;
                 break;
             }
