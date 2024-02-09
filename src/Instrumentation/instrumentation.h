@@ -52,6 +52,7 @@ class InstrumentationManager {
     bool do_remote_call(Channel &channel, Module *m, uint32_t local_fidx,
                         uint32_t func_to_call, bool isProxyCall);
 
+    // TODO refactor to use struct to pass optional arguments e.g. local_fix
     bool run_hook(
         const Channel &output, Module &module, uint32_t local_fidx, Hook &hook,
         std::function<void(std::function<void()>)> sendSubscriptionMsg,
