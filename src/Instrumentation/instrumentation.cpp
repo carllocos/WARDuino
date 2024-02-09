@@ -1,6 +1,7 @@
 #include "instrumentation.h"
 
 #include "../Interrupts/interrupt_hook_on_addr.h"
+#include "../Interrupts/interrupt_hook_on_error.h"
 #include "../Interrupts/interrupt_hook_on_event.h"
 #include "../Interrupts/interrupt_remote_call.h"
 #include "../Interrupts/interrupt_response.h"
@@ -427,6 +428,29 @@ void InstrumentationManager::run_hook_on_handled_event(const Channel &output,
     };
     this->run_hook_event(output, module, hook, printSubMsg, ev,
                          HookOnEventHandling);
+}
+
+void InstrumentationManager::runHooksOnError(const Channel &output,
+                                             Module *module,
+                                             LogicalClock *currentTime) {
+    if (this->hooksForOnError == nullptr) {
+        this->stopRunningHooksOnError();
+        return;
+    }
+
+    auto printSubMsg = [&output](std::function<void()> hookOutput) {
+        Interrupt_HookOnError_send_JSON_subscribe_message(output, hookOutput);
+    };
+
+    RunningState unusedState = WARDUINOpause;
+    Hook *hooks = this->hooksForOnError;
+    while (hooks != nullptr) {
+        this->run_hook(output, *module, 0, *hooks, printSubMsg, unusedState);
+        Hook *nextHook = hooks->nextHook;
+        this->hooksForOnError =
+            Hooks_remove_completed_hook(this->hooksForOnError, hooks);
+        hooks = nextHook;
+    }
 }
 
 void InstrumentationManager::runHooksAfterWasmAddr(const Channel &output,

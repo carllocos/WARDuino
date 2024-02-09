@@ -55,3 +55,9 @@ bool addHook(InstrumentationManager &manager, Hook &hook, uint8_t &error_code) {
     }
     return true;
 }
+
+void Interrupt_HookOnError_send_JSON_subscribe_message(
+    const Channel &ouput, std::function<void()> hookOutput) {
+    Interrupt_send_JSON_subscribe_message(ouput, interruptHookOnError,
+                                          hookOutput);
+}

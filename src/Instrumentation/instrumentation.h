@@ -150,6 +150,9 @@ class InstrumentationManager {
 
     void runHooksForOnNewEvent(const Channel &output, Module *module);
 
+    void runHooksOnError(const Channel &output, Module *module,
+                         LogicalClock *currentTime);
+
     void runHooksAfterWasmAddr(const Channel &output, Module *module,
                                RunningState &runningState);
 

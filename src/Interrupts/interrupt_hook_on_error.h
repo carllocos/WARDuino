@@ -28,3 +28,6 @@ ssize_t Interrupt_HookOnError_serialize_response(
 
 void Interrupt_HookOnError_send_response(const Channel &channel,
                                          const HookOnErrorResponse &response);
+
+void Interrupt_HookOnError_send_JSON_subscribe_message(
+    const Channel &ouput, std::function<void()> hookOutput);
