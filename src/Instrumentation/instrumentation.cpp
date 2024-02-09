@@ -157,7 +157,7 @@ bool InstrumentationManager::addHookOnNewEvent(Hook &hook) {
     CallbackHandler::pendingEventsActivated = true;
     Hook *h = new Hook();
     *h = hook;
-    hook.nextHook = nullptr;
+    h->nextHook = nullptr;
     this->hooksForOnNewEvent = Hooks_add_and_sort(this->hooksForOnNewEvent, h);
 
     return true;
@@ -170,7 +170,7 @@ bool InstrumentationManager::addHookOnEventHandling(Hook &hook) {
 
     Hook *h = new Hook();
     *h = hook;
-    hook.nextHook = nullptr;
+    h->nextHook = nullptr;
     this->hooksForOnEventHandling =
         Hooks_add_and_sort(this->hooksForOnEventHandling, h);
     this->interceptEvents = true;
