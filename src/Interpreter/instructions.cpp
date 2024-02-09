@@ -1781,10 +1781,17 @@ bool interpret(Module *m, bool waiting) {
                 continue;
             default:
                 VM_Exception_write("unrecognized opcode 0x%x", opcode);
-                if (m->options.return_exception) {
-                    m->exception = strdup(VM_Exception_get_exception());
+                if (waiting) {
+                    if (m->options.return_exception) {
+                        m->exception = strdup(VM_Exception_get_exception());
+                    }
+                    if (m->warduino->debugger->instrument.interceptError) {
+                        m->warduino->debugger->instrument.runHooksOnError(
+                            *m->warduino->debugger->channel, m, lc);
+                    }
+                    return false;
                 }
-                return false;
+                success = false;
         }
     }
 
@@ -1807,6 +1814,12 @@ bool interpret(Module *m, bool waiting) {
     dbg_trace("Interpretation ended %s with status %s\n",
               program_done ? "expectedly" : "unexpectedly",
               success ? "ok" : "error");
+
+    if (!success && m->warduino->debugger->instrument.interceptError) {
+        m->warduino->debugger->instrument.runHooksOnError(
+            *m->warduino->debugger->channel, m, lc);
+    }
+
     if (!success && m->options.return_exception) {
         m->exception = strdup(VM_Exception_get_exception());
     } else if (!success) {
