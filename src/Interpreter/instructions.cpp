@@ -1788,6 +1788,8 @@ bool interpret(Module *m, bool waiting) {
         }
     }
 
+    // TODO delete? IF trap is thrown, how do you resume normal code execution
+    // after proxy call Important in case of OOT
     if (m->warduino->program_state == PROXYrun) {
         dbg_info("Trap was thrown during proxy call.\n");
         RFC *rfc = m->warduino->debugger->topProxyCall();
