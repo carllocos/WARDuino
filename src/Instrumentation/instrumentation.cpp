@@ -76,6 +76,10 @@ bool InstrumentationManager::isAddHookAllowed(uint32_t funID) {
     return hook == nullptr || hook->schedule.kind != ScheduleAlways;
 }
 
+bool InstrumentationManager::isAddHookOnErrorAllowed(Hook &hook) {
+    return hook.kind == StateInspect;
+}
+
 bool InstrumentationManager::addAroundFunctionHook(Module &m, uint32_t func_idx,
                                                    const Hook &around) {
     if (func_idx > m.function_count) {
@@ -174,6 +178,20 @@ bool InstrumentationManager::addHookOnEventHandling(Hook &hook) {
     this->hooksForOnEventHandling =
         Hooks_add_and_sort(this->hooksForOnEventHandling, h);
     this->interceptEvents = true;
+
+    return true;
+}
+
+bool InstrumentationManager::addHookOnError(Hook &hook) {
+    if (!this->isAddHookOnErrorAllowed(hook)) {
+        return false;
+    }
+
+    Hook *h = new Hook();
+    *h = hook;
+    h->nextHook = nullptr;
+    this->hooksForOnError = Hooks_add_and_sort(this->hooksForOnError, h);
+    this->interceptError = true;
 
     return true;
 }
@@ -674,9 +692,9 @@ void InstrumentationManager::stopRunningHooksOnEventsHandled() {
     Hooks_free_hooks(this->hooksForOnEventHandling);
 }
 
-        this->hooksForOnEventHandling = this->hooksForOnEventHandling->nextHook;
-        Hooks_free_hook(hookToFree);
-    }
+void InstrumentationManager::stopRunningHooksOnError() {
+    this->interceptError = false;
+    Hooks_free_hooks(this->hooksForOnError);
 }
 
 bool Instrumentation_interceptPrimitiveCall(Module *m) {

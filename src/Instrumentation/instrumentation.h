@@ -43,6 +43,8 @@ class InstrumentationManager {
 
     Hook *hooksForOnEventHandling{};
 
+    Hook *hooksForOnError{};
+
     InstrumentationPrimitiveFunc *new_Primitive_Instrumentation();
 
     InstrumentationWasmAddr *new_WasmAddress_Instrumentation();
@@ -87,9 +89,12 @@ class InstrumentationManager {
 
     void stopRunningHooksOnEventsHandled();
 
+    void stopRunningHooksOnError();
+
    public:
     bool awakeOnNextInstruction = false;
     bool interceptEvents = false;
+    bool interceptError = false;
 
     InstrumentationManager();
 
@@ -112,6 +117,8 @@ class InstrumentationManager {
 
     bool addHookOnEventHandling(Hook &hook);
 
+    bool addHookOnError(Hook &hook);
+
     /*
      *  Predicate methods
      */
@@ -124,6 +131,8 @@ class InstrumentationManager {
     bool isAddHookOnEventAllowed(Hook &hook);
 
     bool isAddHookOnEventHandlingAllowed(Hook &hook);
+
+    bool isAddHookOnErrorAllowed(Hook &hook);
 
     /*
      * Running hooks methods

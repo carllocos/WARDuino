@@ -4,6 +4,7 @@
 #include "../Instrumentation/instrumentation.h"
 
 #define HOOK_ON_ERROR_ERROR_CODE_INVALID_INTERRUPT_NR 1;
+#define HOOK_ON_ERROR_ERROR_CODE_UNALLOWED_HOOK 2;
 
 typedef struct {
     Hook *hook{};

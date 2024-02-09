@@ -49,6 +49,9 @@ ssize_t Interrupt_HookOnError_serialize_response(
 }
 
 bool addHook(InstrumentationManager &manager, Hook &hook, uint8_t &error_code) {
-    printf("INTERRUPT_HOOK_ON_ERROR STILL HOOK TO ADD\n");
-    return false;
+    if (!manager.addHookOnError(hook)) {
+        error_code = HOOK_ON_ERROR_ERROR_CODE_UNALLOWED_HOOK;
+        return false;
+    }
+    return true;
 }
