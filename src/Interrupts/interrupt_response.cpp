@@ -151,6 +151,9 @@ void getHumanReadableInterrupt(std::string &s, uint8_t interruptNr) {
         case interruptRecvCallbackmapping:
             s = "interruptRecvCallbackmappin";
             break;
+        case interruptHookOnError:
+            s = "interruptHookOnError";
+            break;
         default:
             s = "unknwon interrupt";
             break;
