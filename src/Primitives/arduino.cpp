@@ -622,21 +622,20 @@ def_prim(subscribe_interrupt, threeToNoneU32) {
     int index = resolve_isr(pin);
     if (index < 0) {
         dbg_info("subscribe_interrupt: no ISR found for pin %i\n", pin);
-        VM_Exception_write("subscribe_interrupt: no ISR found for pin %i\n",
-                           pin);
+        VM_Exception_write("subscribe_interrupt: no ISR found for pin %i", pin);
         return false;
     }
 
     if (tidx < 0 || m->table.size < tidx) {
         dbg_info("subscribe_interrupt: out of range table index %i\n", tidx);
-        VM_Exception_write("subscribe_interrupt: out of range table index %i\n",
+        VM_Exception_write("subscribe_interrupt: out of range table index %i",
                            tidx);
         return false;
     }
 
     if (tidx < 0 || m->table.size < tidx) {
         dbg_info("subscribe_interrupt: out of range table index %i\n", tidx);
-        VM_Exception_write("subscribe_interrupt: out of range table index %i\n",
+        VM_Exception_write("subscribe_interrupt: out of range table index %i",
                            tidx);
         return false;
     }
@@ -1013,8 +1012,7 @@ void install_primitives() {
 bool Primitive_Not_Supported(Module *m) {
     uint8_t *pc_of_call = findStartOfLEB128(m->pc_ptr - 1);
     uint32_t primitive_called = read_LEB_32(&pc_of_call);
-    VM_Exception_write("Primitive %" PRIu32 " not supported\n",
-                       primitive_called);
+    VM_Exception_write("Primitive %" PRIu32 " not supported", primitive_called);
     printf("MCU: Primitive %" PRIu32 " not supported\n", primitive_called);
     return false;
 }

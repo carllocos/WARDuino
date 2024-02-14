@@ -246,8 +246,7 @@ void install_primitives() {
 bool Primitive_Not_Supported(Module *m) {
     uint8_t *pc_of_call = findStartOfLEB128(m->pc_ptr - 1);
     uint32_t primitive_called = read_LEB_32(&pc_of_call);
-    VM_Exception_write("Primitive %" PRIu32 " not supported\n",
-                       primitive_called);
+    VM_Exception_write("Primitive %" PRIu32 " not supported", primitive_called);
     printf("Primitive %" PRIu32 " not supported\n", primitive_called);
     return false;
 }

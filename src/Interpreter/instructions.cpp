@@ -345,7 +345,7 @@ bool i_instr_br_table(Module *m) {
     uint32_t count = read_LEB_32(&m->pc_ptr);
     if (count > BR_TABLE_SIZE) {
         // TODO: check this prior to runtime
-        VM_Exception_write("br_table size %" PRIu32 " exceeds max %d\n", count,
+        VM_Exception_write("br_table size %" PRIu32 " exceeds max %d", count,
                            BR_TABLE_SIZE);
         return false;
     }

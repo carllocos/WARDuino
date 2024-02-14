@@ -213,7 +213,7 @@ bool InstrumentationManager::do_remote_call(Channel &channel, Module *module,
                                             uint32_t func_to_call,
                                             bool isProxyCall) {
     if (this->fun_call_channel == nullptr) {
-        VM_Exception_write("No channel set to perform around function call\n");
+        VM_Exception_write("No channel set to perform around function call");
         return false;
     }
 
@@ -233,7 +233,7 @@ bool InstrumentationManager::do_remote_call(Channel &channel, Module *module,
 
         printf("Remotecall failed error_code%" PRIu8 " \n",
                response.error_code);
-        VM_Exception_write("Remotecall failed error_code%" PRIu8 " \n",
+        VM_Exception_write("Remotecall failed error_code%" PRIu8 "",
                            response.error_code);
         return false;
     }
@@ -264,7 +264,7 @@ bool InstrumentationManager::do_value_substitution(Module *module,
     module->sp -= type->param_count;  // pop args
     if (type->result_count > 0) {
         if (hook->value.result == nullptr) {
-            VM_Exception_write("No Substitute value provided\n");
+            VM_Exception_write("No Substitute value provided");
             return false;
         }
         module->sp += 1;
@@ -289,7 +289,7 @@ bool InstrumentationManager::runHooksOnInterceptedFuncCall(
     if (iterator == instr_primitive_funcs.end() ||
         iterator->second->hook == nullptr) {
         VM_Exception_write(
-            "No Instrumentation registered for primitive %" PRIu32 "\n",
+            "No Instrumentation registered for primitive %" PRIu32 "",
             primitive_called);
         // TODO ADD subscription message for no instrumentation registered
         return false;
@@ -309,7 +309,7 @@ bool InstrumentationManager::runHooksOnInterceptedFuncCall(
             // event to occur
             return true;
         } else {
-            VM_Exception_write("No hook scheduled for primitive call\n");
+            VM_Exception_write("No hook scheduled for primitive call");
             return false;
         }
     }
@@ -341,7 +341,7 @@ bool InstrumentationManager::run_hook_event(
             };
             sendSubscriptionMsg(printState);
             if (!success) {
-                VM_Exception_write("Unexisting State to inspect\n");
+                VM_Exception_write("Unexisting State to inspect");
                 return false;
             }
             return true;
@@ -358,7 +358,7 @@ bool InstrumentationManager::run_hook_event(
                 }
                 return true;
             } else {
-                VM_Exception_write("Unsupported event hook moment\n");
+                VM_Exception_write("Unsupported event hook moment");
                 return false;
             }
             break;
@@ -366,7 +366,7 @@ bool InstrumentationManager::run_hook_event(
             Interrupt_HookOnEvent_send_Binary_subscribe_message(output, *ev);
             return true;
         default:
-            VM_Exception_write("unsupported event hook\n");
+            VM_Exception_write("unsupported event hook");
             return false;
     }
 }
@@ -395,7 +395,7 @@ bool InstrumentationManager::run_hook(
             };
             sendSubscriptionMsg(printState);
             if (!success) {
-                VM_Exception_write("Unexisting State to inspect\n");
+                VM_Exception_write("Unexisting State to inspect");
                 return false;
             }
             return true;
@@ -404,7 +404,7 @@ bool InstrumentationManager::run_hook(
             module.warduino->program_state = hook.value.runState;
             return true;
         default:
-            VM_Exception_write("Unsupported around hook\n");
+            VM_Exception_write("Unsupported around hook");
             return false;
     }
 }
@@ -545,7 +545,7 @@ bool InstrumentationManager::do_before_wasm_addr_hooks(
     uint32_t addr, uint8_t &opcode, RunningState &runningState) {
     if (!has_HookOnWasmAddr(addr, InstrumentBefore)) {
         VM_Exception_write(
-            "No hook registered on instrumented addr %" PRIu32 "\n", addr);
+            "No hook registered on instrumented addr %" PRIu32 "", addr);
         return false;
     }
     InstrumentationWasmAddr *instr = this->instr_wasm_addr_before[addr];
