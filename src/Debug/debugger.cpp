@@ -11,6 +11,7 @@
 
 #include "../Interrupts/interrupt_around_function.h"
 #include "../Interrupts/interrupt_hook_on_addr.h"
+#include "../Interrupts/interrupt_hook_on_error.h"
 #include "../Interrupts/interrupt_hook_on_event.h"
 #include "../Interrupts/interrupt_inspect.h"
 #include "../Interrupts/interrupt_remote_call.h"
@@ -252,11 +253,10 @@ bool Debugger::checkDebugMessages(Module *m, RunningState *program_state) {
             free(interruptData);
             snapshot(m);
             break;
-        case interruptInspect: {
+        case interruptInspect:
             Interrupt_Inspect_handle_request(*this->channel, m, interruptData);
             free(interruptData);
             break;
-        }
         case interruptLoadSnapshot:
             if (!this->receivingData) {
                 this->pauseRuntime(m);
@@ -291,6 +291,9 @@ bool Debugger::checkDebugMessages(Module *m, RunningState *program_state) {
         case interruptHookOnEvent:
             this->handleHookOnEvent(interruptData);
             free(interruptData);
+            break;
+        case interruptHookOnError:
+            this->handleHookOnError(interruptData);
             break;
         case interruptMonitorProxies: {
             printf("receiving functions list to proxy\n");
@@ -697,11 +700,11 @@ bool Debugger::handlePushedEvent(char *bytes) const {
 
 void Debugger::snapshot(Module *m) {
     StateToInspect inspect{};
-    inspect.numberOfInspects = 10;
+    inspect.numberOfInspects = 11;
     ExecutionState state[] = {
         pcState,        breakpointsState, callstackState,      globalsState,
         tableState,     memoryState,      branchingTableState, stackState,
-        callbacksState, eventsState};
+        callbacksState, eventsState,      errorState};
     inspect.requestedState = state;
     Interrupt_Inspect_inspect_json_output(*this->channel, m, inspect);
 }
@@ -1209,5 +1212,10 @@ void Debugger::handleHookOnAddress(Module *m, uint8_t *data) {
 
 void Debugger::handleHookOnEvent(uint8_t *data) {
     Interrupt_HookOnEvent_handle_request(*this->channel, this->instrument,
+                                         data);
+}
+
+void Debugger::handleHookOnError(uint8_t *data) {
+    Interrupt_HookOnError_handle_request(*this->channel, this->instrument,
                                          data);
 }

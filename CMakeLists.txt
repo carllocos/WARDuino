@@ -59,6 +59,7 @@ if (BUILD_EMULATOR)
             src/Interrupts/interrupt_remote_call.cpp
             src/Interrupts/interrupt_hook_on_addr.cpp
             src/Interrupts/interrupt_hook_on_event.cpp
+            src/Interrupts/interrupt_hook_on_error.cpp
             src/Interrupts/interrupt_response.cpp
             src/Instrumentation/logical_clock.cpp
             src/Instrumentation/hook.cpp)
@@ -121,6 +122,7 @@ if (BUILD_UNITTEST)
             src/Interrupts/interrupt_remote_call.cpp
             src/Interrupts/interrupt_hook_on_addr.cpp
             src/Interrupts/interrupt_hook_on_event.cpp
+            src/Interrupts/interrupt_hook_on_error.cpp
             src/Interrupts/interrupt_response.cpp
             src/Instrumentation/logical_clock.cpp
             src/Instrumentation/hook.cpp)

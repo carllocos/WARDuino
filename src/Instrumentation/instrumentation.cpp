@@ -1,6 +1,7 @@
 #include "instrumentation.h"
 
 #include "../Interrupts/interrupt_hook_on_addr.h"
+#include "../Interrupts/interrupt_hook_on_error.h"
 #include "../Interrupts/interrupt_hook_on_event.h"
 #include "../Interrupts/interrupt_remote_call.h"
 #include "../Interrupts/interrupt_response.h"
@@ -74,6 +75,10 @@ bool InstrumentationManager::isAddHookAllowed(uint32_t funID) {
     // of the always so that once the once is consumed the always remains.
     Hook *hook = this->instr_primitive_funcs[funID]->hook;
     return hook == nullptr || hook->schedule.kind != ScheduleAlways;
+}
+
+bool InstrumentationManager::isAddHookOnErrorAllowed(Hook &hook) {
+    return hook.kind == StateInspect;
 }
 
 bool InstrumentationManager::addAroundFunctionHook(Module &m, uint32_t func_idx,
@@ -157,7 +162,7 @@ bool InstrumentationManager::addHookOnNewEvent(Hook &hook) {
     CallbackHandler::pendingEventsActivated = true;
     Hook *h = new Hook();
     *h = hook;
-    hook.nextHook = nullptr;
+    h->nextHook = nullptr;
     this->hooksForOnNewEvent = Hooks_add_and_sort(this->hooksForOnNewEvent, h);
 
     return true;
@@ -170,10 +175,24 @@ bool InstrumentationManager::addHookOnEventHandling(Hook &hook) {
 
     Hook *h = new Hook();
     *h = hook;
-    hook.nextHook = nullptr;
+    h->nextHook = nullptr;
     this->hooksForOnEventHandling =
         Hooks_add_and_sort(this->hooksForOnEventHandling, h);
     this->interceptEvents = true;
+
+    return true;
+}
+
+bool InstrumentationManager::addHookOnError(Hook &hook) {
+    if (!this->isAddHookOnErrorAllowed(hook)) {
+        return false;
+    }
+
+    Hook *h = new Hook();
+    *h = hook;
+    h->nextHook = nullptr;
+    this->hooksForOnError = Hooks_add_and_sort(this->hooksForOnError, h);
+    this->interceptError = true;
 
     return true;
 }
@@ -194,7 +213,7 @@ bool InstrumentationManager::do_remote_call(Channel &channel, Module *module,
                                             uint32_t func_to_call,
                                             bool isProxyCall) {
     if (this->fun_call_channel == nullptr) {
-        VM_Exception_write("No channel set to perform around function call\n");
+        VM_Exception_write("No channel set to perform around function call");
         return false;
     }
 
@@ -214,7 +233,7 @@ bool InstrumentationManager::do_remote_call(Channel &channel, Module *module,
 
         printf("Remotecall failed error_code%" PRIu8 " \n",
                response.error_code);
-        VM_Exception_write("Remotecall failed error_code%" PRIu8 " \n",
+        VM_Exception_write("Remotecall failed error_code%" PRIu8 "",
                            response.error_code);
         return false;
     }
@@ -245,7 +264,7 @@ bool InstrumentationManager::do_value_substitution(Module *module,
     module->sp -= type->param_count;  // pop args
     if (type->result_count > 0) {
         if (hook->value.result == nullptr) {
-            VM_Exception_write("No Substitute value provided\n");
+            VM_Exception_write("No Substitute value provided");
             return false;
         }
         module->sp += 1;
@@ -270,7 +289,7 @@ bool InstrumentationManager::runHooksOnInterceptedFuncCall(
     if (iterator == instr_primitive_funcs.end() ||
         iterator->second->hook == nullptr) {
         VM_Exception_write(
-            "No Instrumentation registered for primitive %" PRIu32 "\n",
+            "No Instrumentation registered for primitive %" PRIu32 "",
             primitive_called);
         // TODO ADD subscription message for no instrumentation registered
         return false;
@@ -290,7 +309,7 @@ bool InstrumentationManager::runHooksOnInterceptedFuncCall(
             // event to occur
             return true;
         } else {
-            VM_Exception_write("No hook scheduled for primitive call\n");
+            VM_Exception_write("No hook scheduled for primitive call");
             return false;
         }
     }
@@ -322,7 +341,7 @@ bool InstrumentationManager::run_hook_event(
             };
             sendSubscriptionMsg(printState);
             if (!success) {
-                VM_Exception_write("Unexisting State to inspect\n");
+                VM_Exception_write("Unexisting State to inspect");
                 return false;
             }
             return true;
@@ -339,7 +358,7 @@ bool InstrumentationManager::run_hook_event(
                 }
                 return true;
             } else {
-                VM_Exception_write("Unsupported event hook moment\n");
+                VM_Exception_write("Unsupported event hook moment");
                 return false;
             }
             break;
@@ -347,7 +366,7 @@ bool InstrumentationManager::run_hook_event(
             Interrupt_HookOnEvent_send_Binary_subscribe_message(output, *ev);
             return true;
         default:
-            VM_Exception_write("unsupported event hook\n");
+            VM_Exception_write("unsupported event hook");
             return false;
     }
 }
@@ -376,7 +395,7 @@ bool InstrumentationManager::run_hook(
             };
             sendSubscriptionMsg(printState);
             if (!success) {
-                VM_Exception_write("Unexisting State to inspect\n");
+                VM_Exception_write("Unexisting State to inspect");
                 return false;
             }
             return true;
@@ -385,7 +404,7 @@ bool InstrumentationManager::run_hook(
             module.warduino->program_state = hook.value.runState;
             return true;
         default:
-            VM_Exception_write("Unsupported around hook\n");
+            VM_Exception_write("Unsupported around hook");
             return false;
     }
 }
@@ -409,6 +428,29 @@ void InstrumentationManager::run_hook_on_handled_event(const Channel &output,
     };
     this->run_hook_event(output, module, hook, printSubMsg, ev,
                          HookOnEventHandling);
+}
+
+void InstrumentationManager::runHooksOnError(const Channel &output,
+                                             Module *module,
+                                             LogicalClock *currentTime) {
+    if (this->hooksForOnError == nullptr) {
+        this->stopRunningHooksOnError();
+        return;
+    }
+
+    auto printSubMsg = [&output](std::function<void()> hookOutput) {
+        Interrupt_HookOnError_send_JSON_subscribe_message(output, hookOutput);
+    };
+
+    RunningState unusedState = WARDUINOpause;
+    Hook *hooks = this->hooksForOnError;
+    while (hooks != nullptr) {
+        this->run_hook(output, *module, 0, *hooks, printSubMsg, unusedState);
+        Hook *nextHook = hooks->nextHook;
+        this->hooksForOnError =
+            Hooks_remove_completed_hook(this->hooksForOnError, hooks);
+        hooks = nextHook;
+    }
 }
 
 void InstrumentationManager::runHooksAfterWasmAddr(const Channel &output,
@@ -503,7 +545,7 @@ bool InstrumentationManager::do_before_wasm_addr_hooks(
     uint32_t addr, uint8_t &opcode, RunningState &runningState) {
     if (!has_HookOnWasmAddr(addr, InstrumentBefore)) {
         VM_Exception_write(
-            "No hook registered on instrumented addr %" PRIu32 "\n", addr);
+            "No hook registered on instrumented addr %" PRIu32 "", addr);
         return false;
     }
     InstrumentationWasmAddr *instr = this->instr_wasm_addr_before[addr];
@@ -666,22 +708,17 @@ void InstrumentationManager::stopRunningHooksOnNewEvents() {
     }
     CallbackHandler::pendingEventsActivated = false;
 
-    // TODO refactor remove hooks
-    while (this->hooksForOnNewEvent != nullptr) {
-        Hook *hookToFree = this->hooksForOnNewEvent;
-        this->hooksForOnNewEvent = this->hooksForOnNewEvent->nextHook;
-        Hooks_free_hook(hookToFree);
-    }
+    Hooks_free_hooks(this->hooksForOnNewEvent);
 }
 
 void InstrumentationManager::stopRunningHooksOnEventsHandled() {
     this->interceptEvents = false;
-    // TODO refactor remove hooks
-    while (this->hooksForOnEventHandling != nullptr) {
-        Hook *hookToFree = this->hooksForOnEventHandling;
-        this->hooksForOnEventHandling = this->hooksForOnEventHandling->nextHook;
-        Hooks_free_hook(hookToFree);
-    }
+    Hooks_free_hooks(this->hooksForOnEventHandling);
+}
+
+void InstrumentationManager::stopRunningHooksOnError() {
+    this->interceptError = false;
+    Hooks_free_hooks(this->hooksForOnError);
 }
 
 bool Instrumentation_interceptPrimitiveCall(Module *m) {

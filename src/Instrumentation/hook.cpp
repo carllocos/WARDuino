@@ -183,6 +183,14 @@ void Hooks_free_hook(Hook *hook) {
     delete hook;
 }
 
+void Hooks_free_hooks(Hook *hook) {
+    while (hook != nullptr) {
+        Hook *hookToFree = hook;
+        hook = hook->nextHook;
+        Hooks_free_hook(hookToFree);
+    }
+}
+
 /*
  * Private functions
  */

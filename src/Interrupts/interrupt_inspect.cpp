@@ -3,6 +3,7 @@
 #include "../Interrupts/interrupts.h"
 #include "../Utils/macros.h"
 #include "../Utils/util.h"
+#include "../WARDuino/vm_exception.h"
 
 void printValue(const Channel &output, StackValue *v, uint32_t idx,
                 bool end = false);
@@ -49,6 +50,7 @@ bool Interrupt_Inspect_deserialize_request(InspectStateRequest &request,
             case stackState:
             case callbacksState:
             case eventsState:
+            case errorState:
                 request.requestedState[i] = (enum ExecutionState)data[i];
                 break;
             default:
@@ -186,6 +188,15 @@ bool Interrupt_Inspect_inspect_json_output(const Channel &requester,
                 requester.write("%s", addComma ? "," : "");
                 m->warduino->debugger->dumpEvents(
                     0, CallbackHandler::event_count());
+                addComma = true;
+                break;
+            }
+            case errorState: {
+                char *errMsg = VM_Exception_has_exception()
+                                   ? VM_Exception_get_exception()
+                                   : (char *)"";
+                requester.write(R"(%s"exception":"%s")", addComma ? "," : "",
+                                errMsg);
                 addComma = true;
                 break;
             }

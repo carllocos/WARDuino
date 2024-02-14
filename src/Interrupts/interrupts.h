@@ -28,6 +28,7 @@ enum InterruptTypes {
     interruptAroundFunction = 0x50,
     interruptHookOnAddress = 0x51,
     interruptHookOnEvent = 0x52,
+    interruptHookOnError = 0x53,
 
     // Pull Debugging
     interruptSnapshot = 0x60,

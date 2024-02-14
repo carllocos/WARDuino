@@ -345,7 +345,7 @@ bool i_instr_br_table(Module *m) {
     uint32_t count = read_LEB_32(&m->pc_ptr);
     if (count > BR_TABLE_SIZE) {
         // TODO: check this prior to runtime
-        VM_Exception_write("br_table size %" PRIu32 " exceeds max %d\n", count,
+        VM_Exception_write("br_table size %" PRIu32 " exceeds max %d", count,
                            BR_TABLE_SIZE);
         return false;
     }
@@ -1781,13 +1781,22 @@ bool interpret(Module *m, bool waiting) {
                 continue;
             default:
                 VM_Exception_write("unrecognized opcode 0x%x", opcode);
-                if (m->options.return_exception) {
-                    m->exception = strdup(VM_Exception_get_exception());
+                if (waiting) {
+                    if (m->options.return_exception) {
+                        m->exception = strdup(VM_Exception_get_exception());
+                    }
+                    if (m->warduino->debugger->instrument.interceptError) {
+                        m->warduino->debugger->instrument.runHooksOnError(
+                            *m->warduino->debugger->channel, m, lc);
+                    }
+                    return false;
                 }
-                return false;
+                success = false;
         }
     }
 
+    // TODO delete? IF trap is thrown, how do you resume normal code execution
+    // after proxy call Important in case of OOT
     if (m->warduino->program_state == PROXYrun) {
         dbg_info("Trap was thrown during proxy call.\n");
         RFC *rfc = m->warduino->debugger->topProxyCall();
@@ -1805,6 +1814,12 @@ bool interpret(Module *m, bool waiting) {
     dbg_trace("Interpretation ended %s with status %s\n",
               program_done ? "expectedly" : "unexpectedly",
               success ? "ok" : "error");
+
+    if (!success && m->warduino->debugger->instrument.interceptError) {
+        m->warduino->debugger->instrument.runHooksOnError(
+            *m->warduino->debugger->channel, m, lc);
+    }
+
     if (!success && m->options.return_exception) {
         m->exception = strdup(VM_Exception_get_exception());
     } else if (!success) {
