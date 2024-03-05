@@ -73,6 +73,8 @@ class InstrumentationManager {
     HooksPrimitiveFunc *start_primitive_call_interception(Module &m,
                                                           uint32_t target_func);
 
+    void stop_primitive_call_interception(Module &m, uint32_t target_func);
+
     HooksWasmAddr *start_wasm_addr_intercept(Module &module,
                                              const uint32_t addr,
                                              const HookMoment moment);
