@@ -96,14 +96,23 @@ bool registerOrUnregisterAroundFunctionHook(
         error_code = AROUND_FUNC_ERROR_CODE_UNEXISTING_LOCAL_FUNC;
         return false;
     }
-    if (!manager.isAddHookAllowed(request.func_idx)) {
-        error_code = AROUND_FUNC_ERROR_CODE_AROUND_ALREADY_EXISTS;
-        return false;
+
+    if (request.addHook) {
+        if (!manager.isAddHookAroundFuncAllowed(request.func_idx)) {
+            error_code = AROUND_FUNC_ERROR_CODE_AROUND_ALREADY_EXISTS;
+            return false;
+        }
+
+        if (!manager.addHookAroundFunction(m, request.func_idx, request.hook)) {
+            error_code = AROUND_FUNC_ERROR_CODE_NO_MEMORY_LEFT;  // TODO change
+                                                                 // error_code
+            return false;
+        }
+        return true;
     }
 
-    if (!manager.addAroundFunctionHook(m, request.func_idx, request.hook)) {
-        error_code =
-            AROUND_FUNC_ERROR_CODE_NO_MEMORY_LEFT;  // TODO change error_code
+    if (!manager.removeHooksAroundFunction(m, request.func_idx)) {
+        error_code = AROUND_FUNC_ERROR_CODE_REMOVE_HOOKS_FAILED;
         return false;
     }
 
