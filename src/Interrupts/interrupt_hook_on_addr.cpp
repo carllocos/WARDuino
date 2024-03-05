@@ -38,8 +38,8 @@ void Interrupt_HookOnAddr_handle_request(const Channel &channel, Module &module,
 bool Interrupt_HookOnAddr_deserialize_request(HookOnAddrRequest &dest,
                                               uint8_t *encoded_request,
                                               uint8_t &error_code) {
-    // format: InterruptNr (1 byte)| addr (LEB32) | add or remove (1 byte) |
-    // HookMoment (1 byte) | hook
+    // format: InterruptNr (1 byte)| addr (LEB32) | HookMoment (1 byte)
+    // | add or remove (1 byte) |hook
 
     uint8_t *data = encoded_request;
     if (*data++ != interruptHookOnAddress) {
