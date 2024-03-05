@@ -596,13 +596,18 @@ HooksPrimitiveFunc *InstrumentationManager::start_primitive_call_interception(
     return instr;
 }
 
-void InstrumentationManager::stop_primitive_call_interception(
+bool InstrumentationManager::stop_primitive_call_interception(
     Module &m, uint32_t target_func) {
-    if (this->has_HooksOnAroundFunction(target_func)) {
-        HooksPrimitiveFunc *hooks_func =
-            this->hooks_around_prim_funcs[target_func];
-        Hooks_free_hooks(hooks_func->hook);
+    if (!this->has_HooksOnAroundFunction(target_func)) {
+        return false;
     }
+
+    HooksPrimitiveFunc *hooks_func = this->hooks_around_prim_funcs[target_func];
+    m.functions[target_func].func_ptr =
+        (void (*)()) & hooks_func->original_func;
+
+    this->delete_Primitive_Instrumentation(hooks_func);
+    return true;
 }
 
 HooksWasmAddr *InstrumentationManager::start_wasm_addr_intercept(
