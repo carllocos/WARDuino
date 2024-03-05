@@ -16,7 +16,7 @@
 typedef struct {
     uint32_t addr{};
     bool add{};  // true add hook, if false remove hooks
-    InstrumentMoment moment{};
+    HookMoment moment{};
     Hook *hook{};
 } HookOnAddrRequest;
 
@@ -40,5 +40,5 @@ void Interrupt_HookOnAddr_send_response(const Channel &channel,
                                         const HookOnAddrResponse &response);
 
 void Interrupt_HookOnAddr_send_JSON_subscribe_message(
-    const Channel &output, InstrumentMoment moment, uint32_t addr,
+    const Channel &output, HookMoment moment, uint32_t addr,
     std::function<void()> hookOutput);

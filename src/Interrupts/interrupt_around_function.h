@@ -10,6 +10,8 @@
 #define AROUND_FUNC_ERROR_CODE_SCHEDULING_MODE_NOT_SUPPORTED 5
 #define AROUND_FUNC_ERROR_CODE_SUBSTITUE_VALUE_IS_MALFORMED 6
 #define AROUND_FUNC_ERROR_CODE_UNSUPPORTED_HOOK 7
+#define AROUND_FUNC_ERROR_CODE_REMOVE_HOOKS_FAILED 8
+#define AROUND_FUNC_ERROR_CODE_REQUEST_HAS_WRONG_INTERRUPT_NR 9
 
 typedef struct {
     uint8_t error_code{AROUND_FUNC_ERROR_CODE_NO_ERROR_CODE_SET};
@@ -18,6 +20,7 @@ typedef struct {
 
 typedef struct {
     uint32_t func_idx;
+    bool addHook;
     Hook hook;
 } AroundFunctionRequest;
 

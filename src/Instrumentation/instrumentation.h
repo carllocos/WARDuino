@@ -30,14 +30,12 @@ class InstrumentationManager {
 
     std::stack<MonitoredFrame> frames_to_monitor{};
 
-    std::unordered_map<uint32_t, InstrumentationPrimitiveFunc *>
-        instr_primitive_funcs{};
+    std::unordered_map<uint32_t, HooksPrimitiveFunc *>
+        hooks_around_prim_funcs{};
 
-    std::unordered_map<uint32_t, InstrumentationWasmAddr *>
-        instr_wasm_addr_before{};
+    std::unordered_map<uint32_t, HooksWasmAddr *> instr_wasm_addr_before{};
 
-    std::unordered_map<uint32_t, InstrumentationWasmAddr *>
-        instr_wasm_addr_after{};
+    std::unordered_map<uint32_t, HooksWasmAddr *> instr_wasm_addr_after{};
 
     Hook *hooksForOnNewEvent{};
 
@@ -45,9 +43,11 @@ class InstrumentationManager {
 
     Hook *hooksForOnError{};
 
-    InstrumentationPrimitiveFunc *new_Primitive_Instrumentation();
+    HooksPrimitiveFunc *new_Primitive_Instrumentation();
 
-    InstrumentationWasmAddr *new_WasmAddress_Instrumentation();
+    void delete_Primitive_Instrumentation(HooksPrimitiveFunc *func);
+
+    HooksWasmAddr *new_WasmAddress_Instrumentation();
 
     bool do_remote_call(Channel &channel, Module *m, uint32_t local_fidx,
                         uint32_t func_to_call, bool isProxyCall);
@@ -72,19 +72,26 @@ class InstrumentationManager {
     bool do_value_substitution(Module *module, uint32_t func_called,
                                Hook *hook);
 
-    InstrumentationPrimitiveFunc *start_primitive_call_interception(
-        Module &m, uint32_t target_func);
-
-    InstrumentationWasmAddr *start_wasm_addr_intercept(
-        Module &module, const uint32_t addr, const InstrumentMoment moment);
-
     bool do_before_wasm_addr_hooks(const Channel &hookOutput, Module &module,
                                    LogicalClock &currentTime, uint32_t addr,
                                    uint8_t &opcode, RunningState &runningState);
 
     /*
+     * Methods that start instrumentation
+     */
+
+    HooksPrimitiveFunc *start_primitive_call_interception(Module &m,
+                                                          uint32_t target_func);
+
+    HooksWasmAddr *start_wasm_addr_intercept(Module &module,
+                                             const uint32_t addr,
+                                             const HookMoment moment);
+
+    /*
      * Methods that stop instrumentation
      */
+
+    bool stop_primitive_call_interception(Module &m, uint32_t target_func);
 
     void stopRunningHooksOnNewEvents();
 
@@ -105,14 +112,16 @@ class InstrumentationManager {
      * Hook registration methods
      */
 
-    bool addAroundFunctionHook(Module &m, uint32_t func_idx,
+    bool addHookAroundFunction(Module &m, uint32_t func_idx,
                                const Hook &around);
 
+    bool removeHooksAroundFunction(Module &m, uint32_t func_idx);
+
     bool addHookOnWasmAddress(Module &module, uint32_t addr, Hook &hook,
-                              const InstrumentMoment moment);
+                              const HookMoment moment);
 
     bool removeHooksOnWasmAddress(Module &module, uint32_t addr,
-                                  const InstrumentMoment moment);
+                                  const HookMoment moment);
 
     bool addHookOnNewEvent(Hook &hook);
 
@@ -123,11 +132,11 @@ class InstrumentationManager {
     /*
      *  Predicate methods
      */
-    bool has_AroundFunction(uint32_t funID);
+    bool has_HooksOnAroundFunction(uint32_t funID);
 
-    bool has_HookOnWasmAddr(uint32_t addr, InstrumentMoment moment);
+    bool has_HookOnWasmAddr(uint32_t addr, HookMoment moment);
 
-    bool isAddHookAllowed(uint32_t funID);
+    bool isAddHookAroundFuncAllowed(uint32_t funID);
 
     bool isAddHookOnEventAllowed(Hook &hook);
 

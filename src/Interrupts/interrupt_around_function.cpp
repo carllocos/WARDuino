@@ -7,9 +7,9 @@
 /*
  * Declaration private functions
  */
-bool registerAroundFunctionHook(InstrumentationManager &manager, Module &m,
-                                const AroundFunctionRequest &request,
-                                uint8_t &error_code);
+bool registerOrUnregisterAroundFunctionHook(
+    InstrumentationManager &manager, Module &m,
+    const AroundFunctionRequest &request, uint8_t &error_code);
 
 /*
  * Public functions
@@ -42,7 +42,7 @@ void Interrupt_AroundFunction_handle_request(const Channel &channel,
 
     if (Interrupt_AroundFunction_deserialize_request(request, encoded_request,
                                                      error) &&
-        registerAroundFunctionHook(manager, *m, request, error)) {
+        registerOrUnregisterAroundFunctionHook(manager, *m, request, error)) {
         response.type = INTERRUPT_RESPONSE_TYPE_SUCCESS;
     } else {
         response.type = INTERRUPT_RESPONSE_TYPE_ERROR;
@@ -55,22 +55,31 @@ void Interrupt_AroundFunction_handle_request(const Channel &channel,
 bool Interrupt_AroundFunction_deserialize_request(AroundFunctionRequest &dest,
                                                   uint8_t *encoded_data,
                                                   uint8_t &error_code) {
-    // format: Target func (LEB32) | Schedule | Hook
+    // format: interrupt nr (1 byte) | Target func (LEB32)
+    // | add or Remove (1 byte) | Schedule | Hook
     uint8_t *data = encoded_data;
+    if (*data++ != interruptAroundFunction) {
+        error_code = AROUND_FUNC_ERROR_CODE_REQUEST_HAS_WRONG_INTERRUPT_NR;
+        return false;
+    }
     dest.func_idx = read_LEB_32(&data);
-    bool success = Hooks_deserialize_hook(dest.hook, &data, error_code);
-    if (success) {
-        switch (dest.hook.kind) {
-            case ValueSubstitution:
-            case RemoteCall:
-                break;
-            case ProxyCall:
-                dest.hook.value.target_fidx = dest.func_idx;
-                break;
-            default:
-                error_code = AROUND_FUNC_ERROR_CODE_UNSUPPORTED_HOOK;
-                success = false;
-                break;
+    dest.addHook = *data++;
+    bool success = true;
+    if (dest.addHook) {
+        success = Hooks_deserialize_hook(dest.hook, &data, error_code);
+        if (success) {
+            switch (dest.hook.kind) {
+                case ValueSubstitution:
+                case RemoteCall:
+                    break;
+                case ProxyCall:
+                    dest.hook.value.target_fidx = dest.func_idx;
+                    break;
+                default:
+                    error_code = AROUND_FUNC_ERROR_CODE_UNSUPPORTED_HOOK;
+                    success = false;
+                    break;
+            }
         }
     }
     return success;
@@ -80,21 +89,30 @@ bool Interrupt_AroundFunction_deserialize_request(AroundFunctionRequest &dest,
  * Private functions
  */
 
-bool registerAroundFunctionHook(InstrumentationManager &manager, Module &m,
-                                const AroundFunctionRequest &request,
-                                uint8_t &error_code) {
+bool registerOrUnregisterAroundFunctionHook(
+    InstrumentationManager &manager, Module &m,
+    const AroundFunctionRequest &request, uint8_t &error_code) {
     if (request.func_idx >= m.function_count) {
         error_code = AROUND_FUNC_ERROR_CODE_UNEXISTING_LOCAL_FUNC;
         return false;
     }
-    if (!manager.isAddHookAllowed(request.func_idx)) {
-        error_code = AROUND_FUNC_ERROR_CODE_AROUND_ALREADY_EXISTS;
-        return false;
+
+    if (request.addHook) {
+        if (!manager.isAddHookAroundFuncAllowed(request.func_idx)) {
+            error_code = AROUND_FUNC_ERROR_CODE_AROUND_ALREADY_EXISTS;
+            return false;
+        }
+
+        if (!manager.addHookAroundFunction(m, request.func_idx, request.hook)) {
+            error_code = AROUND_FUNC_ERROR_CODE_NO_MEMORY_LEFT;  // TODO change
+                                                                 // error_code
+            return false;
+        }
+        return true;
     }
 
-    if (!manager.addAroundFunctionHook(m, request.func_idx, request.hook)) {
-        error_code =
-            AROUND_FUNC_ERROR_CODE_NO_MEMORY_LEFT;  // TODO change error_code
+    if (!manager.removeHooksAroundFunction(m, request.func_idx)) {
+        error_code = AROUND_FUNC_ERROR_CODE_REMOVE_HOOKS_FAILED;
         return false;
     }
 
