@@ -18,6 +18,7 @@ typedef struct {
 
 typedef struct {
     uint32_t func_idx;
+    bool addHook;
     Hook hook;
 } AroundFunctionRequest;
 
