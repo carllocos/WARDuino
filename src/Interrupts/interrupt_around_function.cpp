@@ -55,22 +55,31 @@ void Interrupt_AroundFunction_handle_request(const Channel &channel,
 bool Interrupt_AroundFunction_deserialize_request(AroundFunctionRequest &dest,
                                                   uint8_t *encoded_data,
                                                   uint8_t &error_code) {
-    // format: Target func (LEB32) | Schedule | Hook
+    // format: interrupt nr (1 byte) | Target func (LEB32)
+    // | add or Remove (1 byte) | Schedule | Hook
     uint8_t *data = encoded_data;
+    if (*data++ != interruptAroundFunction) {
+        error_code = AROUND_FUNC_ERROR_CODE_REQUEST_HAS_WRONG_INTERRUPT_NR;
+        return false;
+    }
     dest.func_idx = read_LEB_32(&data);
-    bool success = Hooks_deserialize_hook(dest.hook, &data, error_code);
-    if (success) {
-        switch (dest.hook.kind) {
-            case ValueSubstitution:
-            case RemoteCall:
-                break;
-            case ProxyCall:
-                dest.hook.value.target_fidx = dest.func_idx;
-                break;
-            default:
-                error_code = AROUND_FUNC_ERROR_CODE_UNSUPPORTED_HOOK;
-                success = false;
-                break;
+    dest.addHook = *data++;
+    bool success = true;
+    if (dest.addHook) {
+        success = Hooks_deserialize_hook(dest.hook, &data, error_code);
+        if (success) {
+            switch (dest.hook.kind) {
+                case ValueSubstitution:
+                case RemoteCall:
+                    break;
+                case ProxyCall:
+                    dest.hook.value.target_fidx = dest.func_idx;
+                    break;
+                default:
+                    error_code = AROUND_FUNC_ERROR_CODE_UNSUPPORTED_HOOK;
+                    success = false;
+                    break;
+            }
         }
     }
     return success;

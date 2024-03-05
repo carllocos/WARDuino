@@ -281,7 +281,7 @@ bool Debugger::checkDebugMessages(Module *m, RunningState *program_state) {
             free(interruptData);
             break;
         case interruptAroundFunction:
-            this->handleAroundFunction(m, interruptData + 1);
+            this->handleAroundFunction(m, interruptData);
             free(interruptData);
             break;
         case interruptHookOnAddress:
