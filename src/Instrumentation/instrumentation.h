@@ -85,7 +85,7 @@ class InstrumentationManager {
      * Methods that stop instrumentation
      */
 
-    void stop_primitive_call_interception(Module &m, uint32_t target_func);
+    bool stop_primitive_call_interception(Module &m, uint32_t target_func);
 
     void stopRunningHooksOnNewEvents();
 
