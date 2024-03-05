@@ -39,9 +39,9 @@ bool InstrumentationManager::has_HooksOnAroundFunction(uint32_t funID) {
 bool InstrumentationManager::has_HookOnWasmAddr(uint32_t addr,
                                                 HookMoment moment) {
     switch (moment) {
-        case InstrumentBefore:
+        case HookBefore:
             return this->instr_wasm_addr_before.count(addr) > 0;
-        case InstrumentAfter:
+        case HookAfter:
             return this->instr_wasm_addr_after.count(addr) > 0;
         default:
             FATAL("Around monitor not supported");
@@ -124,14 +124,14 @@ bool InstrumentationManager::removeHooksOnWasmAddress(Module &module,
     HooksWasmAddr *instr;
     std::unordered_map<uint32_t, HooksWasmAddr *> *mapForErase;
     bool restoreOpcode;
-    if (moment == InstrumentBefore) {
+    if (moment == HookBefore) {
         instr = instr_wasm_addr_before[addr];
         mapForErase = &this->instr_wasm_addr_before;
-        restoreOpcode = !this->has_HookOnWasmAddr(addr, InstrumentAfter);
+        restoreOpcode = !this->has_HookOnWasmAddr(addr, HookAfter);
     } else {
         instr = instr_wasm_addr_after[addr];
         mapForErase = &this->instr_wasm_addr_after;
-        restoreOpcode = !this->has_HookOnWasmAddr(addr, InstrumentBefore);
+        restoreOpcode = !this->has_HookOnWasmAddr(addr, HookBefore);
     }
 
     while (instr->hook != nullptr) {
@@ -482,13 +482,13 @@ void InstrumentationManager::runHooksAfterWasmAddr(const Channel &output,
         this->frames_to_monitor.pop();
 
         uint32_t addr = frame.addr;
-        if (!has_HookOnWasmAddr(addr, InstrumentAfter)) {
+        if (!has_HookOnWasmAddr(addr, HookAfter)) {
             continue;
         }
         HooksWasmAddr *instr = this->instr_wasm_addr_after[addr];
         auto printSubMsg = [&output, addr](std::function<void()> hookOutput) {
-            Interrupt_HookOnAddr_send_JSON_subscribe_message(
-                output, InstrumentAfter, addr, hookOutput);
+            Interrupt_HookOnAddr_send_JSON_subscribe_message(output, HookAfter,
+                                                             addr, hookOutput);
         };
 
         Hook *hooks = instr->hook;
@@ -518,14 +518,14 @@ bool InstrumentationManager::runHooksOnWasmAddr(const Channel &output,
     if (LogicalClock_is_t1_equal_t2(this->lastObservedTime, *currentTime)) {
         // Reentering an addr for which the hooks were just run
         // do not run the hooks but advance computation
-        auto instr = this->has_HookOnWasmAddr(addr, InstrumentBefore)
+        auto instr = this->has_HookOnWasmAddr(addr, HookBefore)
                          ? this->instr_wasm_addr_before[addr]
                          : this->instr_wasm_addr_after[addr];
         opcode = instr->original_opcode;
         module->pc_ptr += 1;
     } else {
         this->lastObservedTime = *currentTime;
-        if (this->has_HookOnWasmAddr(addr, InstrumentBefore)) {
+        if (this->has_HookOnWasmAddr(addr, HookBefore)) {
             success = this->do_before_wasm_addr_hooks(
                 output, *module, *currentTime, addr, opcode, runningState);
             upcodeRestored = true;
@@ -535,7 +535,7 @@ bool InstrumentationManager::runHooksOnWasmAddr(const Channel &output,
             module->pc_ptr += 1;
         }
 
-        if (this->has_HookOnWasmAddr(addr, InstrumentAfter)) {
+        if (this->has_HookOnWasmAddr(addr, HookAfter)) {
             // save frame and addr for after addr hooks
             MonitoredFrame frame{};
             frame.addr = addr;
@@ -555,7 +555,7 @@ bool InstrumentationManager::runHooksOnWasmAddr(const Channel &output,
 bool InstrumentationManager::do_before_wasm_addr_hooks(
     const Channel &output, Module &module, LogicalClock &currentTime,
     uint32_t addr, uint8_t &opcode, RunningState &runningState) {
-    if (!has_HookOnWasmAddr(addr, InstrumentBefore)) {
+    if (!has_HookOnWasmAddr(addr, HookBefore)) {
         VM_Exception_write(
             "No hook registered on instrumented addr %" PRIu32 "", addr);
         return false;
@@ -563,8 +563,8 @@ bool InstrumentationManager::do_before_wasm_addr_hooks(
     HooksWasmAddr *instr = this->instr_wasm_addr_before[addr];
 
     auto printSubMsg = [&output, addr](std::function<void()> hookOutput) {
-        Interrupt_HookOnAddr_send_JSON_subscribe_message(
-            output, InstrumentBefore, addr, hookOutput);
+        Interrupt_HookOnAddr_send_JSON_subscribe_message(output, HookBefore,
+                                                         addr, hookOutput);
     };
     bool success = true;
     Hook *hooks = instr->hook;
@@ -618,7 +618,7 @@ bool InstrumentationManager::stop_primitive_call_interception(
 HooksWasmAddr *InstrumentationManager::start_wasm_addr_intercept(
     Module &module, const uint32_t addr, HookMoment moment) {
     if (this->has_HookOnWasmAddr(addr, moment)) {
-        if (moment == InstrumentBefore) {
+        if (moment == HookBefore) {
             return this->instr_wasm_addr_before[addr];
         } else {
             return this->instr_wasm_addr_after[addr];
@@ -633,7 +633,7 @@ HooksWasmAddr *InstrumentationManager::start_wasm_addr_intercept(
         instr->original_opcode = module.bytes[addr];
         module.bytes[addr] = INSTRUMENTATION_INTERCEPT_OPCODE;
         instr->hook = nullptr;
-        if (moment == InstrumentBefore) {
+        if (moment == HookBefore) {
             this->instr_wasm_addr_before[addr] = instr;
         } else {
             this->instr_wasm_addr_after[addr] = instr;

@@ -49,8 +49,8 @@ bool Interrupt_HookOnAddr_deserialize_request(HookOnAddrRequest &dest,
     dest.addr = read_LEB_32(&data);
     dest.moment = (HookMoment)*data++;
     switch (dest.moment) {
-        case InstrumentBefore:
-        case InstrumentAfter:
+        case HookBefore:
+        case HookAfter:
             break;
         default:
             error_code = HOOK_ON_ADDR_ERROR_CODE_REQUEST_HAS_UN_EXISTING_MOMENT;

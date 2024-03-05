@@ -2,11 +2,7 @@
 #include "../Instrumentation/hook.h"
 #include "../WARDuino/structs.h"
 
-enum HookMoment {
-    InstrumentBefore = 0x01,
-    InstrumentAfter = 0x02,
-    InstrumentAround = 0x03
-};
+enum HookMoment { HookBefore = 0x01, HookAfter = 0x02, HookAround = 0x03 };
 
 typedef struct HooksPrimitiveFunc {
     uint32_t func_idx;          // func for which the around hook is registered
