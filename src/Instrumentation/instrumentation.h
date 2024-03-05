@@ -105,7 +105,7 @@ class InstrumentationManager {
      * Hook registration methods
      */
 
-    bool addAroundFunctionHook(Module &m, uint32_t func_idx,
+    bool addHookAroundFunction(Module &m, uint32_t func_idx,
                                const Hook &around);
 
     bool addHookOnWasmAddress(Module &module, uint32_t addr, Hook &hook,
@@ -127,7 +127,7 @@ class InstrumentationManager {
 
     bool has_HookOnWasmAddr(uint32_t addr, InstrumentMoment moment);
 
-    bool isAddHookAllowed(uint32_t funID);
+    bool isAddHookAroundFuncAllowed(uint32_t funID);
 
     bool isAddHookOnEventAllowed(Hook &hook);
 

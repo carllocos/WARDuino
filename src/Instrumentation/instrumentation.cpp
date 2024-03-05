@@ -59,7 +59,7 @@ bool InstrumentationManager::isAddHookOnEventHandlingAllowed(Hook &hook) {
     return this->isAddHookOnEventAllowed(hook);
 }
 
-bool InstrumentationManager::isAddHookAllowed(uint32_t funID) {
+bool InstrumentationManager::isAddHookAroundFuncAllowed(uint32_t funID) {
     if (!this->has_AroundFunction(funID)) return true;
     // Dissallows hooks that have been scheduled for always if one is
     // alread in place
@@ -81,7 +81,7 @@ bool InstrumentationManager::isAddHookOnErrorAllowed(Hook &hook) {
     return hook.kind == StateInspect;
 }
 
-bool InstrumentationManager::addAroundFunctionHook(Module &m, uint32_t func_idx,
+bool InstrumentationManager::addHookAroundFunction(Module &m, uint32_t func_idx,
                                                    const Hook &around) {
     if (func_idx > m.function_count) {
         return false;

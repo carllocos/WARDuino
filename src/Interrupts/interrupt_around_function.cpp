@@ -7,9 +7,9 @@
 /*
  * Declaration private functions
  */
-bool registerAroundFunctionHook(InstrumentationManager &manager, Module &m,
-                                const AroundFunctionRequest &request,
-                                uint8_t &error_code);
+bool registerOrUnregisterAroundFunctionHook(
+    InstrumentationManager &manager, Module &m,
+    const AroundFunctionRequest &request, uint8_t &error_code);
 
 /*
  * Public functions
@@ -42,7 +42,7 @@ void Interrupt_AroundFunction_handle_request(const Channel &channel,
 
     if (Interrupt_AroundFunction_deserialize_request(request, encoded_request,
                                                      error) &&
-        registerAroundFunctionHook(manager, *m, request, error)) {
+        registerOrUnregisterAroundFunctionHook(manager, *m, request, error)) {
         response.type = INTERRUPT_RESPONSE_TYPE_SUCCESS;
     } else {
         response.type = INTERRUPT_RESPONSE_TYPE_ERROR;
@@ -80,9 +80,9 @@ bool Interrupt_AroundFunction_deserialize_request(AroundFunctionRequest &dest,
  * Private functions
  */
 
-bool registerAroundFunctionHook(InstrumentationManager &manager, Module &m,
-                                const AroundFunctionRequest &request,
-                                uint8_t &error_code) {
+bool registerOrUnregisterAroundFunctionHook(
+    InstrumentationManager &manager, Module &m,
+    const AroundFunctionRequest &request, uint8_t &error_code) {
     if (request.func_idx >= m.function_count) {
         error_code = AROUND_FUNC_ERROR_CODE_UNEXISTING_LOCAL_FUNC;
         return false;
