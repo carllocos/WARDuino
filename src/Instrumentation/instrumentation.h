@@ -30,7 +30,8 @@ class InstrumentationManager {
 
     std::stack<MonitoredFrame> frames_to_monitor{};
 
-    std::unordered_map<uint32_t, HooksPrimitiveFunc *> hooks_primitive_funcs{};
+    std::unordered_map<uint32_t, HooksPrimitiveFunc *>
+        hooks_around_prim_funcs{};
 
     std::unordered_map<uint32_t, HooksWasmAddr *> instr_wasm_addr_before{};
 

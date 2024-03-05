@@ -26,7 +26,7 @@ HooksWasmAddr *InstrumentationManager::new_WasmAddress_Instrumentation() {
 }
 
 bool InstrumentationManager::has_HooksOnAroundFunction(uint32_t funID) {
-    return this->hooks_primitive_funcs.count(funID) > 0;
+    return this->hooks_around_prim_funcs.count(funID) > 0;
 }
 
 bool InstrumentationManager::has_HookOnWasmAddr(uint32_t addr,
@@ -71,7 +71,7 @@ bool InstrumentationManager::isAddHookAroundFuncAllowed(uint32_t funID) {
     // is always tou replace the old one with the new one if the hook is
     // something else than always such as once then that hook is put in front
     // of the always so that once the once is consumed the always remains.
-    Hook *hook = this->hooks_primitive_funcs[funID]->hook;
+    Hook *hook = this->hooks_around_prim_funcs[funID]->hook;
     return hook == nullptr || hook->schedule.kind != ScheduleAlways;
 }
 
@@ -285,8 +285,8 @@ bool InstrumentationManager::runHooksOnInterceptedFuncCall(
 
     // Around call instrumentation(s)
 
-    auto iterator = hooks_primitive_funcs.find(primitive_called);
-    if (iterator == hooks_primitive_funcs.end() ||
+    auto iterator = hooks_around_prim_funcs.find(primitive_called);
+    if (iterator == hooks_around_prim_funcs.end() ||
         iterator->second->hook == nullptr) {
         VM_Exception_write(
             "No Instrumentation registered for primitive %" PRIu32 "",
@@ -574,7 +574,7 @@ bool InstrumentationManager::do_before_wasm_addr_hooks(
 HooksPrimitiveFunc *InstrumentationManager::start_primitive_call_interception(
     Module &m, uint32_t target_func) {
     if (this->has_HooksOnAroundFunction(target_func)) {
-        return this->hooks_primitive_funcs[target_func];
+        return this->hooks_around_prim_funcs[target_func];
     }
 
     // The first time for which an instrumentation occurs for the primitive
@@ -582,7 +582,7 @@ HooksPrimitiveFunc *InstrumentationManager::start_primitive_call_interception(
     HooksPrimitiveFunc *instr = this->new_Primitive_Instrumentation();
     if (instr != nullptr) {
         instr->original_func = (Primitive)m.functions[target_func].func_ptr;
-        this->hooks_primitive_funcs[target_func] = instr;
+        this->hooks_around_prim_funcs[target_func] = instr;
         m.functions[target_func].func_ptr =
             (void (*)()) & Instrumentation_interceptPrimitiveCall;
     }
