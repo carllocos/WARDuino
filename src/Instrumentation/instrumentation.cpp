@@ -105,6 +105,11 @@ bool InstrumentationManager::addHookAroundFunction(Module &m, uint32_t func_idx,
     }
 }
 
+bool InstrumentationManager::removeHooksAroundFunction(Module &m,
+                                                       uint32_t func_idx) {
+    return this->stop_primitive_call_interception(m, func_idx);
+}
+
 bool InstrumentationManager::removeHooksOnWasmAddress(Module &module,
                                                       uint32_t addr,
                                                       const HookMoment moment) {

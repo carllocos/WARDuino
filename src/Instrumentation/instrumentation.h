@@ -115,6 +115,8 @@ class InstrumentationManager {
     bool addHookAroundFunction(Module &m, uint32_t func_idx,
                                const Hook &around);
 
+    bool removeHooksAroundFunction(Module &m, uint32_t func_idx);
+
     bool addHookOnWasmAddress(Module &module, uint32_t addr, Hook &hook,
                               const HookMoment moment);
 
