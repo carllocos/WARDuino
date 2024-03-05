@@ -45,6 +45,8 @@ class InstrumentationManager {
 
     HooksPrimitiveFunc *new_Primitive_Instrumentation();
 
+    void delete_Primitive_Instrumentation(HooksPrimitiveFunc *func);
+
     HooksWasmAddr *new_WasmAddress_Instrumentation();
 
     bool do_remote_call(Channel &channel, Module *m, uint32_t local_fidx,

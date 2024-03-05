@@ -21,6 +21,13 @@ HooksPrimitiveFunc *InstrumentationManager::new_Primitive_Instrumentation() {
     return new HooksPrimitiveFunc{};
 }
 
+void InstrumentationManager::delete_Primitive_Instrumentation(
+    HooksPrimitiveFunc *func) {
+    Hooks_free_hooks(func->hook);
+    func->original_func = nullptr;
+    delete func;
+}
+
 HooksWasmAddr *InstrumentationManager::new_WasmAddress_Instrumentation() {
     return new HooksWasmAddr{};
 }
