@@ -39,7 +39,7 @@ bool Interrupt_HookOnAddr_deserialize_request(HookOnAddrRequest &dest,
                                               uint8_t *encoded_request,
                                               uint8_t &error_code) {
     // format: InterruptNr (1 byte)| addr (LEB32) | add or remove (1 byte) |
-    // InstrumentMoment (1 byte) | hook
+    // HookMoment (1 byte) | hook
 
     uint8_t *data = encoded_request;
     if (*data++ != interruptHookOnAddress) {
@@ -47,7 +47,7 @@ bool Interrupt_HookOnAddr_deserialize_request(HookOnAddrRequest &dest,
         return false;
     }
     dest.addr = read_LEB_32(&data);
-    dest.moment = (InstrumentMoment)*data++;
+    dest.moment = (HookMoment)*data++;
     switch (dest.moment) {
         case InstrumentBefore:
         case InstrumentAfter:
@@ -107,7 +107,7 @@ bool registerHookOnAddr(InstrumentationManager &manager, Module &m,
 }
 
 void Interrupt_HookOnAddr_send_JSON_subscribe_message(
-    const Channel &output, InstrumentMoment moment, uint32_t addr,
+    const Channel &output, HookMoment moment, uint32_t addr,
     std::function<void()> hookOutput) {
     auto subscriptionMsgBody = [&output, moment, hookOutput, addr]() {
         output.write(R"({"moment":"%02X","addr":"%02X","val":)", moment, addr);

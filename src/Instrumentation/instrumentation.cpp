@@ -17,22 +17,20 @@ void InstrumentationManager::registerAroundFunctionChannel(Channel *channel) {
         30;  // not set to 0 so the first instr can also be hooked upon
 }
 
-InstrumentationPrimitiveFunc *
-InstrumentationManager::new_Primitive_Instrumentation() {
-    return new InstrumentationPrimitiveFunc{};
+HooksPrimitiveFunc *InstrumentationManager::new_Primitive_Instrumentation() {
+    return new HooksPrimitiveFunc{};
 }
 
-InstrumentationWasmAddr *
-InstrumentationManager::new_WasmAddress_Instrumentation() {
-    return new InstrumentationWasmAddr{};
+HooksWasmAddr *InstrumentationManager::new_WasmAddress_Instrumentation() {
+    return new HooksWasmAddr{};
 }
 
-bool InstrumentationManager::has_AroundFunction(uint32_t funID) {
-    return this->instr_primitive_funcs.count(funID) > 0;
+bool InstrumentationManager::has_HooksOnAroundFunction(uint32_t funID) {
+    return this->hooks_primitive_funcs.count(funID) > 0;
 }
 
 bool InstrumentationManager::has_HookOnWasmAddr(uint32_t addr,
-                                                InstrumentMoment moment) {
+                                                HookMoment moment) {
     switch (moment) {
         case InstrumentBefore:
             return this->instr_wasm_addr_before.count(addr) > 0;
@@ -60,7 +58,7 @@ bool InstrumentationManager::isAddHookOnEventHandlingAllowed(Hook &hook) {
 }
 
 bool InstrumentationManager::isAddHookAroundFuncAllowed(uint32_t funID) {
-    if (!this->has_AroundFunction(funID)) return true;
+    if (!this->has_HooksOnAroundFunction(funID)) return true;
     // Dissallows hooks that have been scheduled for always if one is
     // alread in place
 
@@ -73,7 +71,7 @@ bool InstrumentationManager::isAddHookAroundFuncAllowed(uint32_t funID) {
     // is always tou replace the old one with the new one if the hook is
     // something else than always such as once then that hook is put in front
     // of the always so that once the once is consumed the always remains.
-    Hook *hook = this->instr_primitive_funcs[funID]->hook;
+    Hook *hook = this->hooks_primitive_funcs[funID]->hook;
     return hook == nullptr || hook->schedule.kind != ScheduleAlways;
 }
 
@@ -86,7 +84,7 @@ bool InstrumentationManager::addHookAroundFunction(Module &m, uint32_t func_idx,
     if (func_idx > m.function_count) {
         return false;
     } else if (func_idx < m.import_count) {
-        InstrumentationPrimitiveFunc *instr =
+        HooksPrimitiveFunc *instr =
             this->start_primitive_call_interception(m, func_idx);
         Hook *cpy{};
         if (instr == nullptr || (cpy = Hooks_copyHook(around)) == nullptr) {
@@ -95,13 +93,14 @@ bool InstrumentationManager::addHookAroundFunction(Module &m, uint32_t func_idx,
         instr->hook = Hooks_add_and_sort(instr->hook, cpy);
         return true;
     } else {
-        printf("TODO: addAroundFunctionHook for non primitive functions\n");
+        printf("TODO: addHookAroundFunction for non primitive functions\n");
         return false;
     }
 }
 
-bool InstrumentationManager::removeHooksOnWasmAddress(
-    Module &module, uint32_t addr, const InstrumentMoment moment) {
+bool InstrumentationManager::removeHooksOnWasmAddress(Module &module,
+                                                      uint32_t addr,
+                                                      const HookMoment moment) {
     if (!isToPhysicalAddrPossible(addr, &module)) {
         // address is not in module
         return false;
@@ -110,8 +109,8 @@ bool InstrumentationManager::removeHooksOnWasmAddress(
         return false;
     }
 
-    InstrumentationWasmAddr *instr;
-    std::unordered_map<uint32_t, InstrumentationWasmAddr *> *mapForErase;
+    HooksWasmAddr *instr;
+    std::unordered_map<uint32_t, HooksWasmAddr *> *mapForErase;
     bool restoreOpcode;
     if (moment == InstrumentBefore) {
         instr = instr_wasm_addr_before[addr];
@@ -138,13 +137,14 @@ bool InstrumentationManager::removeHooksOnWasmAddress(
     return true;
 }
 
-bool InstrumentationManager::addHookOnWasmAddress(
-    Module &module, uint32_t addr, Hook &hook, const InstrumentMoment moment) {
+bool InstrumentationManager::addHookOnWasmAddress(Module &module, uint32_t addr,
+                                                  Hook &hook,
+                                                  const HookMoment moment) {
     if (!isToPhysicalAddrPossible(addr, &module)) {
         // address is not in module
         return false;
     }
-    InstrumentationWasmAddr *instr =
+    HooksWasmAddr *instr =
         this->start_wasm_addr_intercept(module, addr, moment);
 
     Hook *cpy{};
@@ -285,8 +285,8 @@ bool InstrumentationManager::runHooksOnInterceptedFuncCall(
 
     // Around call instrumentation(s)
 
-    auto iterator = instr_primitive_funcs.find(primitive_called);
-    if (iterator == instr_primitive_funcs.end() ||
+    auto iterator = hooks_primitive_funcs.find(primitive_called);
+    if (iterator == hooks_primitive_funcs.end() ||
         iterator->second->hook == nullptr) {
         VM_Exception_write(
             "No Instrumentation registered for primitive %" PRIu32 "",
@@ -295,7 +295,7 @@ bool InstrumentationManager::runHooksOnInterceptedFuncCall(
         return false;
     }
 
-    InstrumentationPrimitiveFunc *instr = iterator->second;
+    HooksPrimitiveFunc *instr = iterator->second;
     Hook *hookToRun = Hooks_nextScheduledHook(instr->hook, *currentTime);
     if (hookToRun == nullptr) {
         // We did not find a hook to run, but we may have to wait for an
@@ -473,7 +473,7 @@ void InstrumentationManager::runHooksAfterWasmAddr(const Channel &output,
         if (!has_HookOnWasmAddr(addr, InstrumentAfter)) {
             continue;
         }
-        InstrumentationWasmAddr *instr = this->instr_wasm_addr_after[addr];
+        HooksWasmAddr *instr = this->instr_wasm_addr_after[addr];
         auto printSubMsg = [&output, addr](std::function<void()> hookOutput) {
             Interrupt_HookOnAddr_send_JSON_subscribe_message(
                 output, InstrumentAfter, addr, hookOutput);
@@ -548,7 +548,7 @@ bool InstrumentationManager::do_before_wasm_addr_hooks(
             "No hook registered on instrumented addr %" PRIu32 "", addr);
         return false;
     }
-    InstrumentationWasmAddr *instr = this->instr_wasm_addr_before[addr];
+    HooksWasmAddr *instr = this->instr_wasm_addr_before[addr];
 
     auto printSubMsg = [&output, addr](std::function<void()> hookOutput) {
         Interrupt_HookOnAddr_send_JSON_subscribe_message(
@@ -571,27 +571,26 @@ bool InstrumentationManager::do_before_wasm_addr_hooks(
     return success;
 }
 
-InstrumentationPrimitiveFunc *
-InstrumentationManager::start_primitive_call_interception(
+HooksPrimitiveFunc *InstrumentationManager::start_primitive_call_interception(
     Module &m, uint32_t target_func) {
-    if (this->has_AroundFunction(target_func)) {
-        return this->instr_primitive_funcs[target_func];
+    if (this->has_HooksOnAroundFunction(target_func)) {
+        return this->hooks_primitive_funcs[target_func];
     }
 
     // The first time for which an instrumentation occurs for the primitive
     // func
-    InstrumentationPrimitiveFunc *instr = this->new_Primitive_Instrumentation();
+    HooksPrimitiveFunc *instr = this->new_Primitive_Instrumentation();
     if (instr != nullptr) {
         instr->original_func = (Primitive)m.functions[target_func].func_ptr;
-        this->instr_primitive_funcs[target_func] = instr;
+        this->hooks_primitive_funcs[target_func] = instr;
         m.functions[target_func].func_ptr =
             (void (*)()) & Instrumentation_interceptPrimitiveCall;
     }
     return instr;
 }
 
-InstrumentationWasmAddr *InstrumentationManager::start_wasm_addr_intercept(
-    Module &module, const uint32_t addr, InstrumentMoment moment) {
+HooksWasmAddr *InstrumentationManager::start_wasm_addr_intercept(
+    Module &module, const uint32_t addr, HookMoment moment) {
     if (this->has_HookOnWasmAddr(addr, moment)) {
         if (moment == InstrumentBefore) {
             return this->instr_wasm_addr_before[addr];
@@ -602,7 +601,7 @@ InstrumentationWasmAddr *InstrumentationManager::start_wasm_addr_intercept(
 
     // The first time for which an instrumentation occurs for the wasm
     // address
-    InstrumentationWasmAddr *instr = this->new_WasmAddress_Instrumentation();
+    HooksWasmAddr *instr = this->new_WasmAddress_Instrumentation();
     if (instr != nullptr) {
         instr->address = addr;
         instr->original_opcode = module.bytes[addr];
