@@ -70,22 +70,22 @@ class InstrumentationManager {
     bool do_value_substitution(Module *module, uint32_t func_called,
                                Hook *hook);
 
+    /*
+     * Methods that start instrumentation
+     */
+
     HooksPrimitiveFunc *start_primitive_call_interception(Module &m,
                                                           uint32_t target_func);
-
-    void stop_primitive_call_interception(Module &m, uint32_t target_func);
 
     HooksWasmAddr *start_wasm_addr_intercept(Module &module,
                                              const uint32_t addr,
                                              const HookMoment moment);
 
-    bool do_before_wasm_addr_hooks(const Channel &hookOutput, Module &module,
-                                   LogicalClock &currentTime, uint32_t addr,
-                                   uint8_t &opcode, RunningState &runningState);
-
     /*
      * Methods that stop instrumentation
      */
+
+    void stop_primitive_call_interception(Module &m, uint32_t target_func);
 
     void stopRunningHooksOnNewEvents();
 
