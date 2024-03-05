@@ -612,6 +612,7 @@ bool InstrumentationManager::stop_primitive_call_interception(
         (void (*)()) & hooks_func->original_func;
 
     this->delete_Primitive_Instrumentation(hooks_func);
+    this->hooks_around_prim_funcs.erase(target_func);
     return true;
 }
 
