@@ -244,12 +244,10 @@ void printValue(const Channel &output, StackValue *v, uint32_t idx, bool end) {
                      v->value.uint64);
             break;
         case F32:
-            snprintf(buff, 255, R"("type":"F32","value":"%)" PRIx32 "\"",
-                     v->value.uint32);
+            snprintf(buff, 255, R"("type":"F32","value":%.9g)", v->value.f32);
             break;
         case F64:
-            snprintf(buff, 255, R"("type":"F64","value":"%)" PRIx64 "\"",
-                     v->value.uint64);
+            snprintf(buff, 255, R"("type":"F32","value":%.17g)", v->value.f64);
             break;
         default:
             snprintf(buff, 255, R"("type":"%02x","value":"%)" PRIx64 "\"",
