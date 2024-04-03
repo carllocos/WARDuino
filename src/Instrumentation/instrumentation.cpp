@@ -330,7 +330,9 @@ bool InstrumentationManager::runHooksOnInterceptedFuncCall(
     bool around_successful =
         this->run_hook(output, *module, primitive_called, *hookToRun,
                        printSubMsg, runningState);
-    instr->hook = Hooks_remove_completed_hook(instr->hook, hookToRun);
+    HooksRemoveResult res;
+    Hooks_remove_completed_hook(res, instr->hook, hookToRun);
+    instr->hook = res.newList;
 
     // After call instrumentation(s)
     return around_successful;
@@ -456,12 +458,12 @@ void InstrumentationManager::runHooksOnError(const Channel &output,
 
     RunningState unusedState = WARDUINOpause;
     Hook *hooks = this->hooksForOnError;
+    HooksRemoveResult res;
     while (hooks != nullptr) {
         this->run_hook(output, *module, 0, *hooks, printSubMsg, unusedState);
-        Hook *nextHook = hooks->nextHook;
-        this->hooksForOnError =
-            Hooks_remove_completed_hook(this->hooksForOnError, hooks);
-        hooks = nextHook;
+        Hooks_remove_completed_hook(res, this->hooksForOnError, hooks);
+        this->hooksForOnError = res.newList;
+        hooks = res.nextHook;
     }
 }
 
@@ -492,11 +494,13 @@ void InstrumentationManager::runHooksAfterWasmAddr(const Channel &output,
         };
 
         Hook *hooks = instr->hook;
+        HooksRemoveResult res;
         while (hooks != nullptr) {
             this->run_hook(output, *module, 0, *hooks, printSubMsg,
                            runningState);
-            instr->hook = Hooks_remove_completed_hook(instr->hook, hooks);
-            hooks = hooks->nextHook;
+            Hooks_remove_completed_hook(res, instr->hook, hooks);
+            instr->hook = res.newList;
+            hooks = res.nextHook;
         }
     }
 
@@ -568,14 +572,16 @@ bool InstrumentationManager::do_before_wasm_addr_hooks(
     };
     bool success = true;
     Hook *hooks = instr->hook;
+    HooksRemoveResult res;
     while (hooks != nullptr && success) {
         success = this->run_hook(output, module, 0, *hooks, printSubMsg,
                                  runningState);
-        instr->hook = Hooks_remove_completed_hook(instr->hook, hooks);
+        Hooks_remove_completed_hook(res, instr->hook, hooks);
+        instr->hook = res.newList;
+        hooks = res.nextHook;
         if (!success) {
             break;
         }
-        hooks = hooks->nextHook;
     }
     if (success) {
         opcode = instr->original_opcode;
@@ -661,16 +667,19 @@ bool InstrumentationManager::runHookForOnEventHandling(const Channel &output,
     Event event = CallbackHandler::events->front();
     uint32_t sizeBeforeHooks = CallbackHandler::events->size();
     bool eventRemoved = false;
+    HooksRemoveResult res;
     while (hookToRun != nullptr) {
+        eventRemoved = hookToRun->kind == EventRemove;
         this->run_hook_on_handled_event(output, *module, *hookToRun, &event);
-        this->hooksForOnEventHandling = Hooks_remove_completed_hook(
-            this->hooksForOnEventHandling, hookToRun);
-        if (hookToRun->kind == EventRemove) {
+        Hooks_remove_completed_hook(res, this->hooksForOnEventHandling,
+                                    hookToRun);
+        this->hooksForOnEventHandling = res.newList;
+
+        if (eventRemoved) {
             // no need to run next hooks as event got removed
-            eventRemoved = true;
             break;
         }
-        hookToRun = hookToRun->nextHook;
+        hookToRun = res.nextHook;
     }
 
     uint32_t sizeAfterHooks = CallbackHandler::events->size();
@@ -699,17 +708,19 @@ void InstrumentationManager::runHooksForOnNewEvent(const Channel &output,
         }
 
         Event *ev = CallbackHandler::pendingEvents->front();
+        HooksRemoveResult res;
         while (hookToRun != nullptr) {
             this->run_hook_on_new_event(output, *module, *hookToRun, ev);
-            this->hooksForOnNewEvent = Hooks_remove_completed_hook(
-                this->hooksForOnNewEvent, hookToRun);
+            Hooks_remove_completed_hook(res, this->hooksForOnNewEvent,
+                                        hookToRun);
+            this->hooksForOnNewEvent = res.newList;
             if (CallbackHandler::pendingEvents->empty() ||
                 ev != CallbackHandler::pendingEvents->front()) {
                 // event got removed by last hook
                 // do no run remaining hooks
                 break;
             }
-            hookToRun = hookToRun->nextHook;
+            hookToRun = res.nextHook;
         }
         if (!CallbackHandler::pendingEvents->empty() &&
             ev == CallbackHandler::pendingEvents->front()) {
