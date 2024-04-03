@@ -37,33 +37,34 @@ Hook *Hooks_add_and_sort(Hook *hooks, Hook *hook_to_add) {
     return hooks;
 }
 
-Hook *Hooks_remove_completed_hook(Hook *first_hook, Hook *hook_completed) {
+void Hooks_remove_completed_hook(HooksRemoveResult &res, Hook *first_hook,
+                                 Hook *hook_completed) {
+    res.nextHook = hook_completed->nextHook;
+
     if (hook_completed->schedule.kind == ScheduleAlways) {
         // No delete needed, hook is scheduled for always
-        return first_hook;
+        res.newList = first_hook;
+        return;
     }
 
-    Hook *hooks = first_hook;
+    Hook *hook = first_hook;
     Hook *prev = nullptr;
-    while (hooks != nullptr) {
-        if (hooks == hook_completed) {
+    while (hook != nullptr) {
+        if (hook == hook_completed) {
             if (prev != nullptr) {
-                prev->nextHook = hooks->nextHook;
+                prev->nextHook = hook->nextHook;
             }
             break;
         }
-        prev = hooks;
-        hooks = hooks->nextHook;
+        prev = hook;
+        hook = hook->nextHook;
     }
 
-    if (hooks != nullptr) {
+    if (hook != nullptr) {
         Hooks_free_hook(hook_completed);
     }
-    if (prev == nullptr) {
-        return first_hook->nextHook;
-    } else {
-        return first_hook;
-    }
+
+    res.newList = prev == nullptr ? res.nextHook : first_hook;
 }
 
 Hook *Hooks_nextScheduledHook(Hook *sorted_hooks,
