@@ -43,8 +43,7 @@ Hook *Hooks_remove_completed_hook(Hook *first_hook, Hook *hook_completed) {
         return first_hook;
     }
 
-
-    Hook* firstHookNext = first_hook->nextHook;
+    Hook *firstHookNext = first_hook->nextHook;
 
     Hook *hooks = first_hook;
     Hook *prev = nullptr;
