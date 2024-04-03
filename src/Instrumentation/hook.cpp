@@ -43,6 +43,9 @@ Hook *Hooks_remove_completed_hook(Hook *first_hook, Hook *hook_completed) {
         return first_hook;
     }
 
+
+    Hook* firstHookNext = first_hook->nextHook;
+
     Hook *hooks = first_hook;
     Hook *prev = nullptr;
     while (hooks != nullptr) {
@@ -60,7 +63,8 @@ Hook *Hooks_remove_completed_hook(Hook *first_hook, Hook *hook_completed) {
         Hooks_free_hook(hook_completed);
     }
     if (prev == nullptr) {
-        return first_hook->nextHook;
+        // case where the first hook got removed
+        return firstHookNext;
     } else {
         return first_hook;
     }
