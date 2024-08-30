@@ -9,6 +9,12 @@ else
 	COMMAND :=
 endif
 
+ifeq (${DISABLESTRICTMODULELOAD}, true)
+	DIS_STRICT_LOAD := true
+else
+	DIS_STRICT_LOAD := false
+endif
+
 clean:
 	rm -f Arduino.ino 
 	rm -rf bin 
@@ -25,7 +31,7 @@ endif
 
 Arduino.ino: bin/upload.h Arduino.ino.template
 	cat Arduino.ino.template > $@
-	sed  "s/{{PAUSED}}/$(COMMAND)/" $@ > Arduino.tmp
+	sed  "s/{{PAUSED}}/$(COMMAND)/; s/{{STRICTLOAD}}/$(DIS_STRICT_LOAD)/" $@ > Arduino.tmp
 	mv Arduino.tmp $@
 
 

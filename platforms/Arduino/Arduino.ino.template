@@ -61,7 +61,7 @@ void setup(void) {
     options.mangle_table_index = false;
     options.dlsym_trim_underscore = false;
     options.return_exception = true;
-    options.disable_strict_load = true;
+    options.disable_strict_load = {{STRICTLOAD}};
 }
 
 void loop() {
