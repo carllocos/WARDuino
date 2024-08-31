@@ -24,57 +24,64 @@ void end();
 
 #ifdef ARDUINO
 
-#define ASSERT(exp, ...)                                           \
-    {                                                              \
-        if (!(exp)) {                                              \
-            printf("Assert Failed (%s:%d): ", __FILE__, __LINE__); \
-            printf(__VA_ARGS__);                                   \
-            printf("\n\n\nlooping...\n");                          \
-            end();                                                 \
-        }                                                          \
+#define ASSERT(exp, ...)                                               \
+    {                                                                  \
+        if (!(exp)) {                                                  \
+            while (true) {                                             \
+                printf("Assert Failed (%s:%d): ", __FILE__, __LINE__); \
+                printf(__VA_ARGS__);                                   \
+                printf("\n\n\nlooping...\n");                          \
+            }                                                          \
+        }                                                              \
     }
 
-#define FATAL(...)                                    \
-    {                                                 \
-        printf("Error(%s:%d): ", __FILE__, __LINE__); \
-        printf(__VA_ARGS__);                          \
-        printf("\n");                                 \
-        end();                                        \
+#define FATAL(...)                                        \
+    {                                                     \
+        while (true) {                                    \
+            printf("Error(%s:%d): ", __FILE__, __LINE__); \
+            printf(__VA_ARGS__);                          \
+            printf("\n");                                 \
+        };                                                \
     }
 
 #else
 
-#define ASSERT(exp, ...)                                           \
-    {                                                              \
-        if (!(exp)) {                                              \
-            printf("Assert Failed (%s:%d): ", __FILE__, __LINE__); \
-            printf(__VA_ARGS__);                                   \
-            exit(1);                                               \
-        }                                                          \
+#define ASSERT(exp, ...)                                               \
+    {                                                                  \
+        if (!(exp)) {                                                  \
+            while (true) {                                             \
+                printf("Assert Failed (%s:%d): ", __FILE__, __LINE__); \
+                printf(__VA_ARGS__);                                   \
+            }                                                          \
+        }                                                              \
     }
 
 #if DEBUG
-#define FATAL(...)                                      \
-    {                                                   \
-        printf("Error(%s:%d): \n", __FILE__, __LINE__); \
-        printf(__VA_ARGS__);                            \
-        exit(1);                                        \
+#define FATAL(...)                                          \
+    {                                                       \
+        while (true) {                                      \
+            printf("Error(%s:%d): \n", __FILE__, __LINE__); \
+            printf(__VA_ARGS__);                            \
+        }                                                   \
     }
 #else
-#define FATAL(...)           \
-    {                        \
-        printf(__VA_ARGS__); \
-        exit(1);             \
+#define FATAL(...)               \
+    {                            \
+        while (true) {           \
+            printf(__VA_ARGS__); \
+        }                        \
     }
 #endif
 
 #endif
 
 #if DEBUG
-#define debug(...)                                       \
-    {                                                    \
-        printf("DEBUG (%s:%d):\n ", __FILE__, __LINE__); \
-        printf(__VA_ARGS__);                             \
+#define debug(...)                                           \
+    {                                                        \
+        while (true) {                                       \
+            printf("DEBUG (%s:%d):\n ", __FILE__, __LINE__); \
+            printf(__VA_ARGS__);                             \
+        }                                                    \
     }
 #else
 #define debug(...) ;
