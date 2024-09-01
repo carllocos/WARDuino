@@ -377,9 +377,8 @@ bool i_instr_return(Module *m) {
      * return has to stop upon the special
      * guard block type 0xff
      */
-    while (m->csp >= 0 &&
-           (m->callstack[m->csp].block->block_type != 0x00 &&
-            m->callstack[m->csp].block->block_type != 0xff)) {
+    while (m->csp >= 0 && (m->callstack[m->csp].block->block_type != 0x00 &&
+                           m->callstack[m->csp].block->block_type != 0xff)) {
         m->csp--;
     }
     // Set the program count to the end of the function
