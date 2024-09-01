@@ -372,12 +372,20 @@ bool i_instr_br_table(Module *m) {
  * 0x0f return
  */
 bool i_instr_return(Module *m) {
-    while (m->csp >= 0 && m->callstack[m->csp].block->block_type != 0x00) {
+    /**
+     * when run due to a callback
+     * return has to stop upon the special
+     * guard block type 0xff
+     */
+    while (m->csp >= 0 && (m->callstack[m->csp].block->block_type != 0x00 &&
+                           m->callstack[m->csp].block->block_type != 0xff)) {
         m->csp--;
     }
     // Set the program count to the end of the function
     // The actual pop_block and return is handled by the end opcode.
-    m->pc_ptr = m->callstack[m->csp].block->end_ptr;
+    if (m->callstack[m->csp].block->block_type == 0x00) {
+        m->pc_ptr = m->callstack[m->csp].block->end_ptr;
+    }
 #if TRACE
     debug("      - to: 0x%p\n", m->pc_ptr);
 #endif
