@@ -771,13 +771,9 @@ void Debugger::freeState(Module *m, uint8_t *interruptData) {
                 uint32_t pages = read_B32(&first_msg);
                 debug("max %d init %d current page %d\n", m->memory.maximum,
                       m->memory.initial, pages);
-                // if(pages !=m->memory.pages){
-                // if(m->memory.pages !=0)
                 if (m->memory.bytes != nullptr) {
-                    free(m->memory.bytes);
+                    memset(m->memory.bytes, 0, PAGE_SIZE);
                 }
-                m->memory.bytes = (uint8_t *)acalloc(pages * PAGE_SIZE, 1,
-                                                     "Module->memory.bytes");
                 m->memory.pages = pages;
                 // }
                 // else{
