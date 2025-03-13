@@ -14,6 +14,11 @@
 #define UNDEF (uint32_t)(-1)
 #define pushUInt32(m, arg) m->stack[++(m)->sp].value.uint32 = arg
 
+uint8_t MEMORY_PAGE[PAGE_SIZE] = {0x00};
+StackValue STACK[STACK_SIZE] = {};
+Frame CALLSTACK[CALLSTACK_SIZE] = {};
+uint32_t BR_TABLE[BR_TABLE_SIZE] = {};
+
 // UTIL
 bool resolvesym(char *filename, char *symbol, uint8_t external_kind, void **val,
                 char **err, bool strict) {
@@ -300,10 +305,9 @@ void WARDuino::instantiate_module(Module *m, uint8_t *bytes,
     uint8_t valueType;
 
     // Allocate stacks
-    m->stack = (StackValue *)acalloc(STACK_SIZE, sizeof(StackValue), "Stack");
-    m->callstack = (Frame *)acalloc(CALLSTACK_SIZE, sizeof(Frame), "Callstack");
-    m->br_table =
-        (uint32_t *)acalloc(BR_TABLE_SIZE, sizeof(uint32_t), "Branch table");
+    m->stack = STACK;
+    m->callstack = CALLSTACK;
+    m->br_table = BR_TABLE;
 
     // Empty stacks
     m->sp = -1;
@@ -623,10 +627,7 @@ void WARDuino::instantiate_module(Module *m, uint8_t *bytes,
                 // Allocate memory
                 // for (uint32_t c=0; c<memory_count; c++) {
                 parse_memory_type(m, &pos);
-                m->memory.bytes = (uint8_t *)acalloc(
-                    m->memory.pages * PAGE_SIZE, 1,  // sizeof(uint32_t),
-                    "Module->memory.bytes");
-                //}
+                m->memory.bytes = MEMORY_PAGE;
                 break;
             }
             case 6: {
@@ -980,12 +981,11 @@ void WARDuino::free_module_state(Module *m) {
     }
 
     if (m->memory.bytes != nullptr) {
-        free(m->memory.bytes);
+        memset(m->memory.bytes, 0, PAGE_SIZE);
         m->memory.bytes = nullptr;
     }
 
     if (m->stack != nullptr) {
-        free(m->stack);
         m->stack = nullptr;
     }
 
@@ -997,12 +997,10 @@ void WARDuino::free_module_state(Module *m) {
                 free(f->block);
             }
         }
-        free(m->callstack);
         m->callstack = nullptr;
     }
 
     if (m->br_table != nullptr) {
-        free(m->br_table);
         m->br_table = nullptr;
     }
 
