@@ -50,6 +50,7 @@ class WARDuino {
 
     WARDuino();
 
+    uint32_t get_start_fidx(Module *m);
     uint32_t get_main_fidx(Module *m);
 
    public:

@@ -922,7 +922,8 @@ bool WARDuino::invoke(Module *m, uint32_t fidx, uint32_t arity,
 }
 
 int WARDuino::run_module(Module *m) {
-    uint32_t fidx = this->get_main_fidx(m);
+    uint32_t fidx = this->get_start_fidx(m);
+    if (fidx == UNDEF) fidx = this->get_main_fidx(m);
 
     // execute main
     if (fidx != UNDEF) {
@@ -1046,6 +1047,11 @@ void WARDuino::update_module(Module *m, uint8_t *wasm, uint32_t wasm_len) {
 
     // wait
     m->warduino->debugger->pauseRuntime(m);
+}
+
+uint32_t WARDuino::get_start_fidx(Module *m) {
+    uint32_t fidx = this->get_export_fidx(m, "_start");
+    return fidx;
 }
 
 uint32_t WARDuino::get_main_fidx(Module *m) {
