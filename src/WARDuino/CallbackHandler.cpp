@@ -132,6 +132,7 @@ bool CallbackHandler::resolve_event(const Channel &output, Module *module,
     debug("Resolving an event. (%lu remaining)\n",
           CallbackHandler::events->size());
 
+    bool resolving_new_event = false;
     auto iterator = CallbackHandler::callbacks->find(event.topic);
     if (iterator != CallbackHandler::callbacks->end()) {
         Module *module = nullptr;
@@ -139,6 +140,7 @@ bool CallbackHandler::resolve_event(const Channel &output, Module *module,
         for (Callback cbs : *iterator->second) {
             cbs.resolve_event(event);
             module = cbs.module;
+            resolving_new_event = true;
         }
         push_guard(module);
     } else {
@@ -146,7 +148,7 @@ bool CallbackHandler::resolve_event(const Channel &output, Module *module,
         printf("No handler found for %s (in %u items)!\n", event.topic.c_str(),
                CallbackHandler::callbacks->size());
     }
-    return !CallbackHandler::events->empty();
+    return resolving_new_event;
 }
 
 size_t CallbackHandler::event_count() {
