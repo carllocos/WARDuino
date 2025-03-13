@@ -524,7 +524,8 @@ def_prim(chip_analog_write, twoToNoneU32) {
     uint8_t pin = arg1.uint32;
     uint8_t brightness = arg0.uint32;
     pop_args(2);
-    analogWrite(pin, brightness);
+    printf("analog_write: temporary disabled for m5StickC");
+    // analogWrite(pin, brightness);
     return true;
 }
 
