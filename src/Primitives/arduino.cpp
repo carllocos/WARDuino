@@ -620,7 +620,7 @@ def_prim(subscribe_interrupt, threeToNoneU32) {
     dbg_info("subscribe_interrupt(%i, %i, %i)\n", pin, tidx, mode);
 
     int index = resolve_isr(pin);
-    if (index < 0) {
+    if (index < 0 || m->table.size < tidx) {
         dbg_info("subscribe_interrupt: no ISR found for pin %i\n", pin);
         VM_Exception_write("subscribe_interrupt: no ISR found for pin %i", pin);
         return false;
