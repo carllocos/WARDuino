@@ -822,6 +822,12 @@ void WARDuino::instantiate_module(Module *m, uint8_t *bytes,
                 }
                 break;
             }
+            case 12:
+                // TODO fimish parsing this
+                dbg_warn("Parsing Data(12) section ",
+                         section_len);
+                pos += section_len;
+                break;
             default:
                 FATAL("Section %" PRIu32 " unimplemented\n", id);
                 pos += section_len;
