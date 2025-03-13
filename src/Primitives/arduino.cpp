@@ -614,7 +614,7 @@ def_prim(chip_ledc_attach_pin, twoToNoneU32) {
 
 def_prim(subscribe_interrupt, threeToNoneU32) {
     uint8_t pin = arg2.uint32;   // GPIOPin
-    uint8_t tidx = arg1.uint32;  // Table Idx pointing to Callback function
+    uint32_t tidx = arg1.uint32;  // Table Idx pointing to Callback function
     uint8_t mode = arg0.uint32;
 
     dbg_info("subscribe_interrupt(%i, %i, %i)\n", pin, tidx, mode);
