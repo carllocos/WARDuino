@@ -15,6 +15,8 @@ else
 	DIS_STRICT_LOAD := false
 endif
 
+CONFIG_FILE := $(if $(ARDUINO_CONFIG),--config-file $(ARDUINO_CONFIG),)
+
 clean:
 	rm -f Arduino.ino 
 	rm -rf bin 
@@ -42,13 +44,13 @@ endif
 ifndef FQBN
 	$(error FQBN is not set. Use a .config file)
 endif
-	arduino-cli upload -p $(PORT) --fqbn $(FQBN) Arduino.ino
+	arduino-cli upload -p $(PORT) --fqbn $(FQBN) $(CONFIG_FILE) Arduino.ino
 
 compile: Arduino.ino
 ifndef FQBN
 	$(error FQBN is not set. Use a .config file)
 endif
-	arduino-cli compile --fqbn $(FQBN) Arduino.ino -e
+	arduino-cli compile --fqbn $(FQBN) $(CONFIG_FILE) Arduino.ino -e
 
 recompile: clean compile
 
