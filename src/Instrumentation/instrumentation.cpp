@@ -578,9 +578,6 @@ bool InstrumentationManager::do_before_wasm_addr_hooks(
         Hooks_remove_completed_hook(res, instr->hook, hooks);
         instr->hook = res.newList;
         hooks = res.nextHook;
-        if (!success) {
-            break;
-        }
     }
     if (success) {
         opcode = instr->original_opcode;
