@@ -127,6 +127,8 @@ typedef struct Module {
     uint32_t *br_table = nullptr;  // br_table branch indexes
 
     char *exception = nullptr;  // exception is set when the program fails
+
+    uint32_t last_called = 0xff;
 } Module;
 
 typedef bool (*Primitive)(Module *);

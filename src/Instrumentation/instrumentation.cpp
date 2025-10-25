@@ -290,8 +290,7 @@ bool InstrumentationManager::do_value_substitution(Module *module,
 bool InstrumentationManager::runHooksOnInterceptedFuncCall(
     const Channel &output, Module *module, LogicalClock *currentTime,
     RunningState &runningState) {
-    uint8_t *pc_of_call = findStartOfLEB128(module->pc_ptr - 1);
-    uint32_t primitive_called = read_LEB_32(&pc_of_call);
+    uint32_t primitive_called =  module->last_called;
 
     // Before call instrumentation
 
