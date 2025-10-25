@@ -38,25 +38,34 @@ Arduino.ino: bin/upload.h Arduino.ino.template
 
 
 flash: Arduino.ino
+ifeq ($(ARDUINO_CLI),)
+	$(error ARDUINO_CLI is not set)
+endif
 ifndef PORT
 	$(error PORT is not set. Use a .config file)
 endif
 ifndef FQBN
 	$(error FQBN is not set. Use a .config file)
 endif
-	arduino-cli upload -p $(PORT) --fqbn $(FQBN) $(CONFIG_FILE) Arduino.ino
+	$(ARDUINO_CLI) upload -p $(PORT) --fqbn $(FQBN) $(CONFIG_FILE) Arduino.ino
 
 compile: Arduino.ino
+ifeq ($(ARDUINO_CLI),)
+	$(error ARDUINO_CLI is not set)
+endif
 ifndef FQBN
 	$(error FQBN is not set. Use a .config file)
 endif
-	arduino-cli compile --fqbn $(FQBN) $(CONFIG_FILE) Arduino.ino -e
+	$(ARDUINO_CLI) compile --fqbn $(FQBN) $(CONFIG_FILE) Arduino.ino -e
 
 recompile: clean compile
 
 monitor: 
+ifeq ($(ARDUINO_CLI),)
+	$(error ARDUINO_CLI is not set)
+endif
 ifndef PORT
 	$(error PORT is not set. Use a .config file)
 endif
-	arduino-cli monitor -p $(PORT) -c baudrate=115200
+	$(ARDUINO_CLI) monitor -p $(PORT) -c baudrate=115200
 
