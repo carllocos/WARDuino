@@ -300,7 +300,7 @@ bool i_instr_end(Module *m, bool *prog_done) {
         *prog_done = true;
         return true;  // continue execution but brake dispatch loop
     } else {          // Block
-        // End of block/loop/if, keep going
+                      // End of block/loop/if, keep going
     }
     return true;  // continue execution
 }

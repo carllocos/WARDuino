@@ -290,7 +290,7 @@ bool InstrumentationManager::do_value_substitution(Module *module,
 bool InstrumentationManager::runHooksOnInterceptedFuncCall(
     const Channel &output, Module *module, LogicalClock *currentTime,
     RunningState &runningState) {
-    uint32_t primitive_called =  module->last_called;
+    uint32_t primitive_called = module->last_called;
 
     // Before call instrumentation
 

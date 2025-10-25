@@ -18,6 +18,6 @@ bool LogicalClock_is_t1_greater_t2(const LogicalClock &t1,
 
 bool LogicalClock_is_t1_equal_t2(const LogicalClock &t1,
                                  const LogicalClock &t2) {
-  return t1.nr_of_instructions == t2.nr_of_instructions &&
-         t1.nr_of_events == t2.nr_of_events;
+    return t1.nr_of_instructions == t2.nr_of_instructions &&
+           t1.nr_of_events == t2.nr_of_events;
 }
