@@ -439,8 +439,8 @@ def_prim(chip_ledc_set_duty, threeToNoneU32) {
     uint32_t value = arg1.uint32;
     uint32_t maxValue = arg0.uint32;
 
-    // printf("chip_ledc_analog_write(%u, %u, %u)\n", channel, value, maxValue);
-    // calculate duty, 4095 from 2 ^ 12 - 1
+    // printf("chip_ledc_analog_write(channel=%u, value=%u, maxValue=%u)\n",
+    // channel, value, maxValue); calculate duty, 4095 from 2 ^ 12 - 1
     uint32_t duty = (4095 / maxValue) * min(value, maxValue);
 
     ledcWrite(channel, duty);
@@ -452,7 +452,8 @@ def_prim(chip_ledc_setup, threeToNoneU32) {
     uint32_t channel = arg2.uint32;
     uint32_t freq = arg1.uint32;
     uint32_t ledc_timer = arg0.uint32;
-    // printf("chip_ledc_setup(%u, %u, %u)\n", channel, freq, ledc_timer);
+    // printf("chip_ledc_setup(channel=%u, freq=%u, ledc_timer=%u)\n", channel,
+    // freq, ledc_timer);
     ledcSetup(channel, freq, ledc_timer);
     pop_args(3);
     return true;
@@ -461,7 +462,7 @@ def_prim(chip_ledc_setup, threeToNoneU32) {
 def_prim(chip_ledc_attach_pin, twoToNoneU32) {
     uint32_t pin = arg1.uint32;
     uint32_t channel = arg0.uint32;
-    // printf("chip_ledc_attach_pin(%u,%u)\n", pin, channel);
+    // printf("chip_ledc_attach_pin(pin=%u,channel=%u)\n", pin, channel);
     ledcAttachPin(pin, channel);
     pop_args(2);
     return true;
