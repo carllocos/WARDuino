@@ -40,7 +40,14 @@
 #define PRIMITIVES_MQTT_NR 0
 #endif
 
-#define ADDITIONAL_PRIMITIVES (PRIMITIVES_NEOPIXEL_NR + PRIMITIVES_MQTT_NR)
+#ifdef PRIMITIVES_WIFI
+#define PRIMITIVES_WIFI_NR 4
+#else
+#define PRIMITIVES_WIFI_NR 0
+#endif
+
+
+#define ADDITIONAL_PRIMITIVES (PRIMITIVES_NEOPIXEL_NR + PRIMITIVES_MQTT_NR + PRIMITIVES_WIFI_NR)
 
 #define ALL_PRIMITIVES \
     (NUM_PRIMITIVES + NUM_PRIMITIVES_ARDUINO + ADDITIONAL_PRIMITIVES)
@@ -206,6 +213,9 @@ def_prim(print_string, twoToNoneU32) {
     return true;
 }
 
+
+#ifdef PRIMITIVES_WIFI
+
 def_prim(wifi_connect, fourToNoneU32) {
     uint32_t ssid = arg3.uint32;
     uint32_t len0 = arg2.uint32;
@@ -249,6 +259,7 @@ def_prim(wifi_localip, twoToOneU32) {
     pushInt32(buff);
     return true;
 }
+#endif
 
 def_prim(http_get, fourToOneU32) {
     int32_t return_value = -11;
@@ -829,10 +840,12 @@ void install_primitives() {
     install_primitive(print_int);
     install_primitive(print_string);
 
+#ifdef PRIMITIVES_WIFI
     install_primitive(wifi_connect);
     install_primitive(wifi_connected);
     install_primitive(wifi_status);
     install_primitive(wifi_localip);
+#endif 
 
     install_primitive(http_get);
     install_primitive(http_post);
