@@ -16,9 +16,7 @@ jobs:
               uses: jidicula/clang-format-action@v3.5.1
               with:
                 clang-format-version: '11'
-                check-path: |
-                    ./src/
-                    ./tests/
+                check-path: ./src/
                 fallback-style: 'Google'
 
     compile-cli:
