@@ -34,7 +34,13 @@
 #define PRIMITIVES_NEOPIXEL_NR 0
 #endif
 
-#define ADDITIONAL_PRIMITIVES PRIMITIVES_NEOPIXEL_NR
+#ifdef PRIMITIVES_MQTT
+#define PRIMITIVES_MQTT_NR 8
+#else
+#define PRIMITIVES_MQTT_NR 0
+#endif
+
+#define ADDITIONAL_PRIMITIVES (PRIMITIVES_NEOPIXEL_NR + PRIMITIVES_MQTT_NR)
 
 #define ALL_PRIMITIVES \
     (NUM_PRIMITIVES + NUM_PRIMITIVES_ARDUINO + ADDITIONAL_PRIMITIVES)
@@ -524,6 +530,7 @@ def_prim(unsubscribe_interrupt, oneToNoneU32) {
 
 // MQTT MODULE
 
+#ifdef PRIMITIVES_MQTT
 #include <PubSubClient.h>
 
 WiFiClient wifiClient;
@@ -690,6 +697,7 @@ def_prim(mqtt_loop, NoneToOneU32) {
     pushInt32((int)mqttClient.loop());
     return true;
 }
+#endif
 
 //------------------------------------------------------
 // Util functions
@@ -843,6 +851,7 @@ void install_primitives() {
     install_primitive(subscribe_interrupt);
     install_primitive(unsubscribe_interrupt);
 
+#ifdef PRIMITIVES_MQTT
     install_primitive(mqtt_init);
     install_primitive(mqtt_connect);
     install_primitive(mqtt_connected);
@@ -851,6 +860,7 @@ void install_primitives() {
     install_primitive(mqtt_subscribe);
     install_primitive(mqtt_unsubscribe);
     install_primitive(mqtt_loop);
+#endif
 
 #ifdef PRIMITIVES_NEOPIXEL
     install_primitive(init_pixels);
