@@ -46,8 +46,8 @@
 #define PRIMITIVES_WIFI_NR 0
 #endif
 
-
-#define ADDITIONAL_PRIMITIVES (PRIMITIVES_NEOPIXEL_NR + PRIMITIVES_MQTT_NR + PRIMITIVES_WIFI_NR)
+#define ADDITIONAL_PRIMITIVES \
+    (PRIMITIVES_NEOPIXEL_NR + PRIMITIVES_MQTT_NR + PRIMITIVES_WIFI_NR)
 
 #define ALL_PRIMITIVES \
     (NUM_PRIMITIVES + NUM_PRIMITIVES_ARDUINO + ADDITIONAL_PRIMITIVES)
@@ -212,7 +212,6 @@ def_prim(print_string, twoToNoneU32) {
     pop_args(2);
     return true;
 }
-
 
 #ifdef PRIMITIVES_WIFI
 
@@ -845,7 +844,7 @@ void install_primitives() {
     install_primitive(wifi_connected);
     install_primitive(wifi_status);
     install_primitive(wifi_localip);
-#endif 
+#endif
 
     install_primitive(http_get);
     install_primitive(http_post);
