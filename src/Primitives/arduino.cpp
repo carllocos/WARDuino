@@ -454,7 +454,9 @@ def_prim(chip_ledc_setup, threeToNoneU32) {
     uint32_t ledc_timer = arg0.uint32;
     // printf("chip_ledc_setup(channel=%u, freq=%u, ledc_timer=%u)\n", channel,
     // freq, ledc_timer);
+#if PRIMITIVES_M5STICKC
     ledcSetup(channel, freq, ledc_timer);
+#endif
     pop_args(3);
     return true;
 }
@@ -463,7 +465,9 @@ def_prim(chip_ledc_attach_pin, twoToNoneU32) {
     uint32_t pin = arg1.uint32;
     uint32_t channel = arg0.uint32;
     // printf("chip_ledc_attach_pin(pin=%u,channel=%u)\n", pin, channel);
+#if PRIMITIVES_M5STICKC
     ledcAttachPin(pin, channel);
+#endif
     pop_args(2);
     return true;
 }
