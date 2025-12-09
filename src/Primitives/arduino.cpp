@@ -42,24 +42,27 @@
 #include "primitives_macros.h"
 
 #define delay_us(ms) delayMicroseconds(ms)
+#ifndef _In_eSPIH_
 #include <SPI.h>
-SPIClass *spi = new SPIClass();
+#endif
+
+SPIClass *spiInstance = new SPIClass();
 
 // Hardware SPI
 void write_spi_byte(unsigned char c) {
-    spi->beginTransaction(SPISettings(20000000, MSBFIRST, SPI_MODE0));
-    spi->transfer(c);
-    spi->endTransaction();
+    spiInstance->beginTransaction(SPISettings(20000000, MSBFIRST, SPI_MODE0));
+    spiInstance->transfer(c);
+    spiInstance->endTransaction();
 }
 
 void write_spi_bytes_16_prim(int times, uint32_t color) {
     unsigned char colorB = color >> 8;
-    spi->beginTransaction(SPISettings(200000000, MSBFIRST, SPI_MODE0));
+    spiInstance->beginTransaction(SPISettings(200000000, MSBFIRST, SPI_MODE0));
     for (int x = 0; x < times; x++) {
-        spi->transfer(colorB);
-        spi->transfer(color);
+        spiInstance->transfer(colorB);
+        spiInstance->transfer(color);
     }
-    spi->endTransaction();
+    spiInstance->endTransaction();
 }
 
 // Hardware Interrupts
@@ -382,7 +385,7 @@ def_prim(write_spi_byte, oneToNoneU32) {
 def_prim(spi_begin, NoneToNoneU32) {
     yield();
     printf("spi_begin \n");
-    spi->begin();
+    spiInstance->begin();
     return true;
 }
 
