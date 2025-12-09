@@ -25,12 +25,21 @@
 #include "../WARDuino/vm_exception.h"
 #include "primitives.h"
 
-// NEOPIXEL
-#include <Adafruit_NeoPixel.h>
-#define PIN 33
-#define NUMPIXELS 64
-Adafruit_NeoPixel pixels =
-    Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
+#define NUM_PRIMITIVES 0
+#define NUM_PRIMITIVES_ARDUINO 34
+
+#ifdef PRIMITIVES_NEOPIXEL
+#define PRIMITIVES_NEOPIXEL_NR 4
+#else
+#define PRIMITIVES_NEOPIXEL_NR 0
+#endif
+
+#define ADDITIONAL_PRIMITIVES PRIMITIVES_NEOPIXEL_NR
+
+#define ALL_PRIMITIVES \
+    (NUM_PRIMITIVES + NUM_PRIMITIVES_ARDUINO + ADDITIONAL_PRIMITIVES)
+
+#include "primitives_macros.h"
 
 #define delay_us(ms) delayMicroseconds(ms)
 #include <SPI.h>
@@ -130,11 +139,6 @@ int resolve_isr(int pin) {
 }
 
 // Primitives
-
-#define NUM_PRIMITIVES 0
-#define NUM_PRIMITIVES_ARDUINO 38
-
-#define ALL_PRIMITIVES (NUM_PRIMITIVES + NUM_PRIMITIVES_ARDUINO)
 
 // Global index for installing primitives
 int prim_index = 0;
@@ -388,6 +392,15 @@ def_prim(write_spi_bytes_16, twoToNoneU32) {
     return true;
 }
 
+// NEOPIXEL
+#ifdef PRIMITIVES_NEOPIXEL
+
+#include <Adafruit_NeoPixel.h>
+#define PIN 33
+#define NUMPIXELS 64
+Adafruit_NeoPixel pixels =
+    Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
+
 def_prim(init_pixels, NoneToNoneU32) {
     pixels.begin();
     return true;
@@ -413,6 +426,8 @@ def_prim(clear_pixels, NoneToNoneU32) {
     pixels.clear();
     return true;
 }
+
+#endif
 
 // LED Control primitives
 
@@ -829,10 +844,12 @@ void install_primitives() {
     install_primitive(mqtt_unsubscribe);
     install_primitive(mqtt_loop);
 
+#ifdef PRIMITIVES_NEOPIXEL
     install_primitive(init_pixels);
     install_primitive(set_pixel_color);
     install_primitive(clear_pixels);
     install_primitive(show_pixels);
+#endif
 
     // temporary primitives needed for analogWrite in ESP32
     install_primitive(chip_analog_write);
