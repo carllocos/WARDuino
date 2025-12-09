@@ -26,9 +26,20 @@
 #include "primitives.h"
 
 #define NUM_PRIMITIVES 0
-#define NUM_PRIMITIVES_ARDUINO 28
+#define NUM_PRIMITIVES_ARDUINO 24
 
-#define ALL_PRIMITIVES (NUM_PRIMITIVES + NUM_PRIMITIVES_ARDUINO)
+#ifdef PRIMITIVES_NEOPIXEL
+#define PRIMITIVES_NEOPIXEL_NR 4
+#else
+#define PRIMITIVES_NEOPIXEL_NR 0
+#endif
+
+#define ADDITIONAL_PRIMITIVES PRIMITIVES_NEOPIXEL_NR
+
+#define ALL_PRIMITIVES \
+    (NUM_PRIMITIVES + NUM_PRIMITIVES_ARDUINO + ADDITIONAL_PRIMITIVES)
+
+#include "primitives_macros.h"
 
 // Global index for installing primitives
 int prim_index = 0;
@@ -37,27 +48,34 @@ double sensor_emu = 0;
 
 // The primitive table
 PrimitiveEntry primitives[ALL_PRIMITIVES];
+#ifdef PRIMITIVES_NEOPIXEL
 
 def_prim(init_pixels, NoneToNoneU32) {
-    printf("init_pixels \n");
+    printf("pixels.begin()\n");
     return true;
 }
 
 def_prim(set_pixel_color, fourToOneU32) {
-    printf("set_pixel_color \n");
-    pop_args(4);
+    uint8_t blue = arg0.uint32;
+    uint8_t green = arg1.uint32;
+    uint8_t red = arg2.uint32;
+    uint8_t index = arg3.uint32;
+    printf("pixels.setPixelColor(%" PRIu8 ", pixels.Color(%" PRIu8 ",%" PRIu8
+           ",%" PRIu8 "))\n",
+           index, red, green, blue);
     return true;
 }
 
 def_prim(show_pixels, NoneToNoneU32) {
-    printf("show pixels \n");
+    printf("pixels.show()\n");
     return true;
 }
 
 def_prim(clear_pixels, NoneToNoneU32) {
-    printf("clear pixels \n");
+    printf("pixels.clear()\n");
     return true;
 }
+#endif
 
 def_prim(abort, NoneToNoneU32) {
     debug("EMU: abort\n");
@@ -361,10 +379,12 @@ void install_primitives() {
 
     install_primitive(subscribe_interrupt);
 
+#ifdef PRIMITIVES_NEOPIXEL
     install_primitive(init_pixels);
     install_primitive(set_pixel_color);
     install_primitive(clear_pixels);
     install_primitive(show_pixels);
+#endif
 }
 
 //------------------------------------------------------
