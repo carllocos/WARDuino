@@ -17,6 +17,7 @@ enum ExecutionState {
     callbacksState = 0x09,
     eventsState = 0x0A,
     errorState = 0x0B,
+    logicalClock = 0x0C
 };
 
 typedef struct {

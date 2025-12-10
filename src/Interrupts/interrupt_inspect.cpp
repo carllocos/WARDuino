@@ -51,6 +51,7 @@ bool Interrupt_Inspect_deserialize_request(InspectStateRequest &request,
             case callbacksState:
             case eventsState:
             case errorState:
+            case logicalClock:
                 request.requestedState[i] = (enum ExecutionState)data[i];
                 break;
             default:
@@ -197,6 +198,15 @@ bool Interrupt_Inspect_inspect_json_output(const Channel &requester,
                                    : (char *)"";
                 requester.write(R"(%s"exception":"%s")", addComma ? "," : "",
                                 errMsg);
+                addComma = true;
+                break;
+            }
+            case logicalClock: {
+                requester.write("%s\"clock\":{\"i\":%" PRIu32 ",\"e\":%" PRIu32
+                                "}",
+                                addComma ? "," : "",
+                                m->warduino->logicalClock.nr_of_instructions,
+                                m->warduino->logicalClock.nr_of_events);
                 addComma = true;
                 break;
             }
