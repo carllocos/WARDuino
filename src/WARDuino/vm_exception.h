@@ -2,7 +2,7 @@
 
 #define VM_Exception_Size 512
 
-void VM_Exception_write(const char* fmt, ...);
+int VM_Exception_write(const char* fmt, ...);
 
 char* VM_Exception_get_exception();
 
