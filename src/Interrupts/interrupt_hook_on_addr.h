@@ -13,14 +13,14 @@
 #define HOOK_ON_ADDR_ERROR_CODE_COULD_NOT_ADD_HOOK 4;
 #define HOOK_ON_ADDR_ERROR_CODE_COULD_NOT_REMOVE_HOOK 5;
 
-typedef struct {
+typedef struct HookOnAddrRequest {
     uint32_t addr{};
     bool add{};  // true add hook, if false remove hooks
     HookMoment moment{};
     Hook *hook{};
 } HookOnAddrRequest;
 
-typedef struct {
+typedef struct HookOnAddrResponse {
     uint8_t type{};
     uint8_t error_code{};
 } HookOnAddrResponse;
