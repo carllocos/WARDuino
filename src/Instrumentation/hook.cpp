@@ -134,8 +134,18 @@ Hook *Hooks_nextScheduledHook(Hook *sorted_hooks,
                 return hook;
         }
         hook = hook->nextHook;
+
+bool Hook_isScheduledForNow(LogicalClock ct, Schedule s) {
+    switch (s.kind) {
+        case ScheduleBeforeLogicalClock:
+            return LogicalClock_is_t1_smaller_t2(ct, s.value.logicalClock);
+        case ScheduleAfterLogicalClock:
+            return LogicalClock_is_t1_greater_t2(ct, s.value.logicalClock);
+        case ScheduleOnLogicalClock:
+            return LogicalClock_is_t1_equal_t2(ct, s.value.logicalClock);
+        default:
+            return true;
     }
-    return nullptr;
 }
 
 bool Hooks_isHookWaitingForEvent(Hook *sorted_hooks,
