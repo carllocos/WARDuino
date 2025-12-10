@@ -505,6 +505,10 @@ size_t serializeStackValue(const StackValue &value,
 size_t deserializeStackValue(StackValue *value,
                              const ValueDeserializationConfig &config,
                              uint8_t *buffer, uint8_t value_type) {
+    if (value == nullptr) {
+        FATAL("Provided StackValue is a nullpointer\n");
+    }
+
     uint8_t *data = buffer;
     if (config.includeType) {
         value_type = *data++;
