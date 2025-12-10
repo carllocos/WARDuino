@@ -100,8 +100,9 @@ Hook *Hooks_nextScheduledHook(Hook *sorted_hooks,
             case ScheduleBeforeLogicalClock:
                 // TODO: decide whether before makes sense
                 // ScheduleBeforeLogicalClock means that the hook should
-                // be scheduled to run before the current logical-clock becomes
-                // equal to the logical-clock assigned to the hook
+                // be scheduled to run before the current logical-clock
+                // becomes equal to the logical-clock assigned to the
+                // hook
                 if (LogicalClock_is_t1_smaller_t2(
                         currentTime, hook->schedule.value.logicalClock)) {
                     return hook;
@@ -115,8 +116,9 @@ Hook *Hooks_nextScheduledHook(Hook *sorted_hooks,
                 break;
             case ScheduleAfterLogicalClock:
                 // ScheduleAfterLogicalClock means that the hook should
-                // be scheduled to run only after the current logical-clock
-                // becomes greater than the logical-clock assigned to the hook
+                // be scheduled to run only after the current
+                // logical-clock becomes greater than the logical-clock
+                // assigned to the hook
                 if (LogicalClock_is_t1_greater_t2(
                         currentTime, hook->schedule.value.logicalClock)) {
                     return hook;
