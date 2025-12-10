@@ -76,16 +76,8 @@ class InstrumentationManager {
     void run_hooks(const Channel &output, Module &module, Hook *hooks,
                    HookArgs &args, HooksResult &result);
 
-    bool run_hook_event(
-        const Channel &output, Module &module, Hook &hook,
-        std::function<void(std::function<void()>)> sendSubscriptionMsg,
-        Event *ev, HookEventMoment hookMoment);
-
-    void run_hook_on_new_event(const Channel &output, Module &module,
-                               Hook &hook, Event *ev);
-
-    void run_hook_on_handled_event(const Channel &output, Module &module,
-                                   Hook &hook, Event *ev);
+    HookRunResult run_hook(const Channel &output, Module &module, Hook &hook,
+                           HookArgs &args);
 
     bool do_value_substitution(Module *module, uint32_t func_called,
                                Hook *hook);
@@ -180,7 +172,7 @@ class InstrumentationManager {
     void runHooksOnError(const Channel &output, Module *module,
                          LogicalClock *currentTime);
 
-    void runHooksAfterWasmAddr(const Channel &output, Module *module,
+    bool runHooksAfterWasmAddr(const Channel &output, Module *module,
                                RunningState &runningState);
 
     bool runHooksOnInterceptedFuncCall(const Channel &output, Module *module,
