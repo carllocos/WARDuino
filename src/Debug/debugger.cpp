@@ -704,7 +704,7 @@ void Debugger::snapshot(Module *m) {
     ExecutionState state[] = {
         pcState,        breakpointsState, callstackState,      globalsState,
         tableState,     memoryState,      branchingTableState, stackState,
-        callbacksState, eventsState,      errorState};
+        callbacksState, eventsState,      errorState,          logicalClock};
     inspect.requestedState = state;
     Interrupt_Inspect_inspect_json_output(*this->channel, m, inspect);
 }
