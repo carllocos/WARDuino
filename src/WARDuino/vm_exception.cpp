@@ -6,11 +6,12 @@
 
 char exception[VM_Exception_Size] = {'\0'};
 
-void VM_Exception_write(const char* fmt, ...) {
+int VM_Exception_write(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    sprintf(exception, fmt);
+    int n = vsnprintf(exception, VM_Exception_Size, fmt, args);
     va_end(args);
+    return n;
 }
 
 char* VM_Exception_get_exception() { return exception; }
