@@ -651,7 +651,8 @@ bool InstrumentationManager::runHookForOnEventHandling(const Channel &output,
     if (hookToRun == nullptr || CallbackHandler::events->empty()) {
         if (hookToRun == nullptr) {
             printf(
-                "TODO: hooksForOnEventHandling: there is no hook found to be "
+                "TODO: hooksForOnEventHandling: there is no hook found to "
+                "be "
                 "run on newly pushed events. We will now therefore undo "
                 "the instrumentation but we still need to decide what "
                 "would be the default behaviour. Pause for instance?\n");
