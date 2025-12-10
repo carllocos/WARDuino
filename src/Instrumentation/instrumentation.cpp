@@ -1,5 +1,8 @@
 #include "instrumentation.h"
 
+#include <cstddef>
+#include <cstdint>
+
 #include "../Interrupts/interrupt_hook_on_addr.h"
 #include "../Interrupts/interrupt_hook_on_error.h"
 #include "../Interrupts/interrupt_hook_on_event.h"
@@ -7,6 +10,10 @@
 #include "../Interrupts/interrupt_response.h"
 #include "../Utils/macros.h"
 #include "../WARDuino/vm_exception.h"
+#include "hook.h"
+#include "instrumentation_structs.h"
+#include "logical_clock.h"
+#include "schedule.h"
 
 InstrumentationManager::InstrumentationManager() {}
 
@@ -341,61 +348,43 @@ bool InstrumentationManager::run_hook_event(
     const Channel &output, Module &module, Hook &hook,
     std::function<void(std::function<void()>)> sendSubscriptionMsg, Event *ev,
     HookEventMoment hookMoment) {
-    switch (hook.kind) {
-        case StateInspect: {
-            const Module *m = &module;
-            bool success = true;
-            std::function<void()> printState = [&output, m, hook, &success]() {
-                bool includeHeader = false;
-                bool includeNewline = false;
-                success = Interrupt_Inspect_inspect_json_output(
-                    output, m, *hook.value.state, includeHeader,
-                    includeNewline);
-            };
-            sendSubscriptionMsg(printState);
-            if (!success) {
-                VM_Exception_write("Unexisting State to inspect");
-                return false;
-            }
-            return true;
-        }
-        case EventRemove:
-            if (hookMoment == HookOnNewEvent) {
-                if (!CallbackHandler::pendingEvents->empty()) {
-                    CallbackHandler::pendingEvents->pop_front();
-                }
-                return true;
-            } else if (hookMoment == HookOnEventHandling) {
-                if (!CallbackHandler::events->empty()) {
-                    CallbackHandler::events->pop_front();
-                }
-                return true;
-            } else {
-                VM_Exception_write("Unsupported event hook moment");
-                return false;
-            }
-            break;
-        case EventInspect:
-            Interrupt_HookOnEvent_send_Binary_subscribe_message(output, *ev);
-            return true;
-        default:
-            VM_Exception_write("unsupported event hook");
-            return false;
-    }
-}
 
-bool InstrumentationManager::run_hook(
-    const Channel &output, Module &module, uint32_t local_fidx, Hook &hook,
-    std::function<void(std::function<void()>)> sendSubscriptionMsg,
-    RunningState &runningState) {
+
+HookRunResult InstrumentationManager::run_hook(const Channel &output,
+                                               Module &module, Hook &hook,
+                                               HookArgs &args) {
+    // TODO throw error if a hook is encountered that cannot be scheduled
+    // TODO check if pauzing, running still works
+    bool do_run = Hook_isScheduledForNow(args.currentTime, hook.schedule);
+    if (!do_run) {
+        return HookDelayed;
+    }
+    bool hook_success = false;
+    // TODO integrate hook removal here i.e., onto result
+    // while (hookToRun != nullptr) {
+    //     this->run_hook_on_new_event(output, *module, *hookToRun, ev);
+    //     Hooks_remove_completed_hook(res, this->hooksForOnNewEvent,
+    //                                 hookToRun);
+    //     this->hooksForOnNewEvent = res.newList;
+    //     if (CallbackHandler::pendingEvents->empty() ||
+    //         ev != CallbackHandler::pendingEvents->front()) {
+    //         // event got removed by last hook
+    //         // do no run remaining hooks
+    //         break;
+    //     }
+    //     hookToRun = res.nextHook;
+    // }
     switch (hook.kind) {
         case ProxyCall:
         case RemoteCall:
-            return this->do_remote_call(*this->fun_call_channel, &module,
-                                        local_fidx, hook.value.target_fidx,
-                                        hook.kind == ProxyCall);
+            hook_success = this->do_remote_call(
+                *this->fun_call_channel, &module, args.local_fidx,
+                hook.value.target_fidx, hook.kind == ProxyCall);
+            break;
         case ValueSubstitution:
-            return this->do_value_substitution(&module, local_fidx, &hook);
+            hook_success =
+                this->do_value_substitution(&module, args.local_fidx, &hook);
+            break;
         case StateInspect: {
             const Module *m = &module;
             bool success = true;
@@ -406,21 +395,50 @@ bool InstrumentationManager::run_hook(
                     output, m, *hook.value.state, includeHeader,
                     includeNewline);
             };
-            sendSubscriptionMsg(printState);
+            args.sendSubscriptionMsg(printState);
             if (!success) {
                 VM_Exception_write("Unexisting State to inspect");
-                return false;
             }
-            return true;
+            hook_success = success;
+            break;
         }
         case ChangeRunningState:
-            module.warduino->program_state = hook.value.runState;
-            return true;
+            args.runningState = hook.value.runState;
+            hook_success = true;
+            break;
+        case EventAdd: {
+            CallbackHandler::push_event(hook.value.ev->topic,
+                                        hook.value.ev->payload,
+                                        hook.value.ev->payload_length);
+            hook_success = true;
+            break;
+        }
+        case EventRemove:
+            if (args.eventMoment == HookOnNewEvent) {
+                if (!CallbackHandler::pendingEvents->empty()) {
+                    CallbackHandler::pendingEvents->pop_front();
+                }
+                hook_success = true;
+            } else if (args.eventMoment == HookOnEventHandling) {
+                if (!CallbackHandler::events->empty()) {
+                    CallbackHandler::events->pop_front();
+                }
+                hook_success = true;
+            } else {
+                VM_Exception_write("Unsupported event hook moment");
+                hook_success = false;
+            }
+            break;
+        case EventInspect:
+            Interrupt_HookOnEvent_send_Binary_subscribe_message(output,
+                                                                *(args.ev));
+            hook_success = true;
+            break;
         default:
-            VM_Exception_write("Unsupported around hook");
-            return false;
+            VM_Exception_write("About to run an unsupported hook kind");
+            hook_success = false;
+            break;
     }
-}
 
 void InstrumentationManager::run_hook_on_new_event(const Channel &output,
                                                    Module &module, Hook &hook,
