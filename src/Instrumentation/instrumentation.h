@@ -19,6 +19,30 @@ typedef struct MonitoredFrame {
     int frame_idx{-1};
 } MonitoredFrame;
 
+enum HookRunResult {
+    HookCompleted,
+    HookFailed,
+    HookDelayed,
+};
+
+typedef struct HooksResult {
+    Hook *hooks_left{};
+    bool one_delayed{};
+    bool success{};
+    uint8_t hook_idx{};
+} HooksResult;
+
+typedef struct HookArgs {
+    LogicalClock &currentTime;
+    uint32_t addr;
+    RunningState &runningState;
+    uint32_t local_fidx;
+    std::function<void(std::function<void()>)> sendSubscriptionMsg;
+    HookMoment moment;
+    HookEventMoment eventMoment;
+    Event *ev;
+} HookArgs;
+
 class InstrumentationManager {
    private:
     LogicalClock lastObservedTime{};
