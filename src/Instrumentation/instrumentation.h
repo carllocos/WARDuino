@@ -3,13 +3,10 @@
 #include <functional>
 #include <stack>
 #include <unordered_map>
-#include <vector>
 
 #include "../Instrumentation/logical_clock.h"
-#include "../Instrumentation/schedule.h"
 #include "../Interrupts/interrupt_hook_on_event_struct.h"
 #include "../Utils/sockets.h"
-#include "../WARDuino/CallbackHandler.h"
 #include "../WARDuino/event_structs.h"
 #include "../WARDuino/structs.h"
 #include "./hook.h"
