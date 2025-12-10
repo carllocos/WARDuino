@@ -12,6 +12,17 @@
 #define HOOK_ERROR_CODE_INSUFFICIENT_MEMORY 35;
 #define HOOK_ERROR_CODE_UNSUPPORTED_RUNNING_STATE 36;
 
+// todo refactor parse event
+// move error code
+#define HOOK_ERROR_CODE_EVENT_ADD_FAIL_PARSE 37;
+#define HOOK_ERROR_CODE_EVENT_ADD_EMPTY_TOPIC 38;
+
+typedef struct EventHook {
+    const char *topic{};
+    const char *payload{};
+    unsigned int payload_length{};
+} EventHook;
+
 enum HookKind {
     RemoteCall = 0x01,
     ValueSubstitution = 0x02,
@@ -23,6 +34,7 @@ enum HookKind {
     EventInspect = 0x10,
     EventRemove = 0x11,  // disallow when hookmoment === HookAfterEventHandled,
                          // maybe also for OnEventHandling?
+    EventAdd = 0x12,
 };
 
 struct Hook {
@@ -32,6 +44,7 @@ struct Hook {
         StackValue *result{};
         StateToInspect *state;
         RunningState runState;
+        EventHook *ev;
     } value;
     Schedule schedule{};
     Hook *nextHook{};
