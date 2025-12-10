@@ -89,52 +89,6 @@ Hook *Hooks_remove_completed_hook(Hook *hooks) {
     return first_hook;
 }
 
-Hook *Hooks_nextScheduledHook(Hook *sorted_hooks,
-                              const LogicalClock &currentTime) {
-    // sorted hooks go from logical-clock, ev dep, cond, once, always
-    // logical-clock < logical-clock < .. < logical-clock
-    // -> sub sort ts before(s) .... ts on ts .... ts after
-    // event dependency < event dep. < ... < event dep. condition
-    // Once < once < ... < once
-    // always (only one allowed)
-
-    Hook *hook = sorted_hooks;
-    while (hook != nullptr) {
-        switch (hook->schedule.kind) {
-            case ScheduleBeforeLogicalClock:
-                // TODO: decide whether before makes sense
-                // ScheduleBeforeLogicalClock means that the hook should
-                // be scheduled to run before the current logical-clock
-                // becomes equal to the logical-clock assigned to the
-                // hook
-                if (LogicalClock_is_t1_smaller_t2(
-                        currentTime, hook->schedule.value.logicalClock)) {
-                    return hook;
-                }
-                break;
-            case ScheduleOnLogicalClock:
-                if (LogicalClock_is_t1_equal_t2(
-                        hook->schedule.value.logicalClock, currentTime)) {
-                    return hook;
-                }
-                break;
-            case ScheduleAfterLogicalClock:
-                // ScheduleAfterLogicalClock means that the hook should
-                // be scheduled to run only after the current
-                // logical-clock becomes greater than the logical-clock
-                // assigned to the hook
-                if (LogicalClock_is_t1_greater_t2(
-                        currentTime, hook->schedule.value.logicalClock)) {
-                    return hook;
-                }
-                break;
-            case ScheduleOnce:
-                return hook;
-            case ScheduleAlways:
-                return hook;
-        }
-        hook = hook->nextHook;
-
 bool Hook_isScheduledForNow(LogicalClock ct, Schedule s) {
     switch (s.kind) {
         case ScheduleBeforeLogicalClock:
