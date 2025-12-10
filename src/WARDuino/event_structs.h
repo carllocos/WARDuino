@@ -25,3 +25,5 @@ class Callback {
 
     void resolve_event(const Event &e);
 };
+
+bool binary_decode_event(Event &ev, uint8_t *encoded_request);

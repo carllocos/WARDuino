@@ -2,6 +2,7 @@
 
 #include "../Interpreter/instructions.h"
 #include "../Utils/macros.h"
+#include "../Utils/util.h"
 
 // Event class
 
@@ -64,4 +65,31 @@ Callback::Callback(const Callback &c) {
     module = c.module;
     topic = c.topic;
     table_index = c.table_index;
+}
+
+bool binary_decode_event(Event &ev, uint8_t *encoded_request) {
+    // format: interrupt nr | nr of inspects | state x | state y | ...
+    // const topic = this.eventRequest.binaryEncodeTopic();
+    // const payload = this.eventRequest.binaryEncodePayload();
+    // return `${this.kind} ${topic} $ { payload }
+    uint8_t *data = encoded_request;
+    uint32_t topic_size = read_LEB_32(&data);
+    if (topic_size > 0) {
+        char *d = (char *)malloc((sizeof(char) * topic_size) + 1);
+        memcpy(d, data, topic_size);
+        d[topic_size + 1] = '\0';
+        ev.topic = d;
+    } else if (topic_size == 0) {
+        return false;
+    }
+    data += topic_size;
+
+    uint32_t payload_length = read_LEB_32(&data);
+    if (payload_length > 0) {
+        char *d = (char *)malloc((sizeof(char) * payload_length) + 1);
+        memcpy(d, data, payload_length);
+        d[payload_length + 1] = '\0';
+        ev.payload = d;
+    }
+    return true;
 }
