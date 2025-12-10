@@ -1585,8 +1585,11 @@ bool interpret(Module *m, bool waiting) {
         m->warduino->debugger->skipBreakpoint = nullptr;
 
         if (m->warduino->debugger->instrument.awakeOnNextInstruction) {
-            m->warduino->debugger->instrument.runHooksAfterWasmAddr(
+            success = m->warduino->debugger->instrument.runHooksAfterWasmAddr(
                 *m->warduino->debugger->channel, m, m->warduino->program_state);
+            if (!success) {
+                break;
+            }
         }
 
         opcode = *m->pc_ptr;
