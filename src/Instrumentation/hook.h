@@ -73,8 +73,7 @@ typedef struct {
  * Removes from a hooks linked list `first_hook` the completed hook
  * `hook_completed` and returns the updated linked list
  */
-void Hooks_remove_completed_hook(HooksRemoveResult &res, Hook *first_hook,
-                                 Hook *hook_completed);
+Hook *Hooks_remove_completed_hook(Hook *hooks);
 
 void Hooks_free_hook(Hook *hook);
 

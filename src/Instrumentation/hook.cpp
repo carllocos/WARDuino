@@ -37,34 +37,52 @@ Hook *Hooks_add_and_sort(Hook *hooks, Hook *hook_to_add) {
     return hooks;
 }
 
-void Hooks_remove_completed_hook(HooksRemoveResult &res, Hook *first_hook,
-                                 Hook *hook_completed) {
-    res.nextHook = hook_completed->nextHook;
-
-    if (hook_completed->schedule.kind == ScheduleAlways) {
-        // No delete needed, hook is scheduled for always
-        res.newList = first_hook;
-        return;
-    }
-
-    Hook *hook = first_hook;
-    Hook *prev = nullptr;
-    while (hook != nullptr) {
-        if (hook == hook_completed) {
-            if (prev != nullptr) {
-                prev->nextHook = hook->nextHook;
+Hook *Hooks_remove_completed_hook(Hook *hooks) {
+    Hook *first_hook = hooks;
+    Hook *prev_hook = nullptr;
+    Hook *current_hook = first_hook;
+    while (current_hook != nullptr) {
+        Hook *nc = nullptr;
+        bool remove = false;
+        switch (current_hook->schedule.kind) {
+            case ScheduleAlways:
+                break;
+            case ScheduleBeforeLogicalClock:
+                remove = LogicalClock_is_t1_smaller_t2(
+                    WARDuino::instance()->logicalClock,
+                    current_hook->schedule.value.logicalClock);
+                break;
+            case ScheduleOnLogicalClock:
+                remove = LogicalClock_is_t1_equal_t2(
+                    WARDuino::instance()->logicalClock,
+                    current_hook->schedule.value.logicalClock);
+                break;
+            case ScheduleAfterLogicalClock:
+                remove = LogicalClock_is_t1_greater_t2(
+                    WARDuino::instance()->logicalClock,
+                    current_hook->schedule.value.logicalClock);
+                break;
+            case ScheduleOnce: {
+                remove = true;
+                break;
             }
-            break;
         }
-        prev = hook;
-        hook = hook->nextHook;
-    }
 
-    if (hook != nullptr) {
-        Hooks_free_hook(hook_completed);
+        if (remove) {
+            nc = current_hook->nextHook;
+            Hooks_free_hook(current_hook);
+            current_hook = nc;
+            if (prev_hook == nullptr) {
+                first_hook = nc;
+            } else {
+                prev_hook->nextHook = current_hook;
+            }
+        } else {
+            prev_hook = current_hook;
+            current_hook = current_hook->nextHook;
+        }
     }
-
-    res.newList = prev == nullptr ? res.nextHook : first_hook;
+    return first_hook;
 }
 
 Hook *Hooks_nextScheduledHook(Hook *sorted_hooks,
