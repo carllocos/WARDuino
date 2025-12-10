@@ -1,6 +1,10 @@
 #include "hook.h"
 
+#include <cstring>
+
 #include "../Utils/util.h"
+#include "logical_clock.h"
+#include "schedule.h"
 
 /*
  * Declaration private functions
