@@ -129,7 +129,7 @@ bool CallbackHandler::resolve_event(const Channel &output, Module *module,
     CallbackHandler::resolving_event = true;
     CallbackHandler::events->pop_front();
 
-    debug("Resolving an event. (%lu remaining)\n",
+    debug("Resolving an event. (%zu remaining)\n",
           CallbackHandler::events->size());
 
     bool resolving_new_event = false;
