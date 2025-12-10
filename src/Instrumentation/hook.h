@@ -56,9 +56,6 @@ struct Hook {
  */
 Hook *Hooks_add_and_sort(Hook *hooks, Hook *hook_to_add);
 
-Hook *Hooks_nextScheduledHook(Hook *sorted_hooks,
-                              const LogicalClock &currentTime);
-
 bool Hook_isScheduledForNow(LogicalClock ct, Schedule s);
 
 bool Hooks_isHookWaitingForEvent(Hook *sorted_hooks,
