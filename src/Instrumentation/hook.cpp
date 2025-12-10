@@ -189,6 +189,10 @@ Hook *Hooks_copyHook(const Hook &hook) {
             case ChangeRunningState:
                 cpy->value.runState = hook.value.runState;
                 break;
+            case EventAdd: {
+                cpy->value.ev = hook.value.ev;
+                break;
+            }
             default:
                 return nullptr;
         }
@@ -305,6 +309,24 @@ bool Hooks_deserialize_hook_rest(Hook &dest, uint8_t **encoded_hook,
         case EventInspect:
         case EventRemove:
             break;
+        case EventAdd: {
+            Event e{"", ""};
+            if (!binary_decode_event(e, *encoded_hook)) {
+                error_code =
+                    HOOK_ERROR_CODE_SUBSTITUTE_STATE_INSPECT_IS_MALFORMED;
+
+                WARDuino::instance()->debugger->channel->write(
+                    "failed deserialize eventadd\n");
+                return false;
+            }
+            EventHook *ev =
+                new EventHook();  // TODO perhaps move above to avoid malloc
+            ev->payload = e.payload.c_str();
+            ev->topic = e.topic.c_str();
+            ev->payload_length = strlen(ev->payload);
+            dest.value.ev = ev;
+            break;
+        }
         default:
             printf("HookKind %02X is not supported\n", kind);
             error_code = HOOK_ERROR_CODE_UNEXISTING_HOOK_KIND;
