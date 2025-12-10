@@ -226,7 +226,8 @@ bool Hooks_deserialize_hook(Hook &dest, uint8_t **encoded_hook,
 bool Hooks_deserialize_schedule(Schedule &dest, uint8_t **encoded_schedule,
                                 uint8_t &error_code) {
     // format expected: SCHEDULE_KIND (1 BYTE)
-    // format logical-clock: nr of instructions (LEB32) | nr of events (LEB32);
+    // format logical-clock: nr of instructions (LEB32) | nr of events
+    // (LEB32);
 
     ScheduleKind schedule = (ScheduleKind) * *encoded_schedule;
     *encoded_schedule += 1;
