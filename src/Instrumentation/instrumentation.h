@@ -145,12 +145,12 @@ class InstrumentationManager {
      * Running hooks methods
      */
 
-    /* method called by the CallbackHandler to give control the Instrumentration
-     * object for intercepting events that will be handled.
+    /* method called by the CallbackHandler to give control the
+     * Instrumentration object for intercepting events that will be handled.
      *
-     * returns bool :  if true the Instrumentation wants to continue handling
-     * intercepting events after the call false the. If false control is given
-     * back to the callback handler
+     * returns bool :  if true the Instrumentation wants to continue
+     * handling intercepting events after the call false the. If false
+     * control is given back to the callback handler
      */
     bool runHookForOnEventHandling(const Channel &output, Module *module);
 
