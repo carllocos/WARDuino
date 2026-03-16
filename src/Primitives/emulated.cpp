@@ -26,7 +26,7 @@
 #include "primitives.h"
 
 #define NUM_PRIMITIVES 0
-#define NUM_PRIMITIVES_ARDUINO 24
+#define NUM_PRIMITIVES_ARDUINO 26
 
 #ifdef PRIMITIVES_NEOPIXEL
 #define PRIMITIVES_NEOPIXEL_NR 4
@@ -312,6 +312,16 @@ def_prim(subscribe_interrupt, threeToNoneU32) {
     return true;
 }
 
+def_prim(subscribe_disable, NoneToNoneU32) {
+    CallbackHandler::callbackEnabled = false;
+    return true;
+}
+
+def_prim(subscribe_enable, NoneToNoneU32) {
+    CallbackHandler::callbackEnabled = true;
+    return true;
+}
+
 def_prim(chip_ledc_setup, threeToNoneU32) {
     uint32_t channel = arg2.uint32;
     uint32_t freq = arg1.uint32;
@@ -378,6 +388,8 @@ void install_primitives() {
     install_primitive(write_spi_bytes_16);
 
     install_primitive(subscribe_interrupt);
+    install_primitive(subscribe_enable);
+    install_primitive(subscribe_disable);
 
 #ifdef PRIMITIVES_NEOPIXEL
     install_primitive(init_pixels);
