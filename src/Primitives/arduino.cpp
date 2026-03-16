@@ -9,8 +9,6 @@
  *  4) Extend the install_primitives function
  *
  */
-#include "Arduino.h"
-
 #include <HTTPClient.h>
 #include <WiFi.h>
 #include <sys/time.h>
@@ -23,10 +21,11 @@
 #include "../Utils/macros.h"
 #include "../Utils/util.h"
 #include "../WARDuino/vm_exception.h"
+#include "Arduino.h"
 #include "primitives.h"
 
 #define NUM_PRIMITIVES 0
-#define NUM_PRIMITIVES_ARDUINO 34
+#define NUM_PRIMITIVES_ARDUINO 36
 
 #ifdef PRIMITIVES_NEOPIXEL
 #define PRIMITIVES_NEOPIXEL_NR 4
@@ -538,6 +537,16 @@ def_prim(unsubscribe_interrupt, oneToNoneU32) {
     return true;
 }
 
+def_prim(subscribe_disable, NoneToNoneU32) {
+    CallbackHandler::callbackEnabled = false;
+    return true;
+}
+
+def_prim(subscribe_enable, NoneToNoneU32) {
+    CallbackHandler::callbackEnabled = true;
+    return true;
+}
+
 // MQTT MODULE
 
 #ifdef PRIMITIVES_MQTT
@@ -862,6 +871,8 @@ void install_primitives() {
 
     install_primitive(subscribe_interrupt);
     install_primitive(unsubscribe_interrupt);
+    install_primitive(subscribe_enable);
+    install_primitive(subscribe_disable);
 
 #ifdef PRIMITIVES_MQTT
     install_primitive(mqtt_init);
