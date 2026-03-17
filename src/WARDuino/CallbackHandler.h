@@ -21,6 +21,7 @@ class CallbackHandler {
     static std::deque<Event> *events;
     static std::deque<Event *> *pendingEvents;
     static bool pendingEventsActivated;
+    static bool callbackEnabled;
 
     static void setInstrumentationMangager(InstrumentationManager *manager);
 
