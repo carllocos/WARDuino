@@ -9,6 +9,8 @@
  *  4) Extend the install_primitives function
  *
  */
+#include "Arduino.h"
+
 #include <HTTPClient.h>
 #include <WiFi.h>
 #include <sys/time.h>
@@ -21,7 +23,6 @@
 #include "../Utils/macros.h"
 #include "../Utils/util.h"
 #include "../WARDuino/vm_exception.h"
-#include "Arduino.h"
 #include "primitives.h"
 
 #define NUM_PRIMITIVES 0

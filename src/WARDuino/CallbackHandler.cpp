@@ -1,9 +1,10 @@
+#include "CallbackHandler.h"
+
 #include <algorithm>
 
 #include "../Debug/debugger.h"
 #include "../Interpreter/instructions.h"
 #include "../Utils/macros.h"
-#include "CallbackHandler.h"
 
 void push_guard(Module *m) {
     if (m == nullptr) {
