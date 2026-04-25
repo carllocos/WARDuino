@@ -26,7 +26,7 @@
 #include "primitives.h"
 
 #define NUM_PRIMITIVES 0
-#define NUM_PRIMITIVES_ARDUINO 36
+#define NUM_PRIMITIVES_ARDUINO 37
 
 #ifdef PRIMITIVES_NEOPIXEL
 #define PRIMITIVES_NEOPIXEL_NR 4
@@ -488,6 +488,11 @@ def_prim(chip_ledc_attach_pin, twoToNoneU32) {
     return true;
 }
 
+def_prim(heap_used, zeroToOneU32) {
+    pushUInt32(m->warduino->get_heap_used());
+    return true;
+}
+
 // INTERRUPTS
 
 def_prim(subscribe_interrupt, threeToNoneU32) {
@@ -865,6 +870,7 @@ void install_primitives() {
     install_primitive(chip_digital_read);
     install_primitive(chip_analog_read);
     install_primitive(chip_delay_us);
+    install_primitive(heap_used);
 
     install_primitive(spi_begin);
     install_primitive(write_spi_byte);

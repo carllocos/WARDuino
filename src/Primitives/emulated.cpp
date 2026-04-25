@@ -26,7 +26,7 @@
 #include "primitives.h"
 
 #define NUM_PRIMITIVES 0
-#define NUM_PRIMITIVES_ARDUINO 26
+#define NUM_PRIMITIVES_ARDUINO 27
 
 #ifdef PRIMITIVES_NEOPIXEL
 #define PRIMITIVES_NEOPIXEL_NR 4
@@ -352,6 +352,12 @@ def_prim(chip_ledc_set_duty, threeToNoneU32) {
     return true;
 }
 
+def_prim(heap_used, zeroToOneU32) {
+    printf("EMU: heap_used()\n");
+    pushUInt32(m->warduino->get_heap_used());
+    return true;
+}
+
 //------------------------------------------------------
 // Installing all the primitives
 //------------------------------------------------------
@@ -382,6 +388,7 @@ void install_primitives() {
     install_primitive(chip_ledc_setup);
     install_primitive(chip_ledc_attach_pin);
     install_primitive(chip_ledc_set_duty);
+    install_primitive(heap_used);
 
     install_primitive(spi_begin);
     install_primitive(write_spi_byte);

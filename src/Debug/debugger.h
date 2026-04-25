@@ -6,8 +6,6 @@
 #include <mutex>
 #include <queue>  // std::queue
 #include <set>
-#include <thread>
-#include <unordered_map>
 #include <vector>
 
 #include "../Debug/runningstate.h"
@@ -73,6 +71,8 @@ class Debugger {
     void dumpCallstack(Module *m) const;
 
     void dumpCallbackmapping() const;
+
+    void dumpHeapInfo(Module *m) const;
 
     //// Handle live code update
 
