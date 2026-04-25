@@ -1,8 +1,8 @@
-#include "debugger.h"
-
 #include <algorithm>
 #include <cinttypes>
 #include <cstring>
+
+#include "debugger.h"
 #ifndef ARDUINO
 #include <nlohmann/json.hpp>
 #else
@@ -450,8 +450,11 @@ void Debugger::dump(Module *m, bool full) const {
         this->channel->write(R"(, "locals": )");
         this->dumpLocals(m);
         this->channel->write(", ");
-        this->dumpEvents(0, CallbackHandler::event_count());
+        this->dumpEvents(0, static_cast<long>(CallbackHandler::event_count()));
+        this->channel->write(", ");
     }
+
+    this->dumpHeapInfo(m);
 
     this->channel->write("}\n\n");
     //    fflush(stdout);
@@ -514,7 +517,7 @@ void Debugger::dumpCallstack(Module *m) const {
         this->channel->write("\"start\":%" PRIu32
                              ",\"ra\":%d,\"callsite\":%d}%s",
                              toVA(f->block->start_ptr), retaddr,
-                             callsite_retaddr, (i < m->csp) ? "," : "]");
+                             callsite_retaddr, (i < m->csp) ? "," : "],");
     }
 }
 
@@ -590,6 +593,10 @@ void Debugger::dumpEvents(long start, long size) const {
 
 void Debugger::dumpCallbackmapping() const {
     this->channel->write("%s\n", CallbackHandler::dump_callbacks().c_str());
+}
+
+void Debugger::dumpHeapInfo(Module *m) const {
+    this->channel->write(R"("heap":{"used":%u})", m->warduino->get_heap_used());
 }
 
 /**
@@ -700,11 +707,12 @@ bool Debugger::handlePushedEvent(char *bytes) const {
 
 void Debugger::snapshot(Module *m) {
     StateToInspect inspect{};
-    inspect.numberOfInspects = 11;
+    inspect.numberOfInspects = 12;
     ExecutionState state[] = {
         pcState,        breakpointsState, callstackState,      globalsState,
         tableState,     memoryState,      branchingTableState, stackState,
-        callbacksState, eventsState,      errorState,          logicalClock};
+        callbacksState, eventsState,      errorState,          logicalClock,
+        heapState};
     inspect.requestedState = state;
     Interrupt_Inspect_inspect_json_output(*this->channel, m, inspect);
 }
