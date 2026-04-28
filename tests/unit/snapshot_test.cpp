@@ -43,8 +43,9 @@ TEST_F(Snapshot, ContainsEachStateKind) {
 
     // the following keys is the content that the snapshot should print
     std::unordered_set<std::string> expectedKeys{
-        "pc",       "breakpoints", "callstack", "stack",  "globals",  "table",
-        "br_table", "memory",      "callbacks", "events", "exception"};
+        "pc",        "breakpoints", "callstack", "stack",     "globals",
+        "table",     "br_table",    "memory",    "callbacks", "events",
+        "exception", "clock",       "heap"};
 
     JSONCompanion comp{snapshot};
     std::unordered_set<std::string> unExpectedKeys =
