@@ -200,4 +200,13 @@ Type NoneToOneU64 = {.form = FUNC,
                      .results = param_I64_arr_len1,
                      .mask = 0x82000};
 
+Type zeroToOneU32 = {
+    .form = FUNC,
+    .param_count = 0,
+    .params = param_arr_len0,
+    .result_count = 1,
+    .results = param_I32_arr_len1,
+    .mask = 0x810 /* 0x8 1=I32 0=endRet ; no params*/
+};
+
 #endif
