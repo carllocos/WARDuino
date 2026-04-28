@@ -447,7 +447,7 @@ void Debugger::dump(Module *m, bool full) const {
     this->dumpCallstack(m);
 
     if (full) {
-        this->channel->write(R"(, "locals": )");
+        this->channel->write(R"("locals": )");
         this->dumpLocals(m);
         this->channel->write(", ");
         this->dumpEvents(0, static_cast<long>(CallbackHandler::event_count()));
