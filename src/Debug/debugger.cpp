@@ -1,8 +1,8 @@
+#include "debugger.h"
+
 #include <algorithm>
 #include <cinttypes>
 #include <cstring>
-
-#include "debugger.h"
 #ifndef ARDUINO
 #include <nlohmann/json.hpp>
 #else
