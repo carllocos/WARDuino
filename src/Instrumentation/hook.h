@@ -63,7 +63,7 @@ bool Hooks_isHookWaitingForEvent(Hook *sorted_hooks,
 
 Hook *Hooks_copyHook(const Hook &hook);
 
-typedef struct {
+typedef struct HooksRemoveResult {
     Hook *newList{};
     Hook *nextHook{};
 } HooksRemoveResult;

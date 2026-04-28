@@ -17,19 +17,19 @@
 #define REMOTE_CALL_ERROR_CODE_MALFORMED_RESPONSE 30
 #define REMOTE_CALL_ERROR_CODE_MALFORMED_REQUEST_INTERRUPT_NR 31
 
-typedef struct {
+typedef struct CallResult {
     bool success;
     StackValue *value{};
     char *exception_msg{};
 } CallResult;
 
-typedef struct {
+typedef struct FunCallResponse {
     uint8_t type{};
     uint8_t error_code{};
     CallResult *result;
 } FunCallResponse;
 
-typedef struct {
+typedef struct FunCallRequest {
     uint32_t fun{};
     uint32_t number_args{};
     StackValue *args{};

@@ -6,11 +6,11 @@
 #define HOOK_ON_ERROR_ERROR_CODE_INVALID_INTERRUPT_NR 1;
 #define HOOK_ON_ERROR_ERROR_CODE_UNALLOWED_HOOK 2;
 
-typedef struct {
+typedef struct HookOnErrorRequest {
     Hook *hook{};
 } HookOnErrorRequest;
 
-typedef struct {
+typedef struct HookOnErrorResponse {
     uint8_t type{};
     uint8_t error_code{};
 } HookOnErrorResponse;

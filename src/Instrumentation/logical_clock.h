@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-typedef struct {
+typedef struct LogicalClock {
     uint32_t nr_of_instructions{};
     uint32_t nr_of_events{};
 } LogicalClock;

@@ -10,7 +10,7 @@ typedef struct HooksPrimitiveFunc {
     Hook *hook{};               // hooks to perform instead of original_func
 } HooksPrimitiveFunc;
 
-typedef struct {
+typedef struct HooksWasmAddr {
     uint32_t address{};         // wasm address that needs to be intercepted
     uint8_t original_opcode{};  // original opcode
     Hook *hook{};               // hooks to perform on address
