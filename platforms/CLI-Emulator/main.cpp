@@ -172,6 +172,7 @@ void *setupDebuggerCommunication(debugger_options *options) {
     }
 
     wac->debugger->setChannel(duplex);
+    return nullptr;
 }
 
 const std::map<std::string, speed_t> &baudrateMap() {
