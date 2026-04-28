@@ -20,7 +20,7 @@ enum ExecutionState {
     logicalClock = 0x0C
 };
 
-typedef struct {
+typedef struct InspectStateRequest {
     uint16_t numberOfInspects{};
     ExecutionState *requestedState{};
 } InspectStateRequest;

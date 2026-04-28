@@ -150,7 +150,7 @@ uint32_t read_L32(uint8_t **bytes);
 void chars_as_hexa(unsigned char *dest, unsigned char *source,
                    uint32_t len_source);
 
-typedef struct {
+typedef struct HexUInt8Encoding {
     ssize_t bytesWritten{-1};
     char *encoding{};
 } HexUInt8Encoding;

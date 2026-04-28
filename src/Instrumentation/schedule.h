@@ -10,7 +10,7 @@ enum ScheduleKind {
     ScheduleAfterLogicalClock = 0x23  // hook executed after given logical-clock
 };
 
-typedef struct {
+typedef struct Schedule {
     ScheduleKind kind;
     union {
         LogicalClock logicalClock{};

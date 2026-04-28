@@ -13,12 +13,12 @@
 #define AROUND_FUNC_ERROR_CODE_REMOVE_HOOKS_FAILED 8
 #define AROUND_FUNC_ERROR_CODE_REQUEST_HAS_WRONG_INTERRUPT_NR 9
 
-typedef struct {
+typedef struct AroundFunctionResponse {
     uint8_t error_code{AROUND_FUNC_ERROR_CODE_NO_ERROR_CODE_SET};
     uint8_t type{};
 } AroundFunctionResponse;
 
-typedef struct {
+typedef struct AroundFunctionRequest {
     uint32_t func_idx;
     bool addHook;
     Hook hook;
