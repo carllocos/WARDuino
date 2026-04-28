@@ -17,7 +17,8 @@ enum ExecutionState {
     callbacksState = 0x09,
     eventsState = 0x0A,
     errorState = 0x0B,
-    logicalClock = 0x0C
+    logicalClock = 0x0C,
+    heapState = 0x0D,
 };
 
 typedef struct InspectStateRequest {

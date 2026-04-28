@@ -52,6 +52,7 @@ bool Interrupt_Inspect_deserialize_request(InspectStateRequest &request,
             case eventsState:
             case errorState:
             case logicalClock:
+            case heapState:
                 request.requestedState[i] = (enum ExecutionState)data[i];
                 break;
             default:
@@ -207,6 +208,13 @@ bool Interrupt_Inspect_inspect_json_output(const Channel &requester,
                                 addComma ? "," : "",
                                 m->warduino->logicalClock.nr_of_instructions,
                                 m->warduino->logicalClock.nr_of_events);
+                addComma = true;
+                break;
+            }
+            case heapState: {
+                uint32_t heap_used = m->warduino->get_heap_used();
+                requester.write(R"(%s"heap":{"used":%d})", addComma ? "," : "",
+                                heap_used);
                 addComma = true;
                 break;
             }
