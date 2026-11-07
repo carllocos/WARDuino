@@ -10,6 +10,7 @@
 #include "../WARDuino/structs.h"
 #include "./hook.h"
 #include "./instrumentation_structs.h"
+#include "./wasm_addr_hooks_table.h"
 
 #define INSTRUMENTATION_INTERCEPT_OPCODE 0xff
 
@@ -21,12 +22,10 @@ typedef struct MonitoredFrame {
 enum HookRunResult {
     HookCompleted,
     HookFailed,
-    HookDelayed,
 };
 
 typedef struct HooksResult {
     Hook *hooks_left{};
-    bool one_delayed{};
     bool success{};
     uint8_t hook_idx{};
 } HooksResult;
@@ -59,11 +58,11 @@ class InstrumentationManager {
     std::unordered_map<uint32_t, HooksPrimitiveFunc *>
         hooks_around_prim_funcs{};
 
-    std::unordered_map<uint32_t, HooksWasmAddr *> instr_wasm_addr_before{};
+    WasmAddrHooksTable instr_wasm_addr_before{};
 
-    std::unordered_map<uint32_t, HooksWasmAddr *> instr_wasm_addr_after{};
+    WasmAddrHooksTable instr_wasm_addr_after{};
 
-    std::unordered_map<uint32_t, HooksWasmAddr *> instr_wasm_addr_around{};
+    WasmAddrHooksTable instr_wasm_addr_around{};
 
     Hook *hooksForOnNewEvent{};
 
@@ -76,27 +75,28 @@ class InstrumentationManager {
 
     void delete_Primitive_Instrumentation(HooksPrimitiveFunc *func);
 
-    HooksWasmAddr *new_WasmAddress_Instrumentation();
-
     bool do_remote_call(Channel &channel, Module *m, uint32_t local_fidx,
                         uint32_t func_to_call, bool isProxyCall);
 
     void run_hooks(const Channel &output, Module &module, Hook *hooks,
                    HookArgs &args, HooksResult &result);
 
-    HookRunResult run_hook(const Channel &output, Module &module, Hook &hook,
-                           HookArgs &args);
+    HookRunResult run_hook(const Channel &output, Module &module,
+                           const Hook &hook, HookArgs &args);
+
+    void run_wasm_addr_hooks(const Channel &output, Module &module,
+                             HooksWasmAddr &instr, HookArgs &args,
+                             HooksResult &result);
 
     bool do_value_substitution(Module *module, uint32_t func_called,
-                               Hook *hook);
+                               const Hook *hook);
 
     bool do_wasm_addr_hooks(const Channel &hookOutput, Module &module,
                             LogicalClock &currentTime, uint32_t addr,
                             uint8_t &opcode, RunningState &runningState,
                             HookMoment moment);
 
-    std::unordered_map<uint32_t, HooksWasmAddr *> *wasmAddrHooksMap(
-        HookMoment moment);
+    WasmAddrHooksTable *wasmAddrHooksMap(HookMoment moment);
 
     void monitorAfterHooks(Module &module, uint32_t addr);
 
@@ -138,8 +138,7 @@ class InstrumentationManager {
      * Hook registration methods
      */
 
-    bool addHookAroundFunction(Module &m, uint32_t func_idx,
-                               const Hook &around);
+    bool addHookAroundFunction(Module &m, uint32_t func_idx, Hook &around);
 
     bool removeHooksAroundFunction(Module &m, uint32_t func_idx);
 
