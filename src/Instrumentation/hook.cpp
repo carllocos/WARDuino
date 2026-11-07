@@ -164,8 +164,7 @@ void Hooks_init_shared_inspect_hook(Hook &dest, uint32_t id,
 const Hook &Hooks_shared_pause_hook() { return sharedPauseHook; }
 
 bool Hooks_is_always_pause_hook(const Hook &hook) {
-    return hook.kind == ChangeRunningState &&
-           !hook.once &&
+    return hook.kind == ChangeRunningState && !hook.once &&
            hook.value.runState == WARDUINOpause;
 }
 

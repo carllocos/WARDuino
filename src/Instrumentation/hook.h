@@ -93,8 +93,7 @@ bool Hooks_is_always_shared_inspect_hook(const Hook &hook);
  * Initialises `dest` as a StateInspect hook, scheduled always, with id `id`
  * that inspects the shared state (see `Hooks_shared_state`).
  */
-void Hooks_init_shared_inspect_hook(Hook &dest, uint32_t id,
-                                    bool includeStack);
+void Hooks_init_shared_inspect_hook(Hook &dest, uint32_t id, bool includeStack);
 
 /*
  * Returns a shared hook that pauses the VM every time it runs
