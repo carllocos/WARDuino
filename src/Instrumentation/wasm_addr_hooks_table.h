@@ -57,9 +57,9 @@ class WasmAddrHooksTable {
         HooksWasmAddr *existing = this->find(addr);
         if (existing != nullptr) return existing;
         if ((uint64_t)(this->count + 1) * 5 > (uint64_t)this->capacity * 4) {
-            uint32_t newCapacity =
-                this->capacity == 0 ? MIN_CAPACITY
-                                    : this->capacity + this->capacity / 2;
+            uint32_t newCapacity = this->capacity == 0
+                                       ? MIN_CAPACITY
+                                       : this->capacity + this->capacity / 2;
             if (!this->resize(newCapacity)) return nullptr;
         }
         uint32_t i = this->home(addr);
@@ -84,8 +84,8 @@ class WasmAddrHooksTable {
             j = this->next(j);
             if (this->entries[j].address == EMPTY_ADDR) break;
             uint32_t k = this->home(this->entries[j].address);
-            bool kInCyclicRange = (i <= j) ? (i < k && k <= j)
-                                           : (i < k || k <= j);  // (i, j]
+            bool kInCyclicRange =
+                (i <= j) ? (i < k && k <= j) : (i < k || k <= j);  // (i, j]
             if (!kInCyclicRange) {
                 this->entries[i] = this->entries[j];
                 i = j;

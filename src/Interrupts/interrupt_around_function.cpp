@@ -9,9 +9,10 @@
 /*
  * Declaration private functions
  */
-bool registerOrUnregisterAroundFunctionHook(
-    InstrumentationManager &manager, Module &m,
-    AroundFunctionRequest &request, uint8_t &error_code);
+bool registerOrUnregisterAroundFunctionHook(InstrumentationManager &manager,
+                                            Module &m,
+                                            AroundFunctionRequest &request,
+                                            uint8_t &error_code);
 
 /*
  * Public functions
@@ -83,9 +84,10 @@ bool Interrupt_AroundFunction_deserialize_request(AroundFunctionRequest &dest,
  * Private functions
  */
 
-bool registerOrUnregisterAroundFunctionHook(
-    InstrumentationManager &manager, Module &m,
-    AroundFunctionRequest &request, uint8_t &error_code) {
+bool registerOrUnregisterAroundFunctionHook(InstrumentationManager &manager,
+                                            Module &m,
+                                            AroundFunctionRequest &request,
+                                            uint8_t &error_code) {
     if (request.func_idx >= m.function_count) {
         error_code = AROUND_FUNC_ERROR_CODE_UNEXISTING_LOCAL_FUNC;
         return false;

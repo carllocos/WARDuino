@@ -536,7 +536,6 @@ bool InstrumentationManager::runHooksOnInterceptedFuncCall(
     return false;
 }
 
-
 void writeSubscriptionContent(const Channel &output, HookArgs &args,
                               const Hook &hook, bool start) {
     if (args.hookOnAddressSubContent != nullptr) {
@@ -552,8 +551,7 @@ void writeSubscriptionContent(const Channel &output, HookArgs &args,
 }
 
 HookRunResult InstrumentationManager::run_hook(const Channel &output,
-                                               Module &module,
-                                               const Hook &hook,
+                                               Module &module, const Hook &hook,
                                                HookArgs &args) {
     bool hook_success = false;
     switch (hook.kind) {
@@ -769,7 +767,8 @@ bool InstrumentationManager::runHooksOnWasmAddr(const Channel &output,
             this->monitorAfterHooks(*module, addr);
             if (!upcodeRestored) {
                 // When there is no before the opcode needs to be set
-                opcode = this->instr_wasm_addr_after.find(addr)->original_opcode;
+                opcode =
+                    this->instr_wasm_addr_after.find(addr)->original_opcode;
             }
         }
     }
@@ -818,8 +817,8 @@ void InstrumentationManager::run_wasm_addr_hooks(const Channel &output,
         instr.hooks.list = result.hooks_left;  // completed hooks got removed
     }
     if (instr.pausesAfterHooks()) {
-        HookRunResult r = this->run_hook(output, module,
-                                         Hooks_shared_pause_hook(), args);
+        HookRunResult r =
+            this->run_hook(output, module, Hooks_shared_pause_hook(), args);
         result.success = r != HookFailed;
     }
 }

@@ -35,7 +35,7 @@ typedef struct HooksWasmAddr {
     uint8_t original_opcode{};  // original opcode
     uint8_t flags{};            // HOOKS_WASM_ADDR_* flags
     union {
-        Hook *list;  // hooks to perform on address (when not inline)
+        Hook *list;          // hooks to perform on address (when not inline)
         uint32_t inline_id;  // id of the inline StateInspect hook
     } hooks{};
 
