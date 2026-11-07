@@ -40,16 +40,12 @@ void InstrumentationManager::delete_Primitive_Instrumentation(
     delete func;
 }
 
-HooksWasmAddr *InstrumentationManager::new_WasmAddress_Instrumentation() {
-    return new HooksWasmAddr{};
-}
-
 bool InstrumentationManager::has_HooksOnAroundFunction(uint32_t funID) {
     return this->hooks_around_prim_funcs.count(funID) > 0;
 }
 
-std::unordered_map<uint32_t, HooksWasmAddr *>
-    *InstrumentationManager::wasmAddrHooksMap(HookMoment moment) {
+WasmAddrHooksTable *InstrumentationManager::wasmAddrHooksMap(
+    HookMoment moment) {
     switch (moment) {
         case HookBefore:
             return &this->instr_wasm_addr_before;
@@ -63,9 +59,37 @@ std::unordered_map<uint32_t, HooksWasmAddr *>
     return nullptr;
 }
 
+/*
+ * Turns the inline StateInspect hook of `instr` (if any) into a hook of the
+ * hook list such that other hooks can be added after it.
+ */
+static bool materializeInlineHook(HooksWasmAddr &instr) {
+    if (!instr.hasInlineInspect()) {
+        return true;
+    }
+    Hook inlined{};
+    Hooks_init_shared_inspect_hook(
+        inlined, instr.hooks.inline_id,
+        (instr.flags & HOOKS_WASM_ADDR_INLINE_INSPECT_STACK) != 0);
+    Hook *hook = Hooks_copyHook(inlined);
+    if (hook == nullptr) {
+        return false;
+    }
+    instr.flags &= ~(HOOKS_WASM_ADDR_INLINE_INSPECT |
+                     HOOKS_WASM_ADDR_INLINE_INSPECT_STACK);
+    instr.hooks.list = hook;
+    return true;
+}
+
+static void freeWasmAddrHooks(HooksWasmAddr &instr) {
+    Hooks_free_hooks(instr.hookList());
+    instr.hooks.list = nullptr;
+    instr.flags = 0;
+}
+
 bool InstrumentationManager::has_HookOnWasmAddr(uint32_t addr,
                                                 HookMoment moment) {
-    return this->wasmAddrHooksMap(moment)->count(addr) > 0;
+    return this->wasmAddrHooksMap(moment)->contains(addr);
 }
 
 bool InstrumentationManager::isAddHookOnEventAllowed(Hook &hook) {
@@ -99,7 +123,7 @@ bool InstrumentationManager::isAddHookAroundFuncAllowed(uint32_t funID) {
     // something else than always such as once then that hook is put in front
     // of the always so that once the once is consumed the always remains.
     Hook *hook = this->hooks_around_prim_funcs[funID]->hook;
-    return hook == nullptr || hook->schedule.kind != ScheduleAlways;
+    return hook == nullptr || hook->once;
 }
 
 bool InstrumentationManager::isAddHookOnErrorAllowed(Hook &hook) {
@@ -107,7 +131,7 @@ bool InstrumentationManager::isAddHookOnErrorAllowed(Hook &hook) {
 }
 
 bool InstrumentationManager::addHookAroundFunction(Module &m, uint32_t func_idx,
-                                                   const Hook &around) {
+                                                   Hook &around) {
     if (func_idx > m.function_count) {
         return false;
     } else if (func_idx < m.import_count) {
@@ -141,9 +165,8 @@ bool InstrumentationManager::removeHooksOnWasmAddress(Module &module,
         return false;
     }
 
-    std::unordered_map<uint32_t, HooksWasmAddr *> *mapForErase =
-        this->wasmAddrHooksMap(moment);
-    HooksWasmAddr *instr = (*mapForErase)[addr];
+    WasmAddrHooksTable *mapForErase = this->wasmAddrHooksMap(moment);
+    HooksWasmAddr *instr = mapForErase->find(addr);
     bool restoreOpcode = true;
     for (HookMoment other : {HookBefore, HookAfter, HookAround}) {
         if (other != moment && this->has_HookOnWasmAddr(addr, other)) {
@@ -151,18 +174,13 @@ bool InstrumentationManager::removeHooksOnWasmAddress(Module &module,
         }
     }
 
-    while (instr->hook != nullptr) {
-        Hook *hookToFree = instr->hook;
-        instr->hook = instr->hook->nextHook;
-        Hooks_free_hook(hookToFree);
-    }
+    freeWasmAddrHooks(*instr);
 
     if (restoreOpcode) {
         module.bytes[addr] = instr->original_opcode;
     }
 
     mapForErase->erase(addr);
-    delete instr;
     return true;
 }
 
@@ -300,12 +318,50 @@ bool InstrumentationManager::addHookOnWasmAddress(Module &module, uint32_t addr,
     }
     HooksWasmAddr *instr =
         this->start_wasm_addr_intercept(module, addr, moment);
-
-    Hook *cpy{};
-    if (instr == nullptr || (cpy = Hooks_copyHook(hook)) == nullptr) {
+    if (instr == nullptr) {
         return false;
     }
-    instr->hook = Hooks_add_and_sort(instr->hook, cpy);
+
+    if (Hooks_is_always_pause_hook(hook)) {
+        // Conceptually the shared pause hook is the last hook in the list.
+        // Pausing twice in a row is the same as pausing once, so there is
+        // never a need to allocate a dedicated pause hook at the tail.
+        instr->flags |= HOOKS_WASM_ADDR_PAUSE_AFTER_HOOKS;
+        return true;
+    }
+
+    if (instr->isEmpty() && Hooks_is_always_shared_inspect_hook(hook)) {
+        // Common case: the first hook on the address inspects a shared state.
+        // Store it inline, no hook needs to be allocated.
+        instr->hooks.inline_id = hook.id;
+        instr->flags |= HOOKS_WASM_ADDR_INLINE_INSPECT;
+        if (hook.value.state == Hooks_shared_state(true)) {
+            instr->flags |= HOOKS_WASM_ADDR_INLINE_INSPECT_STACK;
+        }
+        return true;
+    }
+
+    // To preserve the order in which the hooks run, materialise the inline
+    // hook (runs first) and the shared pause hook (runs last) before adding
+    // the new hook at the end.
+    if (!materializeInlineHook(*instr)) {
+        return false;
+    }
+    if (instr->pausesAfterHooks()) {
+        Hook pause = Hooks_shared_pause_hook();
+        Hook *pauseCpy = Hooks_copyHook(pause);
+        if (pauseCpy == nullptr) {
+            return false;
+        }
+        instr->hooks.list = Hooks_add_and_sort(instr->hooks.list, pauseCpy);
+        instr->flags &= ~HOOKS_WASM_ADDR_PAUSE_AFTER_HOOKS;
+    }
+
+    Hook *cpy = Hooks_copyHook(hook);
+    if (cpy == nullptr) {
+        return false;
+    }
+    instr->hooks.list = Hooks_add_and_sort(instr->hooks.list, cpy);
     return true;
 }
 
@@ -314,8 +370,11 @@ bool InstrumentationManager::addHookOnNewEvent(Hook &hook) {
         return false;
     }
     CallbackHandler::pendingEventsActivated = true;
-    Hook *h = new Hook();
-    *h = hook;
+    Hook *h = Hooks_new_hook();
+    if (h == nullptr) {
+        return false;
+    }
+    *h = hook;  // the hook takes ownership of the resources of `hook`
     h->nextHook = nullptr;
     this->hooksForOnNewEvent = Hooks_add_and_sort(this->hooksForOnNewEvent, h);
 
@@ -327,8 +386,11 @@ bool InstrumentationManager::addHookOnEventHandling(Hook &hook) {
         return false;
     }
 
-    Hook *h = new Hook();
-    *h = hook;
+    Hook *h = Hooks_new_hook();
+    if (h == nullptr) {
+        return false;
+    }
+    *h = hook;  // the hook takes ownership of the resources of `hook`
     h->nextHook = nullptr;
     this->hooksForOnEventHandling =
         Hooks_add_and_sort(this->hooksForOnEventHandling, h);
@@ -342,8 +404,11 @@ bool InstrumentationManager::addHookOnError(Hook &hook) {
         return false;
     }
 
-    Hook *h = new Hook();
-    *h = hook;
+    Hook *h = Hooks_new_hook();
+    if (h == nullptr) {
+        return false;
+    }
+    *h = hook;  // the hook takes ownership of the resources of `hook`
     h->nextHook = nullptr;
     this->hooksForOnError = Hooks_add_and_sort(this->hooksForOnError, h);
     this->interceptError = true;
@@ -413,7 +478,7 @@ bool InstrumentationManager::do_remote_call(Channel &channel, Module *module,
 
 bool InstrumentationManager::do_value_substitution(Module *module,
                                                    uint32_t func_called,
-                                                   Hook *hook) {
+                                                   const Hook *hook) {
     Type *type = module->functions[func_called].type;
     module->sp -= type->param_count;  // pop args
     if (type->result_count > 0) {
@@ -463,29 +528,17 @@ bool InstrumentationManager::runHooksOnInterceptedFuncCall(
     HooksResult result{};
     this->run_hooks(output, *module, hookToRun, args, result);
     instr->hook = result.hooks_left;
-    if (result.one_delayed) {
-        // We did not find a hook to run
-        // normally we should wait the hook to be scheduled for run
-        // by letting the original intercepted function be called
-        // for now we pause the execution
-        printf(
-            "TODO: restore the PC to the position before the call "
-            "(and pause the VM)?");
-        runningState = WARDUINOpause;
-        // TODO send messages via subscription for waiting for incoming
-        // event to occur return true;
-    } else {
-        VM_Exception_write("No hook scheduled for primitive call");
-        return false;
-    }
-
-    //
-    // After call instrumentation(s)
-    return result.success;
+    // TODO: decide what to do after the around hooks ran. Previously, only
+    // hooks delayed by a logical clock schedule (no longer supported) paused
+    // the VM here; in all other cases the call was reported as failed. That
+    // behaviour is preserved.
+    VM_Exception_write("No hook scheduled for primitive call");
+    return false;
 }
 
-void writeSubscriptionContent(const Channel &output, HookArgs &args, Hook &hook,
-                              bool start) {
+
+void writeSubscriptionContent(const Channel &output, HookArgs &args,
+                              const Hook &hook, bool start) {
     if (args.hookOnAddressSubContent != nullptr) {
         args.hookOnAddressSubContent(output, args.moment, args.addr, hook.id,
                                      start);
@@ -499,14 +552,9 @@ void writeSubscriptionContent(const Channel &output, HookArgs &args, Hook &hook,
 }
 
 HookRunResult InstrumentationManager::run_hook(const Channel &output,
-                                               Module &module, Hook &hook,
+                                               Module &module,
+                                               const Hook &hook,
                                                HookArgs &args) {
-    // TODO throw error if a hook is encountered that cannot be scheduled
-    // TODO check if pauzing, running still works
-    bool do_run = Hook_isScheduledForNow(args.currentTime, hook.schedule);
-    if (!do_run) {
-        return HookDelayed;
-    }
     bool hook_success = false;
     switch (hook.kind) {
         case ProxyCall:
@@ -628,10 +676,9 @@ bool InstrumentationManager::runHooksAfterWasmAddr(const Channel &output,
         if (!has_HookOnWasmAddr(addr, HookAfter)) {
             continue;
         }
-        HooksWasmAddr *instr = this->instr_wasm_addr_after[addr];
+        HooksWasmAddr *instr = this->instr_wasm_addr_after.find(addr);
 
         auto lc = module->warduino->logicalClock;
-        Hook *hooks = instr->hook;
         HookEventMoment unusedEventMoment = HookOnNewEvent;
         HookArgs args = {
             .currentTime = lc,
@@ -645,9 +692,8 @@ bool InstrumentationManager::runHooksAfterWasmAddr(const Channel &output,
             .eventMoment = unusedEventMoment,
             .ev = nullptr,
         };
-        HooksResult res;
-        this->run_hooks(output, *module, hooks, args, res);
-        instr->hook = res.hooks_left;
+        HooksResult res{};
+        this->run_wasm_addr_hooks(output, *module, *instr, args, res);
         if (!res.success) {
             if (!VM_Exception_has_exception()) {
                 VM_Exception_write("Failed to run hook %" PRIu8
@@ -657,7 +703,7 @@ bool InstrumentationManager::runHooksAfterWasmAddr(const Channel &output,
             return false;
         }
 
-        if (instr->hook == nullptr) {
+        if (instr->isEmpty()) {
             // all the hooks got run so no need to instrument on addr
             bool s = this->removeHooksOnWasmAddress(*module, addr, HookAfter);
             if (!s) {
@@ -723,8 +769,7 @@ bool InstrumentationManager::runHooksOnWasmAddr(const Channel &output,
             this->monitorAfterHooks(*module, addr);
             if (!upcodeRestored) {
                 // When there is no before the opcode needs to be set
-                auto instr = this->instr_wasm_addr_after[addr];
-                opcode = instr->original_opcode;
+                opcode = this->instr_wasm_addr_after.find(addr)->original_opcode;
             }
         }
     }
@@ -739,16 +784,43 @@ void InstrumentationManager::run_hooks(const Channel &output, Module &module,
     result.hook_idx = 0;
     while (next_hook != nullptr) {
         run_result = this->run_hook(output, module, *next_hook, args);
-        if (run_result == HookDelayed)
-            result.one_delayed = true;
-        else if (run_result == HookFailed)
-            break;
+        if (run_result == HookFailed) break;
         next_hook = next_hook->nextHook;
         result.hook_idx += 1;
     }
     result.success = run_result != HookFailed;
     if (result.success) {
         result.hooks_left = Hooks_remove_completed_hook(hooks);
+    }
+}
+
+void InstrumentationManager::run_wasm_addr_hooks(const Channel &output,
+                                                 Module &module,
+                                                 HooksWasmAddr &instr,
+                                                 HookArgs &args,
+                                                 HooksResult &result) {
+    if (instr.hasInlineInspect()) {
+        Hook inlined{};
+        Hooks_init_shared_inspect_hook(
+            inlined, instr.hooks.inline_id,
+            (instr.flags & HOOKS_WASM_ADDR_INLINE_INSPECT_STACK) != 0);
+        result.hook_idx = 0;
+        result.success =
+            this->run_hook(output, module, inlined, args) != HookFailed;
+        if (!result.success) {
+            return;
+        }
+    } else {
+        this->run_hooks(output, module, instr.hooks.list, args, result);
+        if (!result.success) {
+            return;
+        }
+        instr.hooks.list = result.hooks_left;  // completed hooks got removed
+    }
+    if (instr.pausesAfterHooks()) {
+        HookRunResult r = this->run_hook(output, module,
+                                         Hooks_shared_pause_hook(), args);
+        result.success = r != HookFailed;
     }
 }
 
@@ -772,7 +844,7 @@ bool InstrumentationManager::do_wasm_addr_hooks(const Channel &output,
         return false;
     }
 
-    HooksWasmAddr *instr = (*this->wasmAddrHooksMap(moment))[addr];
+    HooksWasmAddr *instr = this->wasmAddrHooksMap(moment)->find(addr);
     HookEventMoment unusedMoment = HookOnNewEvent;
     HookArgs args = {
         .currentTime = currentTime,
@@ -786,7 +858,7 @@ bool InstrumentationManager::do_wasm_addr_hooks(const Channel &output,
         .eventMoment = unusedMoment,
         .ev = nullptr};
     HooksResult result{};
-    this->run_hooks(output, module, instr->hook, args, result);
+    this->run_wasm_addr_hooks(output, module, *instr, args, result);
     if (result.success) opcode = instr->original_opcode;
     return result.success;
 }
@@ -828,7 +900,7 @@ uint8_t InstrumentationManager::getOriginalOpcode(Module &module,
                                                   uint32_t addr) {
     for (HookMoment moment : {HookBefore, HookAfter, HookAround}) {
         if (this->has_HookOnWasmAddr(addr, moment)) {
-            return (*this->wasmAddrHooksMap(moment))[addr]->original_opcode;
+            return this->wasmAddrHooksMap(moment)->find(addr)->original_opcode;
         }
     }
     return module.bytes[addr];
@@ -836,23 +908,24 @@ uint8_t InstrumentationManager::getOriginalOpcode(Module &module,
 
 HooksWasmAddr *InstrumentationManager::start_wasm_addr_intercept(
     Module &module, const uint32_t addr, HookMoment moment) {
-    std::unordered_map<uint32_t, HooksWasmAddr *> *hooksMap =
-        this->wasmAddrHooksMap(moment);
-    if (this->has_HookOnWasmAddr(addr, moment)) {
-        return (*hooksMap)[addr];
+    WasmAddrHooksTable *hooksMap = this->wasmAddrHooksMap(moment);
+    HooksWasmAddr *found = hooksMap->find(addr);
+    if (found != nullptr) {
+        return found;
     }
 
     // The first time for which an instrumentation occurs for the wasm
-    // address
+    // address. The record is stored inline in the table to avoid a separate
+    // allocation per instrumented address.
     uint8_t original = this->getOriginalOpcode(module, addr);
-    HooksWasmAddr *instr = this->new_WasmAddress_Instrumentation();
-    if (instr != nullptr) {
-        instr->address = addr;
-        instr->original_opcode = original;
-        module.bytes[addr] = INSTRUMENTATION_INTERCEPT_OPCODE;
-        instr->hook = nullptr;
-        (*hooksMap)[addr] = instr;
+    HooksWasmAddr *instr = hooksMap->insert(addr);
+    if (instr == nullptr) {
+        return nullptr;
     }
+    instr->original_opcode = original;
+    instr->flags = 0;
+    instr->hooks.list = nullptr;
+    module.bytes[addr] = INSTRUMENTATION_INTERCEPT_OPCODE;
     return instr;
 }
 
@@ -974,16 +1047,19 @@ void InstrumentationManager::stopRunningHooksOnNewEvents() {
     CallbackHandler::pendingEventsActivated = false;
 
     Hooks_free_hooks(this->hooksForOnNewEvent);
+    this->hooksForOnNewEvent = nullptr;
 }
 
 void InstrumentationManager::stopRunningHooksOnEventsHandled() {
     this->interceptEvents = false;
     Hooks_free_hooks(this->hooksForOnEventHandling);
+    this->hooksForOnEventHandling = nullptr;
 }
 
 void InstrumentationManager::stopRunningHooksOnError() {
     this->interceptError = false;
     Hooks_free_hooks(this->hooksForOnError);
+    this->hooksForOnError = nullptr;
 }
 
 bool Instrumentation_interceptPrimitiveCall(Module *m) {

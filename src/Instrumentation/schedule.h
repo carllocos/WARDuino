@@ -1,18 +1,13 @@
 #pragma once
-#include "./logical_clock.h"
+#include <cstdint>
 
-enum ScheduleKind {
-    ScheduleOnce = 0x01,            // hook run once and as soon as possible
-    ScheduleAlways = 0x03,          // hook runs everytime
-    ScheduleOnLogicalClock = 0x21,  // hook executed on logical-clock
-    ScheduleBeforeLogicalClock =
-        0x22,  // hook executed before given logical-clock
-    ScheduleAfterLogicalClock = 0x23  // hook executed after given logical-clock
+/*
+ * Wire format of a schedule: SCHEDULE_KIND (1 byte)
+ *
+ * A hook either runs every time (the default) or only once after which it is
+ * removed. A hook only stores whether it runs once (see `Hook::once`).
+ */
+enum ScheduleKind : uint8_t {
+    ScheduleOnce = 0x01,   // hook run once and as soon as possible
+    ScheduleAlways = 0x03  // hook runs everytime
 };
-
-typedef struct Schedule {
-    ScheduleKind kind;
-    union {
-        LogicalClock logicalClock{};
-    } value;
-} Schedule;

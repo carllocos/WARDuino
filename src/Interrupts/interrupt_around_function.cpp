@@ -11,7 +11,7 @@
  */
 bool registerOrUnregisterAroundFunctionHook(
     InstrumentationManager &manager, Module &m,
-    const AroundFunctionRequest &request, uint8_t &error_code);
+    AroundFunctionRequest &request, uint8_t &error_code);
 
 /*
  * Public functions
@@ -85,7 +85,7 @@ bool Interrupt_AroundFunction_deserialize_request(AroundFunctionRequest &dest,
 
 bool registerOrUnregisterAroundFunctionHook(
     InstrumentationManager &manager, Module &m,
-    const AroundFunctionRequest &request, uint8_t &error_code) {
+    AroundFunctionRequest &request, uint8_t &error_code) {
     if (request.func_idx >= m.function_count) {
         error_code = AROUND_FUNC_ERROR_CODE_UNEXISTING_LOCAL_FUNC;
         return false;

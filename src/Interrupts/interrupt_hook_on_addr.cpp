@@ -33,6 +33,9 @@ void Interrupt_HookOnAddr_handle_request(const Channel &channel, Module &module,
         response.type = INTERRUPT_RESPONSE_TYPE_ERROR;
         response.error_code = error;
     }
+    // On success the hook resources got moved into the registered hook. On
+    // failure, release whatever the deserialization allocated.
+    Hooks_free_hook_value(hook);
     response.id = msg->id;
     Interrupt_HookOnAddr_send_response(channel, response);
 }

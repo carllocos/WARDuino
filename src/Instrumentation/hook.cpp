@@ -1,9 +1,10 @@
 #include "hook.h"
 
+#include <cstdlib>
 #include <cstring>
+#include <new>
 
 #include "../Utils/util.h"
-#include "logical_clock.h"
 #include "schedule.h"
 
 /*
@@ -12,9 +13,179 @@
 bool Hooks_deserialize_hook_rest(Hook &dest, uint8_t **encoded_hook,
                                  uint8_t &error_code);
 
+bool Hooks_deserialize_state_to_inspect(Hook &dest, uint8_t **encoded_hook,
+                                        uint8_t &error_code);
+
+/*
+ * Hook pool
+ *
+ * Hooks are allocated in chunks to avoid the malloc overhead (header and
+ * alignment) of allocating each hook individually. Free hooks are kept in a
+ * free list linked via `nextHook`. Chunks grow geometrically so that a few
+ * hooks only take a little memory (relevant for MCUs) while many hooks
+ * amortise the chunk allocations. Once no hook is in use anymore, all chunks
+ * are released.
+ */
+namespace {
+struct HookChunk {
+    HookChunk *next;
+};
+
+constexpr uint32_t HOOK_POOL_MIN_CHUNK_SIZE = 16;
+constexpr uint32_t HOOK_POOL_MAX_CHUNK_SIZE = 4096;
+constexpr size_t HOOK_CHUNK_HEADER_SIZE =
+    (sizeof(HookChunk) + alignof(Hook) - 1) / alignof(Hook) * alignof(Hook);
+
+HookChunk *hookChunks = nullptr;
+Hook *freeHooks = nullptr;
+uint32_t nextChunkSize = HOOK_POOL_MIN_CHUNK_SIZE;
+size_t hooksInUse = 0;
+
+bool hookPoolGrow() {
+    uint32_t nrHooks = nextChunkSize;
+    void *mem = malloc(HOOK_CHUNK_HEADER_SIZE + nrHooks * sizeof(Hook));
+    if (mem == nullptr) {
+        return false;
+    }
+    HookChunk *chunk = static_cast<HookChunk *>(mem);
+    chunk->next = hookChunks;
+    hookChunks = chunk;
+    Hook *hooks = reinterpret_cast<Hook *>(static_cast<uint8_t *>(mem) +
+                                           HOOK_CHUNK_HEADER_SIZE);
+    for (uint32_t i = nrHooks; i > 0; i--) {
+        Hook *h = new (&hooks[i - 1]) Hook();
+        h->nextHook = freeHooks;
+        freeHooks = h;
+    }
+    if (nextChunkSize < HOOK_POOL_MAX_CHUNK_SIZE) {
+        nextChunkSize *= 2;
+    }
+    return true;
+}
+
+void hookPoolRelease() {
+    while (hookChunks != nullptr) {
+        HookChunk *next = hookChunks->next;
+        free(hookChunks);
+        hookChunks = next;
+    }
+    freeHooks = nullptr;
+    nextChunkSize = HOOK_POOL_MIN_CHUNK_SIZE;
+}
+
+void hookPoolReturn(Hook *hook) {
+    hook->nextHook = freeHooks;
+    freeHooks = hook;
+    hooksInUse -= 1;
+    if (hooksInUse == 0) {
+        hookPoolRelease();
+    }
+}
+
+/*
+ * Shared states to inspect. The client requests the states sorted, so a
+ * request for the pc and the stack always arrives as [pc, stack].
+ */
+ExecutionState sharedPCOnly[] = {pcState};
+ExecutionState sharedPCAndStack[] = {pcState, stackState};
+StateToInspect makeSharedState(uint16_t nrOfInspects, ExecutionState *states) {
+    StateToInspect s{};
+    s.numberOfInspects = nrOfInspects;
+    s.requestedState = states;
+    return s;
+}
+
+StateToInspect sharedStatePC = makeSharedState(1, sharedPCOnly);
+StateToInspect sharedStatePCAndStack = makeSharedState(2, sharedPCAndStack);
+
+bool sameStates(const StateToInspect &s1, const StateToInspect &s2) {
+    return s1.numberOfInspects == s2.numberOfInspects &&
+           memcmp(s1.requestedState, s2.requestedState,
+                  s1.numberOfInspects * sizeof(ExecutionState)) == 0;
+}
+
+StateToInspect *findSharedState(const StateToInspect &state) {
+    for (StateToInspect *shared : {&sharedStatePC, &sharedStatePCAndStack}) {
+        if (sameStates(*shared, state)) {
+            return shared;
+        }
+    }
+    return nullptr;
+}
+
+Hook makeSharedPauseHook() {
+    Hook h{};
+    h.id = 0;  // never observed: changing the running state sends no message
+    h.kind = ChangeRunningState;
+    h.once = false;
+    h.value.runState = WARDUINOpause;
+    h.nextHook = nullptr;
+    return h;
+}
+
+const Hook sharedPauseHook = makeSharedPauseHook();
+}  // namespace
+
 /*
  * Public functions
  */
+Hook *Hooks_new_hook() {
+    if (freeHooks == nullptr && !hookPoolGrow()) {
+        return nullptr;
+    }
+    Hook *hook = freeHooks;
+    freeHooks = hook->nextHook;
+    hooksInUse += 1;
+    return new (hook) Hook();
+}
+
+bool Hooks_is_shared_state(const StateToInspect *state) {
+    return state == &sharedStatePC || state == &sharedStatePCAndStack;
+}
+
+StateToInspect *Hooks_shared_state(bool includeStack) {
+    return includeStack ? &sharedStatePCAndStack : &sharedStatePC;
+}
+
+bool Hooks_is_always_shared_inspect_hook(const Hook &hook) {
+    return hook.kind == StateInspect && !hook.once &&
+           Hooks_is_shared_state(hook.value.state);
+}
+
+void Hooks_init_shared_inspect_hook(Hook &dest, uint32_t id,
+                                    bool includeStack) {
+    dest.id = id;
+    dest.kind = StateInspect;
+    dest.once = false;
+    dest.value.state = Hooks_shared_state(includeStack);
+    dest.nextHook = nullptr;
+}
+
+const Hook &Hooks_shared_pause_hook() { return sharedPauseHook; }
+
+bool Hooks_is_always_pause_hook(const Hook &hook) {
+    return hook.kind == ChangeRunningState &&
+           !hook.once &&
+           hook.value.runState == WARDUINOpause;
+}
+
+void Hooks_free_hook_value(Hook &hook) {
+    switch (hook.kind) {
+        case ValueSubstitution:
+            delete hook.value.result;
+            hook.value.result = nullptr;
+            break;
+        case StateInspect:
+            if (!Hooks_is_shared_state(hook.value.state)) {
+                Interrupt_Inspect_free_state_to_inspect(hook.value.state);
+            }
+            hook.value.state = nullptr;
+            break;
+        default:
+            break;
+    }
+}
+
 Hook *Hooks_add_and_sort(Hook *hooks, Hook *hook_to_add) {
     if (hook_to_add == nullptr) {
         return hooks;
@@ -47,30 +218,7 @@ Hook *Hooks_remove_completed_hook(Hook *hooks) {
     Hook *current_hook = first_hook;
     while (current_hook != nullptr) {
         Hook *nc = nullptr;
-        bool remove = false;
-        switch (current_hook->schedule.kind) {
-            case ScheduleAlways:
-                break;
-            case ScheduleBeforeLogicalClock:
-                remove = LogicalClock_is_t1_smaller_t2(
-                    WARDuino::instance()->logicalClock,
-                    current_hook->schedule.value.logicalClock);
-                break;
-            case ScheduleOnLogicalClock:
-                remove = LogicalClock_is_t1_equal_t2(
-                    WARDuino::instance()->logicalClock,
-                    current_hook->schedule.value.logicalClock);
-                break;
-            case ScheduleAfterLogicalClock:
-                remove = LogicalClock_is_t1_greater_t2(
-                    WARDuino::instance()->logicalClock,
-                    current_hook->schedule.value.logicalClock);
-                break;
-            case ScheduleOnce: {
-                remove = true;
-                break;
-            }
-        }
+        bool remove = current_hook->once;
 
         if (remove) {
             nc = current_hook->nextHook;
@@ -89,92 +237,49 @@ Hook *Hooks_remove_completed_hook(Hook *hooks) {
     return first_hook;
 }
 
-bool Hook_isScheduledForNow(LogicalClock ct, Schedule s) {
-    switch (s.kind) {
-        case ScheduleBeforeLogicalClock:
-            return LogicalClock_is_t1_smaller_t2(ct, s.value.logicalClock);
-        case ScheduleAfterLogicalClock:
-            return LogicalClock_is_t1_greater_t2(ct, s.value.logicalClock);
-        case ScheduleOnLogicalClock:
-            return LogicalClock_is_t1_equal_t2(ct, s.value.logicalClock);
+Hook *Hooks_copyHook(Hook &hook) {
+    switch (hook.kind) {
+        case ProxyCall:
+        case RemoteCall:
+        case ValueSubstitution:
+        case StateInspect:
+        case ChangeRunningState:
+        case EventAdd:
+            break;
         default:
-            return true;
+            return nullptr;
     }
-}
+    if (hook.kind == StateInspect && hook.value.state == nullptr) {
+        return nullptr;
+    }
 
-bool Hooks_isHookWaitingForEvent(Hook *sorted_hooks,
-                                 const LogicalClock &currentTime) {
-    Hook *hook = sorted_hooks;
-    while (hook != nullptr) {
-        // TODO decide: whether to move the code here to Sceduler.h
-        switch (hook->schedule.kind) {
-            case ScheduleOnLogicalClock:
-            case ScheduleAfterLogicalClock:
-            case ScheduleBeforeLogicalClock:
-                return hook->schedule.value.logicalClock.nr_of_events >
-                           currentTime.nr_of_events &&
-                       hook->schedule.value.logicalClock.nr_of_instructions >=
-                           currentTime.nr_of_instructions;
-            default:
-                hook = hook->nextHook;
-        }
+    Hook *cpy = Hooks_new_hook();
+    if (cpy == nullptr) {
+        return nullptr;
     }
-    return false;
-}
-
-Hook *Hooks_copyHook(const Hook &hook) {
-    Hook *cpy = new Hook();
-    if (cpy != nullptr) {
-        cpy->kind = hook.kind;
-        cpy->schedule = hook.schedule;
-        switch (cpy->kind) {
-            case ProxyCall:
-            case RemoteCall:
-                cpy->value.target_fidx = hook.value.target_fidx;
-                break;
-            case ValueSubstitution:
-                if (hook.value.result != nullptr) {
-                    cpy->value.result = new StackValue;
-                    if (cpy->value.result == nullptr) {
-                        delete cpy;
-                        cpy = nullptr;
-                    } else {
-                        cpy->value.result->value = hook.value.result->value;
-                        cpy->value.result->value_type =
-                            hook.value.result->value_type;
-                    }
-                }
-                break;
-            case StateInspect:
-                cpy->value.state = Interrupt_Inspect_new_state_to_inspect();
-                if (!Interrupt_Inspect_copy_state_to_inspect(
-                        *cpy->value.state, *hook.value.state)) {
-                    delete cpy;
-                    cpy = nullptr;
-                }
-                Interrupt_Inspect_free_state_to_inspect(hook.value.state);
-                break;
-            case ChangeRunningState:
-                cpy->value.runState = hook.value.runState;
-                break;
-            case EventAdd: {
-                cpy->value.ev = hook.value.ev;
-                break;
-            }
-            default:
-                return nullptr;
-        }
+    // move the hook: resources owned by `hook` (e.g., the state to inspect or
+    // the substitute value) are transferred to the copy
+    *cpy = hook;
+    cpy->nextHook = nullptr;
+    switch (hook.kind) {
+        case ValueSubstitution:
+            hook.value.result = nullptr;
+            break;
+        case StateInspect:
+            hook.value.state = nullptr;
+            break;
+        default:
+            break;
     }
-    cpy->id = hook.id;
     return cpy;
 }
 
 void Hooks_free_hook(Hook *hook) {
-    hook->nextHook = nullptr;
-    if (hook->kind == ValueSubstitution && hook->value.result != nullptr) {
-        delete hook->value.result;
+    if (hook == nullptr || hook == &sharedPauseHook) {
+        return;
     }
-    delete hook;
+    Hooks_free_hook_value(*hook);
+    hookPoolReturn(hook);
 }
 
 void Hooks_free_hooks(Hook *hook) {
@@ -192,37 +297,28 @@ bool Hooks_deserialize_hook(Hook &dest, uint32_t id, uint8_t **encoded_hook,
                             uint8_t &error_code) {
     // format expected: Schedule | Hook
     dest.id = id;
-    return Hooks_deserialize_schedule(dest.schedule, encoded_hook,
-                                      error_code) &&
-           Hooks_deserialize_hook_rest(dest, encoded_hook, error_code);
+    if (!Hooks_deserialize_schedule(dest.once, encoded_hook, error_code)) {
+        return false;
+    }
+    return Hooks_deserialize_hook_rest(dest, encoded_hook, error_code);
 }
 
-bool Hooks_deserialize_schedule(Schedule &dest, uint8_t **encoded_schedule,
+bool Hooks_deserialize_schedule(bool &once, uint8_t **encoded_schedule,
                                 uint8_t &error_code) {
     // format expected: SCHEDULE_KIND (1 BYTE)
-    // format logical-clock: nr of instructions (LEB32) | nr of events
-    // (LEB32);
-
     ScheduleKind schedule = (ScheduleKind) * *encoded_schedule;
     *encoded_schedule += 1;
     switch (schedule) {
         case ScheduleOnce:
+            once = true;
+            return true;
         case ScheduleAlways:
-            break;
-        case ScheduleOnLogicalClock:
-        case ScheduleBeforeLogicalClock:
-        case ScheduleAfterLogicalClock:
-            dest.value.logicalClock.nr_of_instructions =
-                read_LEB_32(encoded_schedule);
-            dest.value.logicalClock.nr_of_events =
-                read_LEB_32(encoded_schedule);
-            break;
+            once = false;
+            return true;
         default:
             error_code = HOOK_ERROR_CODE_UNEXISTING_SCHEDULE_KIND;
             return false;
     }
-    dest.kind = schedule;
-    return true;
 }
 
 bool Hooks_deserialize_hook_rest(Hook &dest, uint8_t **encoded_hook,
@@ -254,16 +350,8 @@ bool Hooks_deserialize_hook_rest(Hook &dest, uint8_t **encoded_hook,
             break;
         }
         case StateInspect:
-            // TODO unfiromly malloc or free during deserialization
-            dest.value.state = Interrupt_Inspect_new_state_to_inspect();
-            if (dest.value.state == nullptr) {
-                error_code = HOOK_ERROR_CODE_INSUFFICIENT_MEMORY;
-                return false;
-            }
-            if (!Interrupt_Inspect_deserialize_request(
-                    *dest.value.state, *encoded_hook, error_code)) {
-                error_code =
-                    HOOK_ERROR_CODE_SUBSTITUTE_STATE_INSPECT_IS_MALFORMED;
+            if (!Hooks_deserialize_state_to_inspect(dest, encoded_hook,
+                                                    error_code)) {
                 return false;
             }
             break;
@@ -303,5 +391,34 @@ bool Hooks_deserialize_hook_rest(Hook &dest, uint8_t **encoded_hook,
             return false;
     }
     dest.kind = kind;
+    return true;
+}
+bool Hooks_deserialize_state_to_inspect(Hook &dest, uint8_t **encoded_hook,
+                                        uint8_t &error_code) {
+    dest.value.state = nullptr;
+    StateToInspect parsed{};
+    if (!Interrupt_Inspect_deserialize_request(parsed, *encoded_hook,
+                                               error_code)) {
+        free(parsed.requestedState);
+        error_code = HOOK_ERROR_CODE_SUBSTITUTE_STATE_INSPECT_IS_MALFORMED;
+        return false;
+    }
+
+    // Reuse a shared state when possible such that no memory is needed
+    StateToInspect *shared = findSharedState(parsed);
+    if (shared != nullptr) {
+        free(parsed.requestedState);
+        dest.value.state = shared;
+        return true;
+    }
+
+    StateToInspect *state = Interrupt_Inspect_new_state_to_inspect();
+    if (state == nullptr) {
+        free(parsed.requestedState);
+        error_code = HOOK_ERROR_CODE_INSUFFICIENT_MEMORY;
+        return false;
+    }
+    *state = parsed;  // takes ownership of the requested states
+    dest.value.state = state;
     return true;
 }
